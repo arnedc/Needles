@@ -1,0 +1,83 @@
+/Default input file for parreml.
+/Comment lines are started with a 'slash', /
+/The order of the parameters is not important, but some are mandatory.
+/filenames can start with a slash to include absolute paths.
+
+/Number of observations (mandatory)
+#Observations
+100
+
+/Number of SNPs (mandatory)
+#SNPs
+4002
+
+/number of fixed effects (mandatory)
+#FixedEffects
+12
+
+/number of random (non-SNP) effects (mandatory)
+#RandomEffects
+5
+
+/filename of the incidence matrix of the fixed effects (csr format, mandatory) 
+#FileFixedEffects
+Xmatrix.csr
+
+/filename of the incidence matrix of the random (non-SNP) effects (csr format, mandatory) 
+#FileRandomEffects
+Zmatrix.csr
+
+/If the phenotypes and genotypes are in an HDF5-file put 1, if they are in a binary file put 0 (mandatory)
+#DataFileHDF5
+1
+
+/Filename of the SNP data file (mandatory if DataFileHDF5 = 0, binary)
+#SNPDataFile
+Simulateddata_10k.h5
+
+/Filename of the pheno data file (mandatory if DataFileHDF5 = 0, binary)
+#PhenoDataFile
+Simulateddata_10k.h5
+
+/If DataFileHDF5 is 1, define the paths for genotypes and phenotypes in the HDF5-file
+/(mandatory if datafileHDF5=1)
+#PathGeno
+QTL_unres
+
+#PathPheno
+pheno_norm_unres
+
+/If a validation dataset is available in the HDF5-file provide its path (optional)
+#PathTest
+QTL_res
+
+/filename of testset when not using HDF5-files (optional, binary)
+#TestFile
+testset.bin
+
+/number of samples in the testset (mandatory if TestFile or PathTest is given)
+#TestSamples
+20
+
+/If enough memory is available one can store the coefficient matrix during the entire computation
+/This option reduces execution time since the coefficient matrix no longer is set up at the beginning of every iteration
+/(0: don't keep copy; 1: keep copy) (optional, default=0)
+#KeepCopyOfCMatrix
+0
+
+/size of the blocks in which the matrix is distributed (optional, default=64)
+#BlockSize
+64
+
+/start value of variance parameter to be estimated (optional, default=100)
+#Lambda
+100
+
+/convergence criterium (optional, default=0.01)
+#Epsilon
+0.01
+
+/maximum number of iterations (optional, default=20)
+#MaximumIterations
+20
+
