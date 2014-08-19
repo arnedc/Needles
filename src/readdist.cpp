@@ -40,7 +40,7 @@ extern "C" {
                    int *jb, int *descb, double *beta, double *c, int *ic, int *jc, int *descc );
 }
 
-int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, int * DESCYTOT, double * ytot, double *respnrm ) {
+int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, int * DESCYTOT, double * ytot, double *respnrm, CSRdouble& Btsparse  ) {
 
     // Read-in of matrices X, Z and T from file (filename[X,Z,T])
     // X and Z are read in entrely by every process
@@ -56,7 +56,6 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
     double * ZtY, *XtY;
     int nTblocks, nstrips, pTblocks, stripcols, lld_T, pcol, colcur,rowcur;
     int nYblocks, pYblocks, lld_Y, Ystart;
-    int ml_plus=m+l+1;
 
     MPI_Status status;
 
@@ -70,8 +69,6 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 
     XtT_sparse.allocate ( m,k,0 );
     ZtT_sparse.allocate ( l,k,0 );
-
-
 
     pcol= * ( position+1 );
 
@@ -325,27 +322,27 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
     free ( Tblock );
     if (iam==0) {
         *respnrm = dnrm2_ (&n,Y,&i_one);
-	*respnrm = *respnrm * *respnrm;
+        *respnrm = *respnrm * *respnrm;
         XtY=(double * ) calloc(m,sizeof(double));
         if(XtY==NULL) {
             printf("Unable to allocate memory for XtY in root process.\n");
             return -1;
         }
-        mult_colsA_colsC_denseC ( Xtsparse, Y, n, 0, n, 0, 1, XtY, m, 0);
+        mult_colsA_colsC_denseC ( Xtsparse, Y, n, 0, n, 0, 1, XtY, m, false, 1.0);
         ZtY=(double * ) calloc(l,sizeof(double));
         if(ZtY==NULL) {
             printf("Unable to allocate memory for ZtY in root process.\n");
             return -1;
         }
-        mult_colsA_colsC_denseC ( Ztsparse, Y, n, 0, n, 0, 1, ZtY, l, 0);
-	free(Y);
+        mult_colsA_colsC_denseC ( Ztsparse, Y, n, 0, n, 0, 1, ZtY, l, false, 1.0);
+        free(Y);
     }
     pdlacpy_("A",&m,&i_one,XtY,&i_one,&i_one,DESCXtY, ytot,&i_one,&i_one,DESCYTOT);
     pdlacpy_("A",&l,&i_one,ZtY,&i_one,&i_one,DESCZtY, ytot,&m_plus,&i_one,DESCYTOT);
-    
-    if(iam==0){
-      free(XtY);
-      free(ZtY);
+
+    if(iam==0) {
+        free(XtY);
+        free(ZtY);
     }
 
     info=fclose ( fT );
@@ -449,7 +446,6 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         ZtT_sparse.transposeIt ( 1 );
 
         // B' is created by concatening blocks X'T and Z'T
-        CSRdouble Btsparse;
         create1x2BlockMatrix ( XtT_sparse, ZtT_sparse,Btsparse );
         //Btsparse.writeToFile("BT_sparse.csr");
 
@@ -946,21 +942,24 @@ int update_C ( int * DESCC, double * Cmat, double update) {
 }
 
 
-int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int * DESCC, double * Cmat, double sigma ) {
+int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, int * DESCD, double * Dmat, CSRdouble &Asparse, CSRdouble &Btsparse, double sigma ) {
 
     // Read-in of matrices Z,X and y from file (filename) directly into correct processes and calculation of matrix C
     // Is done strip per strip
 
-    FILE *fZ, *fX;
+    FILE* fZ, * fY;
     int ni, i,j, info;
-    int *DESCZ, *DESCY, *DESCX, *DESCZU, *DESCQRHS, *DESCQSOL;
-    double *Zblock, *Xblock, *yblock, *Zublock, *QRHS, *Qsol,*nrmblock, sigma_rec;
-    int nZblocks, nXblocks, nstrips, pZblocks, pXblocks, stripcols, lld_Z, lld_X, pcol, colcur,rowcur;
+    int *DESCT, *DESCY, *DESCTD, *DESCQRHS, *DESCQSOL;
+    double *Tblock, *yblock, *Tdblock, *QRHS, *Qsol,*nrmblock, sigma_rec, *Zu;
+    int nTblocks, nstrips, pTblocks, stripcols, lld_T, pcol, colcur,rowcur;
+
+    CSRdouble Xtsparse, Ztsparse,XtT_sparse,ZtT_sparse,XtT_temp, ZtT_temp;
+
 
     // Initialisation of descriptors of different matrices
 
-    DESCZ= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
-    if ( DESCZ==NULL ) {
+    DESCT= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
+    if ( DESCT==NULL ) {
         printf ( "unable to allocate memory for descriptor for Z\n" );
         return -1;
     }
@@ -969,13 +968,8 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
         printf ( "unable to allocate memory for descriptor for Y\n" );
         return -1;
     }
-    DESCX= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
-    if ( DESCX==NULL ) {
-        printf ( "unable to allocate memory for descriptor for X\n" );
-        return -1;
-    }
-    DESCZU= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
-    if ( DESCZU==NULL ) {
+    DESCTD= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
+    if ( DESCTD==NULL ) {
         printf ( "unable to allocate memory for descriptor for Zu\n" );
         return -1;
     }
@@ -995,44 +989,36 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
     pcol= * ( position+1 );
     nstrips= n % ( blocksize * * ( dims+1 ) ) ==0 ?  n / ( blocksize * * ( dims+1 ) ) : ( n / ( blocksize * * ( dims+1 ) ) ) +1; 	// number of strips in which we divide matrix Z' and X'
     stripcols= blocksize * * ( dims+1 ); 												//the number of columns taken into the strip of Z' and X'
-    nZblocks= k%blocksize==0 ? k/blocksize : k/blocksize +1;										//number of blocks necessary to store complete column of Z'
-    pZblocks= ( nZblocks - *position ) % *dims == 0 ? ( nZblocks- *position ) / *dims : ( nZblocks- *position ) / *dims +1;		//number of blocks necessary per processor
-    pZblocks= pZblocks <1? 1:pZblocks;
-    lld_Z=pZblocks*blocksize;													//local leading dimension of the strip of Z (different from processor to processor)
-    nXblocks= m%blocksize==0 ? m/blocksize : m/blocksize +1;									//number of blocks necessary to store complete column of X'
-    pXblocks= ( nXblocks - *position ) % *dims == 0 ? ( nXblocks- *position ) / *dims : ( nXblocks- *position ) / *dims +1;		//number of blocks necessary per processor
-    pXblocks= pXblocks <1? 1:pXblocks;
-    lld_X=pXblocks*blocksize;														//local leading dimension of the strip of Z (different from processor to processor)
+    nTblocks= k%blocksize==0 ? k/blocksize : k/blocksize +1;										//number of blocks necessary to store complete column of Z'
+    pTblocks= ( nTblocks - *position ) % *dims == 0 ? ( nTblocks- *position ) / *dims : ( nTblocks- *position ) / *dims +1;		//number of blocks necessary per processor
+    pTblocks= pTblocks <1? 1:pTblocks;
+    lld_T=pTblocks*blocksize;													//local leading dimension of the strip of Z (different from processor to processor)														//local leading dimension of the strip of Z (different from processor to processor)
+
     sigma_rec=1/sigma;
 
     // Initialisation of descriptors of different matrices
 
-    descinit_ ( DESCZ, &k, &stripcols, &blocksize, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_Z, &info );
+    descinit_ ( DESCT, &k, &stripcols, &blocksize, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_T, &info );
     if ( info!=0 ) {
         printf ( "Descriptor of matrix Z returns info: %d\n",info );
         return info;
     }
-    descinit_ ( DESCY, &i_one, &stripcols, &i_one, &blocksize, &i_zero, &i_zero, &ICTXT2D, &i_one, &info );
+    descinit_ ( DESCY, &i_one, &n, &i_one, &blocksize, &i_zero, &i_zero, &ICTXT2D, &i_one, &info );
     if ( info!=0 ) {
         printf ( "Descriptor of matrix Y returns info: %d\n",info );
         return info;
     }
-    descinit_ ( DESCX, &m, &stripcols, &blocksize, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_X, &info );
-    if ( info!=0 ) {
-        printf ( "Descriptor of matrix X returns info: %d\n",info );
-        return info;
-    }
-    descinit_ ( DESCZU, &i_one, &stripcols, &i_one, &blocksize, &i_zero, &i_zero, &ICTXT2D, &i_one, &info );
+    descinit_ ( DESCTD, &i_one, &stripcols, &i_one, &stripcols, &i_zero, &i_zero, &ICTXT2D, &i_one, &info );
     if ( info!=0 ) {
         printf ( "Descriptor of matrix Z returns info: %d\n",info );
         return info;
     }
-    descinit_ ( DESCQRHS, &Ddim, &i_two, &blocksize, &i_two, &i_zero, &i_zero, &ICTXT2D, &lld_D, &info );
+    descinit_ ( DESCQRHS, &ydim, &i_two, &ydim, &i_two, &i_zero, &i_zero, &ICTXT2D, &ydim, &info );
     if ( info!=0 ) {
         printf ( "Descriptor of matrix Z returns info: %d\n",info );
         return info;
     }
-    descinit_ ( DESCQSOL, &Ddim, &i_two, &blocksize, &i_two, &i_zero, &i_zero, &ICTXT2D, &lld_D, &info );
+    descinit_ ( DESCQSOL, &ydim, &i_two, &ydim, &i_two, &i_zero, &i_zero, &ICTXT2D, &ydim, &info );
     if ( info!=0 ) {
         printf ( "Descriptor of matrix Z returns info: %d\n",info );
         return info;
@@ -1040,8 +1026,8 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
 
     // Allocation of memory for the different matrices in all processes
 
-    Zblock= ( double* ) calloc ( pZblocks*blocksize*blocksize, sizeof ( double ) );
-    if ( Zblock==NULL ) {
+    Tblock= ( double* ) calloc ( pTblocks*blocksize*blocksize, sizeof ( double ) );
+    if ( Tblock==NULL ) {
         printf ( "Error in allocating memory for a strip of Z in processor (%d,%d)",*position,* ( position+1 ) );
         return -1;
     }
@@ -1050,30 +1036,45 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
         printf ( "unable to allocate memory for Matrix Y\n" );
         return EXIT_FAILURE;
     }
-    Zublock = ( double* ) calloc ( blocksize,sizeof ( double ) );
-    if ( Zublock==NULL ) {
+    Tdblock = ( double* ) calloc ( blocksize,sizeof ( double ) );
+    if ( Tdblock==NULL ) {
         printf ( "unable to allocate memory for Matrix Zu\n" );
         return EXIT_FAILURE;
-    }
-    Xblock= ( double* ) calloc ( pXblocks*blocksize*blocksize, sizeof ( double ) );
-    if ( Xblock==NULL ) {
-        printf ( "Error in allocating memory for a strip of X in processor (%d,%d)",*position,* ( position+1 ) );
-        return -1;
-    }
-    QRHS= ( double * ) calloc ( Drows * blocksize * 2,sizeof ( double ) );
-    if ( QRHS==NULL ) {
-        printf ( "Error in allocating memory for QRHS in processor (%d,%d)",*position,* ( position+1 ) );
-        return -1;
-    }
-    Qsol= ( double * ) calloc ( Drows * blocksize * 2,sizeof ( double ) );
-    if ( Qsol==NULL ) {
-        printf ( "Error in allocating memory for QRHS in processor (%d,%d)",*position,* ( position+1 ) );
-        return -1;
     }
     nrmblock = ( double* ) calloc ( 1,sizeof ( double ) );
     if ( nrmblock==NULL ) {
         printf ( "unable to allocate memory for norm\n" );
         return EXIT_FAILURE;
+    }
+
+    if (iam==0) {
+        Zu=(double *) calloc(nstrips * stripcols,sizeof(double));
+        yblock=(double *) calloc(n, sizeof(double));
+        Xtsparse.loadFromFile(filenameX);
+        Ztsparse.loadFromFile(filenameZ);
+        mult_colsA_colsC_denseC(Ztsparse,solution,ydim,m,Ztsparse.ncols,0,1,Zu,n,false,1.0); //Zu
+        Xtsparse.transposeIt ( 1 );
+        Ztsparse.transposeIt ( 1 );
+        fY=fopen(filenameY,"rb");
+        if ( fY==NULL ) {
+            printf ( "Error opening file\n" );
+            return -1;
+        }
+        fread ( yblock,sizeof ( double ),n,fY );
+        QRHS= ( double * ) calloc ( ydim * 2,sizeof ( double ) );
+        if ( QRHS==NULL ) {
+            printf ( "Error in allocating memory for QRHS in root process");
+            return -1;
+        }
+        Qsol= ( double * ) calloc ( ydim * 2,sizeof ( double ) );
+        if ( Qsol==NULL ) {
+            printf ( "Error in allocating memory for QRHS in root process");
+            return -1;
+        }
+        mult_colsA_colsC_denseC(Xtsparse,yblock,n,0,n,0,1,QRHS,ydim,false,sigma_rec);		//X'y/sigma
+        mult_colsA_colsC_denseC(Ztsparse,yblock,n,0,n,0,1,QRHS+m,ydim,false,sigma_rec);		//Z'y/sigma
+        dnrm2_ ( &stripcols,nrmblock,yblock,&i_one,&i_one,DESCY,&i_one );
+        *AImat = *nrmblock * *nrmblock/sigma/sigma; 								//y'y/sigma²
     }
 
     fZ=fopen ( filenameT,"rb" );
@@ -1082,11 +1083,6 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
         return -1;
     }
 
-    fX=fopen ( filenameX,"rb" );
-    if ( fX==NULL ) {
-        printf ( "Error opening file\n" );
-        return -1;
-    }
     *nrmblock=0.0;
 
     // Set up of matrices used for Average information matrix calculation per strip of Z and X (one strip consists of $blocksize complete rows)
@@ -1094,27 +1090,16 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
     for ( ni=0; ni<nstrips; ++ni ) {
         if ( ni==nstrips-1 ) {
             // The last strip may consist of less rows than $blocksize so previous values should be erased
-            free ( Zblock );
-            free ( Zublock );
+            free ( Tblock );
+            free ( Tdblock );
             free ( yblock );
-            free ( Xblock );
-            Zblock= ( double* ) calloc ( pZblocks*blocksize*blocksize, sizeof ( double ) );
-            if ( Zblock==NULL ) {
+            Tblock= ( double* ) calloc ( pTblocks*blocksize*blocksize, sizeof ( double ) );
+            if ( Tblock==NULL ) {
                 printf ( "Error in allocating memory for a strip of Z in processor (%d,%d)\n",*position,* ( position+1 ) );
                 return -1;
             }
-            yblock = ( double* ) calloc ( blocksize,sizeof ( double ) );
-            if ( yblock==NULL ) {
-                printf ( "unable to allocate memory for Matrix Y\n" );
-                return EXIT_FAILURE;
-            }
-            Xblock= ( double* ) calloc ( pXblocks*blocksize*blocksize, sizeof ( double ) );
-            if ( Xblock==NULL ) {
-                printf ( "Error in allocating memory for a strip of Z in processor (%d,%d)",*position,* ( position+1 ) );
-                return -1;
-            }
-            Zublock = ( double* ) calloc ( blocksize,sizeof ( double ) );
-            if ( Zublock==NULL ) {
+            Tdblock = ( double* ) calloc ( blocksize,sizeof ( double ) );
+            if ( Tdblock==NULL ) {
                 printf ( "unable to allocate memory for Matrix Y\n" );
                 return EXIT_FAILURE;
             }
@@ -1138,16 +1123,16 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
 
         //Creation of matrix Z in every process
 
-        if ( ( nZblocks-1 ) % *dims == *position && k%blocksize !=0 ) { //last block of row that needs to be read in will be treated seperately
+        if ( ( nTblocks-1 ) % *dims == *position && k%blocksize !=0 ) { //last block of row that needs to be read in will be treated seperately
             if (ni==0) {
-                info=fseek ( fZ, ( long ) ( pcol * blocksize * ( k+1 ) * sizeof ( double ) ),SEEK_SET );
+                info=fseek ( fZ, ( long ) ( pcol * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
             }
             else {
-                info=fseek ( fZ, ( long ) ( blocksize * (*( dims+1 )-1) * ( k+1 ) * sizeof ( double ) ),SEEK_CUR );
+                info=fseek ( fZ, ( long ) ( blocksize * (*( dims+1 )-1) * ( k ) * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
@@ -1159,31 +1144,28 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
-                if ( *position==0 )
-                    fread ( yblock + i,sizeof ( double ),1,fZ );
-                else
-                    info=fseek ( fZ,1L * sizeof ( double ), SEEK_CUR );
-                for ( j=0; j < pZblocks-1; ++j ) {
-                    fread ( Zblock + i*pZblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fZ );
+                info=fseek ( fZ,1L * sizeof ( double ), SEEK_CUR );
+                for ( j=0; j < pTblocks-1; ++j ) {
+                    fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fZ );
                     info=fseek ( fZ, ( long ) ( ( ( *dims ) -1 ) * blocksize * sizeof ( double ) ),SEEK_CUR );
                     if ( info!=0 ) {
                         printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                         return -1;
                     }
                 }
-                fread ( Zblock + i*pZblocks*blocksize + j*blocksize,sizeof ( double ),k%blocksize,fZ );
+                fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),k%blocksize,fZ );
             }
         }
         else {									//Normal read-in of the matrix from a binary file
             if (ni==0) {
-                info=fseek ( fZ, ( long ) ( pcol * blocksize * ( k+1 ) * sizeof ( double ) ),SEEK_SET );
+                info=fseek ( fZ, ( long ) ( pcol * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
             }
             else {
-                info=fseek ( fZ, ( long ) ( blocksize * (*( dims+1 )-1) * ( k+1 ) * sizeof ( double ) ),SEEK_CUR );
+                info=fseek ( fZ, ( long ) ( blocksize * (*( dims+1 )-1) * ( k ) * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
@@ -1195,21 +1177,18 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
-                if ( *position==0 )
-                    fread ( yblock + i,sizeof ( double ),1,fZ );
-                else
-                    info=fseek ( fZ,1L * sizeof ( double ), SEEK_CUR );
-                for ( j=0; j < pZblocks-1; ++j ) {
-                    fread ( Zblock + i*pZblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fZ );
+                info=fseek ( fZ,1L * sizeof ( double ), SEEK_CUR );
+                for ( j=0; j < pTblocks-1; ++j ) {
+                    fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fZ );
                     info=fseek ( fZ, ( long ) ( ( * ( dims )-1 ) * blocksize * sizeof ( double ) ),SEEK_CUR );
                     if ( info!=0 ) {
                         printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                         return -1;
                     }
                 }
-                fread ( Zblock + i*pZblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fZ );
+                fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fZ );
                 if (k>*position * blocksize) {
-                    info=fseek ( fZ, ( long ) ( (k - blocksize * ((pZblocks-1) * *dims + *position +1 )) * sizeof ( double ) ),SEEK_CUR );
+                    info=fseek ( fZ, ( long ) ( (k - blocksize * ((pTblocks-1) * *dims + *position +1 )) * sizeof ( double ) ),SEEK_CUR );
                     if ( info!=0 ) {
                         printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                         return -1;
@@ -1218,115 +1197,65 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
             }
         }
 
-        //Creation of matrix X in every process
-
-        if ( ( nXblocks-1 ) % *dims == *position && m%blocksize !=0 ) {									//last block of row that needs to be read in will be treated seperately
-            if (ni==0) {
-                info=fseek ( fX, ( long ) ( pcol * blocksize *  m * sizeof ( double ) ),SEEK_SET );
-                if ( info!=0 ) {
-                    printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
-                    return -1;
-                }
-            }
-            else {
-                info=fseek ( fX, ( long ) ( blocksize * (*( dims+1 )-1) * m * sizeof ( double ) ),SEEK_CUR );
-                if ( info!=0 ) {
-                    printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
-                    return -1;
-                }
-            }
-            for ( i=0; i<blocksize; ++i ) {
-                info=fseek ( fX, ( long ) ( blocksize * *position * sizeof ( double ) ),SEEK_CUR );
-                if ( info!=0 ) {
-                    printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
-                    return -1;
-                }
-                for ( j=0; j < pXblocks-1; ++j ) {
-                    fread ( Xblock + i*pXblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fX );
-                    info=fseek ( fX, ( long ) ( ( ( *dims ) -1 ) * blocksize * sizeof ( double ) ),SEEK_CUR );
-                    if ( info!=0 ) {
-                        printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
-                        return -1;
-                    }
-                }
-                fread ( Xblock + i*pXblocks*blocksize + j*blocksize,sizeof ( double ),m%blocksize,fX );
-            }
-        } else {													//Normal read-in of the matrix from a binary file
-            if (ni==0) {
-                info=fseek ( fX, ( long ) ( pcol * blocksize *  m * sizeof ( double ) ),SEEK_SET );
-                if ( info!=0 ) {
-                    printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
-                    return -1;
-                }
-            }
-            else {
-                info=fseek ( fX, ( long ) ( blocksize * (*( dims+1 )-1) * m * sizeof ( double ) ),SEEK_CUR );
-                if ( info!=0 ) {
-                    printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
-                    return -1;
-                }
-            }
-            for ( i=0; i<blocksize; ++i ) {
-                info=fseek ( fX, ( long ) ( blocksize * *position * sizeof ( double ) ),SEEK_CUR );
-                if ( info!=0 ) {
-                    printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
-                    return -1;
-                }
-                for ( j=0; j < pXblocks-1; ++j ) {
-                    fread ( Xblock + i*pXblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fX );
-                    info=fseek ( fX, ( long ) ( ( * ( dims )-1 ) * blocksize * sizeof ( double ) ),SEEK_CUR );
-                    if ( info!=0 ) {
-                        printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
-                        return -1;
-                    }
-                }
-                fread ( Xblock + i*pXblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fX  );
-                if (m>*position * blocksize) {
-                    info=fseek ( fX, ( long ) ( (m - blocksize * ((pXblocks-1) * *dims + *position +1 )) * sizeof ( double ) ),SEEK_CUR );
-                    if ( info!=0 ) {
-                        printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
-                        return -1;
-                    }
-                }
-            }
-        }
         blacs_barrier_ ( &ICTXT2D,"A" );
 
         // End of read-in
 
         // Creation of matrix needed for calculation of AI matrix distributed over every process per block of Z, X and y
 
-        pdgemm_ ( "T","N", &i_one, &stripcols,&k,&lambda, ytot, &m_plus,&i_one,DESCYTOT,Zblock,&i_one,&i_one,DESCZ,&d_zero,Zublock,&i_one,&i_one,DESCZU ); //Zu/gamma (in blocks)
+        pdgemm_ ( "T","N", &i_one, &stripcols,&k,&lambda, solution, &m_plus,&i_one,DESCSOL,Tblock,&i_one,&i_one,DESCT,&d_zero,Tdblock,&i_one,&i_one,DESCTD ); //Td/gamma (in blocks)
 
-        pdgemm_ ( "N","T",&k,&i_one,&stripcols,&sigma_rec,Zblock,&i_one, &i_one, DESCZ,yblock,&i_one,&i_one,DESCY,&d_one,QRHS,&m_plus,&i_one,DESCQRHS ); //Z'y/sigma
+        if(iam==0) {
+            for (i=0; i<stripcols; ++i) {
+                *(Tdblock+i) += *(Zu+ ni*stripcols+i) * lambda;  //(Td + Zu)/gamma (in blocks)
+            }
+        }
 
-        pdgemm_ ( "N","T",&m,&i_one,&stripcols,&sigma_rec,Xblock,&i_one, &i_one, DESCX,yblock,&i_one,&i_one,DESCY,&d_one,QRHS,&i_one,&i_one,DESCQRHS ); //X'y/sigma
+        pdgemm_ ( "N","T",&k,&i_one,&stripcols,&sigma_rec,Tblock,&i_one, &i_one, DESCT,yblock,&i_one,&i_one,DESCY,&d_one,QRHS,&ml_plus,&i_one,DESCQRHS ); //T'y/sigma
 
-        pdgemm_ ( "N","T",&k,&i_one,&stripcols,&d_one,Zblock,&i_one, &i_one, DESCZ,Zublock,&i_one,&i_one,DESCZU,&d_one,QRHS,&m_plus,&i_two,DESCQRHS ); //Z'Zu/gamma
+        //pdgemm_ ( "N","T",&m,&i_one,&stripcols,&sigma_rec,Xblock,&i_one, &i_one, DESCX,yblock,&i_one,&i_one,DESCY,&d_one,QRHS,&i_one,&i_one,DESCQRHS ); //X'y/sigma
 
-        pdgemm_ ( "N","T",&m,&i_one,&stripcols,&d_one,Xblock,&i_one, &i_one, DESCX,Zublock,&i_one,&i_one,DESCZU,&d_one,QRHS,&i_one,&i_two,DESCQRHS ); //X'Zu/gamma
+        pdgemm_ ( "N","T",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Tdblock,&i_one,&i_one,DESCTD,&d_one,QRHS,&ml_plus,&i_two,DESCQRHS ); //T'(Td+Zu)/gamma
+
+        //pdgemm_ ( "N","T",&m,&i_one,&stripcols,&d_one,Xblock,&i_one, &i_one, DESCX,Tdblock,&i_one,&i_one,DESCTD,&d_one,QRHS,&i_one,&i_two,DESCQRHS ); //X'Zu/gamma
+
+        if(iam==0) {
+            mult_colsA_colsC_denseC ( Xtsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+ydim, true, 1.0 ); 	//X'(Td+Zu)/gamma
+            mult_colsA_colsC_denseC ( Ztsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+ydim+m, true, 1.0 );	//Z'(Td+Zu)/gamma
+            dnrm2_ ( &stripcols,nrmblock,Tdblock,&i_one,&i_one,DESCTD,&i_one );							// norm (Td+Zu)/gamma
+            * ( AImat + 3 ) += *nrmblock * *nrmblock;										//(Td+Zu)' * (Td +Zu)/gamma^2
+        }
+
+        blacs_barrier_(&ICTXT2D,"A");
 
 
-        // Q'Q is calculated and stored directly in AI matrix (complete in every proces)
-
-        pdnrm2_ ( &stripcols,nrmblock,yblock,&i_one,&i_one,DESCY,&i_one );
-        *AImat += *nrmblock * *nrmblock/sigma/sigma; 								//y'y/sigma²
-        pdnrm2_ ( &stripcols,nrmblock,Zublock,&i_one,&i_one,DESCZU,&i_one );
-        * ( AImat + 3 ) += *nrmblock * *nrmblock;								//u'Z'Zu/gamma²
-        pddot_ ( &stripcols,nrmblock,Zublock,&i_one,&i_one,DESCZU,&i_one,yblock,&i_one,&i_one,DESCY,&i_one );
-        * ( AImat + 1 ) += *nrmblock /sigma;							//y'Zu/gamma/sigma
-        * ( AImat + 2 ) += *nrmblock /sigma;							//y'Zu/gamma/sigma
+        // Q'Q is calculated and stored directly in AI matrix (complete in every process
+        pddot_ ( &stripcols,nrmblock,Tdblock,&i_one,&i_one,DESCTD,&i_one,yblock,&i_one,&i_one,DESCY,&i_one );
+        * ( AImat + 1 ) += *nrmblock /sigma;							//y'(Zu+Td)/gamma/sigma
+        * ( AImat + 2 ) += *nrmblock /sigma;							//y'(Zu+Td)/gamma/sigma
         blacs_barrier_ ( &ICTXT2D,"A" );
     }
 
-    // In Qsol we calculate the solution of C * Qsol = QRHS, but we still need QRHS a bit further
+    // In Qsol we calculate the solution of M * Qsol = QRHS, but we still need QRHS a bit further
 
-    pdcopy_ ( &Ddim,QRHS,&i_one,&i_two,DESCQRHS,&i_one,Qsol,&i_one,&i_two,DESCQSOL,&i_one );
-    pdcopy_ ( &Ddim,ytot,&i_one,&i_one,DESCYTOT,&i_one,Qsol,&i_one,&i_one,DESCQSOL,&i_one );
-    pdscal_ ( &Ddim,&sigma_rec,Qsol,&i_one,&i_one,DESCQSOL,&i_one );
-    pdpotrs_ ( "U",&Ddim,&i_one,Cmat,&i_one,&i_one,DESCC,Qsol,&i_one,&i_two,DESCQSOL,&info );
+    pdcopy_ ( &ydim,QRHS,&i_one,&i_two,DESCQRHS,&i_one,Qsol,&i_one,&i_two,DESCQSOL,&i_one );
+
+    if (iam==0) {
+        solveSystem(Asparse, Qsol,QRHS+ydim, 2, 1);
+        mult_colsA_colsC_denseC(Btsparse,Qsol,ydim,0,Btsparse.ncols,0,1,Qsol+ydim+m+l,ydim, true,-1.0);
+    }
+    pdpotrs_ ( "U",&Ddim,&i_one,Dmat,&i_one,&i_one,DESCD,Qsol,&ml_plus,&i_two,DESCQSOL,&info );
     if ( info!=0 )
         printf ( "Parallel Cholesky solution for Q was unsuccesful, error returned: %d\n",info );
+
+    if (iam==0) {
+        Btsparse.transposeIt(1);
+        mult_colsA_colsC_denseC(Btsparse,Qsol+ydim+m+l,ydim,0,Btsparse.ncols,0,1,Qsol+ydim,ydim, true,-1.0);
+        solveSystem(Asparse, Qsol+ydim,Qsol+ydim, 2, 1);
+    }
+
+    pdcopy_ ( &ydim,solution,&i_one,&i_one,DESCSOL,&i_one,Qsol,&i_one,&i_one,DESCQSOL,&i_one );
+    pdscal_ ( &ydim,&sigma_rec,Qsol,&i_one,&i_one,DESCQSOL,&i_one );
 
     // AImat = (Q'Q - QRHS' * Qsol) / 2 / sigma
 
@@ -1347,17 +1276,15 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot, int 
     }
     free ( DESCQRHS );
     free ( DESCQSOL );
-    free ( DESCX );
     free ( DESCY );
-    free ( DESCZ );
-    free ( DESCZU );
-    free ( Zblock );
-    free ( Xblock );
+    free ( DESCT );
+    free ( DESCTD );
+    free ( Tblock );
     free ( yblock );
     free ( nrmblock );
     free ( QRHS );
     free ( Qsol );
-    free ( Zublock );
+    free ( Tdblock );
 
     return 0;
 }

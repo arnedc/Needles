@@ -74,7 +74,7 @@ void printdense ( int m, int n, double *mat, char *filename );
 int set_up_T (int* DESCC, double* Cmat, int* DESCYTOT, double* ytot, double* respnrm) ;
 int set_up_C_hdf5 ( int* DESCC, double* Cmat, int* DESCYTOT, double* ytot, double* respnrm ) ;
 int update_C ( int * DESCC, double * Cmat, double update) ;
-int set_up_AI (double* AImat, int* DESCAI, int* DESCYTOT, double* ytot, int* DESCC, double* Cmat, double sigma);
+int set_up_AI (double* AImat, int* DESCAI, int* DESCSOL, double* solution, int* DESCD, double* Dmat, CSRdouble& Asparse, CSRdouble& Btsparse, double sigma);
 int set_up_AI_hdf5 ( double* AImat, int* DESCAI, int* DESCYTOT, double* ytot, int* DESCC, double* Cmat, double sigma );
 double trace_CZZ(double *mat, int * DESCMAT);
 double log_determinant_C ( double *mat, int * DESCMAT ) ;
@@ -86,20 +86,24 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
 
 void mult_colsA_colsC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, //input
                         CSRdouble& C, bool trans ) ;
-void mult_colsA_colsC_denseC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, 
-			       double *C, int lld_C, bool sum ) ;
-int set_up_BDY ( int* DESCD, double* Dmat, CSRdouble& BT_i, CSRdouble& B_j, int* DESCYTOT, double* ytot, double* respnrm ) ;
+void mult_colsA_colsC_denseC ( CSRdouble& A,  double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, 
+			       double *C, int lld_C,  bool sum, double alpha ) ;
+int set_up_BDY ( int* DESCD, double* Dmat, CSRdouble& BT_i, CSRdouble& B_j, int* DESCYTOT, double* ytot, double* respnrm, CSRdouble& Btsparse ) ;
+void CSR2dense ( CSRdouble& matrix,double *dense ) ;
 
 void create1x2BlockMatrix(CSRdouble& A, CSRdouble& B, // input
                           CSRdouble& C);  // output
 void create2x2SymBlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& T, // input
                              CSRdouble& C);  // output
 void makeIdentity(int n, CSRdouble& I);
+void errorReport(int number_of_rhs, CSRdouble& A, double* x, double* b);
+void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
+void solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs, double det);
 
 extern double d_one=1.0, d_zero=0.0, d_negone=-1.0;
 extern int DLEN_=9, i_negone=-1, i_zero=0, i_one=1, i_two=2, i_four=4; // some many used constants
 extern int k,n,m,l, blocksize; //dimensions of different matrices
-extern int lld_D, Dblocks, Ddim, m_plus, Adim;
+extern int lld_D, Dblocks, Ddim, m_plus,ml_plus,Adim, ydim;
 extern int Drows,Dcols,Srows,Scols,Brows,Bcols;
 extern int size, *dims, * position, ICTXT2D, ICTXT1D, ICTXT1PROC, iam;
 extern int ntests, maxiterations,datahdf5, copyC;

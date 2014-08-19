@@ -4,8 +4,7 @@
 #include "shared_var.h"
 //#include <mkl_blas.h>
 #include "CSRdouble.hpp"
-#include "ParDiSO.hpp"
-#include "RealMath.hpp"
+#include "ParDiSo.hpp"
 #include <cassert>
 
 extern "C" {
@@ -24,7 +23,7 @@ extern "C" {
  * @param lld_T local leading dimension of T_ij
  * @return int
  **/
-int make_Sij_sparse_parallel(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, double * T_ij, int lld_T) {
+/*int make_Sij_sparse_parallel(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, double * T_ij, int lld_T) {
     CSRdouble C,S;
     if (iam==0) {
         cout << "***                                           [ A      B_j ] *** " << endl;
@@ -45,7 +44,7 @@ int make_Sij_sparse_parallel(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
     CSR2dense_lld ( S, T_ij, lld_T ) ;
     return 0;
 }
-
+*/
 /**
  * @brief BT_i and B_j are converted to dense matrices in each process to solve the sparse system AX=B_j and afterwards do BT_i * X. X is stored as a dense matrix in AB_sol
  *
