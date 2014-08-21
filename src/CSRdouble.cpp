@@ -549,11 +549,6 @@ void CSRdouble::fillSymmetric()
   matrixType = NORMAL;
 }
 
-
-
-
-
-
 void CSRdouble::savedebug(const char* filename) const
 {
   fstream fout(filename, ios::out);
@@ -575,4 +570,139 @@ void CSRdouble::savedebug(const char* filename) const
       }
       fout << "\n";
   }
+}
+
+/**
+ * @brief This function adds sparse matrix B to the CSRdouble sparse matrix A
+ *
+ * @param B Sparse matrix to be added to the CSRdouble matrix
+ * @return void
+ **/
+void CSRdouble::addBCSR ( CSRdouble& B ) {
+    double sum;
+    int Acolindex, Bcolindex,nonzeroes, colindex;
+    int * ABprows = new int[nrows+1];
+    ABprows[0]=0;
+    nonzeroes=0;
+
+    vector<int> ABcols;
+    vector<double> ABdata;
+
+    if ( nrows != B.nrows ) {
+        printf ( "rows of A (%d) are not the same as rows of B (%d)",nrows,B.nrows );
+    }
+    if ( ncols != B.ncols ) {
+        printf ( "rows of A (%d) are not the same as rows of B (%d)",ncols,B.ncols );
+    }
+    assert ( nrows == B.nrows );
+    assert ( ncols == B.ncols );
+
+    for ( int i=0; i<nrows; ++i ) {
+        Acolindex= pRows[i];
+        Bcolindex=B.pRows[i];
+
+        while ( Acolindex < pRows[i+1] && Bcolindex < B.pRows[i+1] ) {
+            if ( pCols[Acolindex] == B.pCols[Bcolindex] ) {
+                colindex=pCols[Acolindex];
+                sum=pData[Acolindex] + B.pData[Bcolindex];
+                ABdata.push_back ( sum );
+                ABcols.push_back ( colindex );
+                Acolindex++, Bcolindex++, nonzeroes++;
+            } else if ( pCols[Acolindex] < B.pCols[Bcolindex] ) {
+                colindex=pCols[Acolindex];
+                sum=pData[Acolindex];
+                ABdata.push_back ( sum );
+                ABcols.push_back ( colindex );
+                Acolindex++, nonzeroes++;
+            } else {
+                colindex=B.pCols[Bcolindex];
+                sum=B.pData[Bcolindex];
+                ABdata.push_back ( sum );
+                ABcols.push_back ( colindex );
+                Bcolindex++, nonzeroes++;
+            }
+        }
+        while ( Acolindex < pRows[i+1] ) {
+            colindex=pCols[Acolindex];
+            sum=pData[Acolindex];
+            ABdata.push_back ( sum );
+            ABcols.push_back ( colindex );
+            Acolindex++, nonzeroes++;
+        }
+        while ( Bcolindex < B.pRows[i+1] ) {
+            colindex=B.pCols[Bcolindex];
+            sum=B.pData[Bcolindex];
+            ABdata.push_back ( sum );
+            ABcols.push_back ( colindex );
+            Bcolindex++, nonzeroes++;
+        }
+        ABprows[i+1]=nonzeroes;
+    }
+    double* pdata = new double[nonzeroes];
+    int*    pcols = new int[nonzeroes];
+
+    if ( ABprows[nrows]!=nonzeroes )
+        printf ( "last element of prows (%d) not equal to number of nonzeroes (%d)\n",ABprows[nrows],nonzeroes );
+
+    memcpy ( pcols, &ABcols[0], nonzeroes*sizeof ( int ) );
+    memcpy ( pdata, &ABdata[0], nonzeroes*sizeof ( double ) );
+
+    delete[] pRows;
+    delete[] pCols;
+    delete[] pData;
+
+    make ( B.nrows, B.ncols, nonzeroes, ABprows, pcols, pdata );
+}
+
+/**
+ * @brief Extends the sparse CSRDouble with a certain number of rows from sparse matrix B. The rows are simply added to the end of the original matrix
+ *
+ * @param B Sparse matrix contianing the rows to be added to the original matrix, must have identical number of colums as original matrix
+ * @param startrowB First row of B to be added to the original (must be smaller than number of rows in B
+ * @param nrowsB Number of rows to be added to the original (if nrowsB + startrowB exceeds B.nrows, empty rows are added to the original matrix)
+ * @return void
+ **/
+void CSRdouble::extendrows ( CSRdouble& B, int startrowB, int nrowsB ) {
+    assert ( ncols==B.ncols );
+    assert (startrowB < B.nrows);
+    int  nonzeroes, nonzeroesB, i, colindex;
+    int  n        = nrows + nrowsB;
+    int* prows;
+    int* pcols;
+    double* pdata;
+
+    if (startrowB+nrowsB > B.nrows) {
+        nonzeroesB = B.nonzeros - B.pRows[startrowB];
+        n = B.nrows - startrowB + nrows;
+    }
+    else
+        nonzeroesB = B.pRows[startrowB + nrowsB] - B.pRows[startrowB];
+    nonzeroes=nonzeroesB + nonzeros;
+    colindex=B.pRows[startrowB];
+
+    prows = new int [n+1];
+    pcols = new int [nonzeroes];
+    pdata = new double [nonzeroes];
+
+    memcpy ( prows, & (pRows[0] ), nrows * sizeof(int));
+    memcpy ( pcols, & (pCols[0] ), nonzeros * sizeof(int));
+    memcpy ( pdata, & (pData[0] ), nonzeros * sizeof(double));
+    for (i=0; i<=nrowsB; ++i) {
+        if(startrowB+i <= B.nrows)
+            prows[nrows+i]= nonzeros + B.pRows[startrowB+i]-B.pRows[startrowB];
+    }
+
+    assert(prows[n]==nonzeroes);
+
+    if(prows[n] != nonzeroes)
+        printf("nonzeroes (%d) not equal to last element of prows (%d)", nonzeroes, prows[n]);
+
+    memcpy ( &(pcols[nonzeros]), & ( B.pCols[colindex] ), nonzeroesB * sizeof(int));
+    memcpy ( &(pdata[nonzeros]), & ( B.pData[colindex] ), nonzeroesB * sizeof(double));
+
+    delete[] pRows;
+    delete[] pCols;
+    delete[] pData;
+
+    make ( n, B.ncols, nonzeroes, prows, pcols, pdata );
 }

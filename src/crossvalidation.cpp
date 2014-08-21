@@ -1,4 +1,3 @@
-#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -207,7 +206,7 @@ int crossvalidate_hdf5(double * estimates, int *DESCEST) {
     herr_t	status;
     hsize_t	dimsm[2], offset[2],count[2], stride[2],block[2];
 
-    int mpinfo  = MPI_INFO_NULL;
+    int mpinfo  = 0;
 
     // Creation of important id's to open datasets in HDF5
 

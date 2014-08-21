@@ -21,22 +21,27 @@ endif()
 
 if(MPI_LINK_FLAGS)
   set_target_properties(pardiso_blup PROPERTIES
-    LINK_FLAGS "-L/opt/intel/mkl/lib/intel64 -L/opt/intel/lib/intel64 ${MPI_LINK_FLAGS}")
+    LINK_FLAGS "-L/opt/intel/mkl/lib/intel64 -L/opt/intel/lib/intel64 -L/home/arnedc/Libraries/ ${MPI_LINK_FLAGS}")
 endif()
 
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 
 target_link_libraries(pardiso_blup
-                      ${LAPACK_LIBRARIES}
-                      ${BLAS_LIBRARIES}
+                      #${LAPACK_LIBRARIES}
+                      #${BLAS_LIBRARIES}
+                      -lpardiso500-GNU461-X86-64
+                      -lgfortran
                       ${MPI_LIBRARIES}
 		      ${HDF5_LIBRARIES}
-		      -lmkl_scalapack_ilp64          # dit is de MKL variant van ScaLapack
-		      -lmkl_intel_ilp64
+		      -lmkl_scalapack_lp64          # dit is de MKL variant van ScaLapack
+		      -lmkl_blas95_lp64
+		      -lmkl_lapack95_lp64
+		      -lmkl_intel_lp64
 		      -lmkl_sequential
 		      -lmkl_core
-                      -lmkl_blacs_intelmpi_ilp64     # dit is de MKL variant van BLACS
+                      -lmkl_blacs_intelmpi_lp64     # dit is de MKL variant van BLACS
 		      #-liomp5
+		      -fopenmp
 		      -lm -lpthread)
 

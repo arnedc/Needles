@@ -6,9 +6,10 @@
 #include <sys/time.h>
 #include "src/shared_var.h"
 #include <shared_var.h>
-#include <mkl_types.h>
+//#include <mkl_types.h>
 #include <smat.h>
 #include "CSRdouble.hpp"
+#include "ParDiSo.hpp"
 #define MPI_SUCCESS          0      /* Successful return code */
 #define MPI_CHAR           ((MPI_Datatype)0x4c000101)
 
@@ -79,10 +80,10 @@ int main ( int argc, char **argv ) {
         printf ( "Error in MPI initialisation: %d",info );
         return info;
     }
-    int i,j,pcol, counter, breakvar;
-    double *Dmat, *Smat, *Bmat, *Btransmat,*ytot, *RHS, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy;
+    int i,j,pcol, counter, breakvar, randeffects;
+    double *Dmat, *Smat, *Bmat, *Btransmat,*ytot, *RHS, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol;
     double sigma, dot, trace_proc, convergence_criterium, loglikelihood,prevloglike,update_loglikelihood;
-    int *DESCD, *DESCYTOT, *DESCRHS, *DESCAI, *DESCCCOPY, *DESCSOL;
+    int *DESCD, *DESCYTOT, *DESCRHS, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL;
     double c0, c1, c2, c3, c4;
     struct timeval tz0,tz1, tz2,tz3;
     double vm_usage, resident_set, cpu_sys, cpu_user;
@@ -113,6 +114,11 @@ int main ( int argc, char **argv ) {
     }
     DESCSOL= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
     if ( DESCSOL==NULL ) {
+        printf ( "unable to allocate memory for descriptor for AI\n" );
+        return -1;
+    }
+    DESCDENSESOL= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
+    if ( DESCDENSESOL==NULL ) {
         printf ( "unable to allocate memory for descriptor for AI\n" );
         return -1;
     }
@@ -235,12 +241,17 @@ int main ( int argc, char **argv ) {
             printf ( "Descriptor of matrix C returns info: %d\n",info );
             return info;
         }
-        descinit_ ( DESCYTOT, &ydim, &i_one, &ydim, &i_one, &i_zero, &i_zero, &ICTXT2D, &lld_y, &info );
+        descinit_ ( DESCDENSESOL, &k, &i_one, &blocksize, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_D, &info );
+        if ( info!=0 ) {
+            printf ( "Descriptor of Dense solution returns info: %d\n",info );
+            return info;
+        }
+        descinit_ ( DESCYTOT, &ydim, &i_one, &ydim, &i_one, &i_zero, &i_zero, &ICTXT2D, &ydim, &info );
         if ( info!=0 ) {
             printf ( "Descriptor of response matrix returns info: %d\n",info );
             return info;
         }
-        descinit_ ( DESCRHS, &ydim, &i_one, &blocksize, &i_one, &i_zero, &i_zero, &ICTXT2D, &lld_y, &info );
+        descinit_ ( DESCRHS, &ydim, &i_one, &blocksize, &i_one, &i_zero, &i_zero, &ICTXT2D, &ydim, &info );
         if ( info!=0 ) {
             printf ( "Descriptor of RHS matrix returns info: %d\n",info );
             return info;
@@ -250,9 +261,9 @@ int main ( int argc, char **argv ) {
             printf ( "Descriptor of AI matrix returns info: %d\n",info );
             return info;
         }
-        descinit_ ( DESCSOL, &ydim, &i_one, &ydim, &i_one, &i_zero, &i_zero, &ICTXT2D, &lld_y, &info );
+        descinit_ ( DESCSOL, &ydim, &i_one, &ydim, &blocksize, &i_zero, &i_zero, &ICTXT2D, &ydim, &info );
         if ( info!=0 ) {
-            printf ( "Descriptor of AI matrix returns info: %d\n",info );
+            printf ( "Descriptor of solution returns info: %d\n",info );
             return info;
         }
 
@@ -267,7 +278,7 @@ int main ( int argc, char **argv ) {
             printf ( "was analyzed using %d (%d x %d) processors\n",size,*dims,* ( dims+1 ) );
             gettimeofday ( &tz2,NULL );
             c2= tz2.tv_sec*1000000 + ( tz2.tv_usec );
-            solution= ( double * ) calloc ( k+l+m, sizeof ( double ) );
+            solution= ( double * ) calloc ( 2*(k+l+m), sizeof ( double ) );
             if ( solution==NULL ) {
                 printf ( "unable to allocate memory for solution matrix\n" );
                 return EXIT_FAILURE;
@@ -279,16 +290,19 @@ int main ( int argc, char **argv ) {
             printf ( "unable to allocate memory for Matrix D  (required: %ld bytes)\n", Drows * blocksize * Dcols * blocksize * sizeof ( double ) );
             return EXIT_FAILURE;
         }
-        ytot = ( double* ) calloc ( yrows * blocksize,sizeof ( double ) );
+        densesol = (double *) calloc ( Drows * blocksize,sizeof ( double ) );
+        if (iam==0){
+        ytot = ( double* ) calloc ( ydim,sizeof ( double ) );
         if ( ytot==NULL ) {
             printf ( "unable to allocate memory for Matrix Y (required: %d bytes)\n", yrows * blocksize*sizeof ( double ) );
             return EXIT_FAILURE;
         }
-        RHS = ( double* ) calloc ( yrows * blocksize,sizeof ( double ) );
+        RHS = ( double* ) calloc ( ydim,sizeof ( double ) );
         if ( RHS==NULL ) {
             printf ( "unable to allocate memory for RHS (required: %d bytes)\n", yrows * blocksize * sizeof ( double ) );
             return EXIT_FAILURE;
         }
+	}
         AImat = ( double* ) calloc ( 2*2,sizeof ( double ) );
         if ( RHS==NULL ) {
             printf ( "unable to allocate memory for AI matrix (required: %d bytes)\n",2*2*sizeof ( double ) );
@@ -361,7 +375,7 @@ int main ( int argc, char **argv ) {
                 if ( copyC ) {
                     update_C ( DESCCCOPY,Cmatcopy,lambda/ ( 1+convergence_criterium ) - lambda );
                     pdlacpy_ ( "U", &Ddim, &Ddim, Cmatcopy, &i_one, &i_one, DESCCCOPY, Dmat, &i_one, &i_one, DESCD );
-                    pdcopy_ ( &Ddim, RHS,&i_one,&i_one,DESCRHS,&i_one,ytot,&i_one,&i_one,DESCYTOT,&i_one );
+                    //pdcopy_ ( &Ddim, RHS,&i_one,&i_one,DESCRHS,&i_one,ytot,&i_one,&i_one,DESCYTOT,&i_one );
                     if ( * ( position+1 ) ==0 && *position==0 ) {
                         gettimeofday ( &tz1,NULL );
                         c0= tz1.tv_sec*1000000 + ( tz1.tv_usec );
@@ -379,7 +393,7 @@ int main ( int argc, char **argv ) {
                     if ( datahdf5 )
                         info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
                     else
-                        info = set_up_BDY ( DESCD, Dmat, BT_i, B_j, DESCYTOT, ytot, respnrm );
+                        info = set_up_BDY ( DESCD, Dmat, BT_i, B_j, DESCYTOT, ytot, respnrm , Btsparse);
                     if ( info!=0 ) {
                         printf ( "Something went wrong with set-up of matrix D, error nr: %d\n",info );
                         return info;
@@ -400,7 +414,7 @@ int main ( int argc, char **argv ) {
                 if ( datahdf5 )
                     info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
                 else
-                    info = set_up_BDY ( DESCD, Dmat, BT_i, B_j, DESCYTOT, ytot, respnrm );
+                    info = set_up_BDY ( DESCD, Dmat, BT_i, B_j, DESCYTOT, ytot, respnrm, Btsparse );
                 if ( info!=0 ) {
                     printf ( "Something went wrong with set-up of matrix D, error nr: %d\n",info );
                     return info;
@@ -537,7 +551,7 @@ int main ( int argc, char **argv ) {
 
             // Each process calculates the Schur complement of the part of D at its disposal. (see src/schur.cpp)
             // The solution of A * Y = B_j is stored in AB_sol (= A^-1 * B_j)
-            make_Sij_parallel_denseB ( Asparse, BT_i, B_j, D, lld_D, AB_sol );
+            make_Sij_parallel_denseB ( Asparse, BT_i, B_j, Dmat, lld_D, AB_sol );
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
@@ -545,9 +559,12 @@ int main ( int argc, char **argv ) {
             }
 
             //From here on the Schur complement S of D is stored in D
-            pdcopy_(&k,ytot,&i_one,&ml_plus,DESCYTOT,&i_one,solution,&i_one,&ml_plus, DESCSOL, i_one);
+            pdcopy_(&k,ytot,&ml_plus,&i_one,DESCYTOT,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
+	    
             if (iam==0) {
+		printdense(m+l,1,ytot,"ytot_sparse.txt");
                 solveSystem(Asparse, solution,ytot, 2, 1);
+		printdense(m+l,1,solution,"Solution_sparse.txt");
                 mult_colsA_colsC_denseC(Btsparse,solution,ydim,0,Btsparse.ncols,0,1,solution+m+l,ydim, true,-1.0);
             }
 
@@ -565,20 +582,34 @@ int main ( int argc, char **argv ) {
             }
 
             //Estimation of genetic effects, stored in solution on root process.
+            printf("ydim : %d \n ml_plus : %d \n Ddim : %d\n",ydim,ml_plus,Ddim);
+	    
+	    pdcopy_(&k,solution,&ml_plus,&i_one,DESCSOL,&i_one,densesol,&i_one,&i_one, DESCDENSESOL, &i_one);
+	    
+	    //printf("Solution copied \n");
 
-            pdpotrs_ ( "U",&Ddim,&i_one,Dmat,&i_one,&i_one,DESCD,solution,&ml_plus,&i_one,DESCSOL,&info );
-            if ( info!=0 )
+            pdpotrs_ ( "U",&Ddim,&i_one,Dmat,&i_one,&i_one,DESCD,densesol,&i_one,&i_one,DESCDENSESOL,&info );
+            if ( info!=0 ){
                 printf ( "Parallel Cholesky solution was unsuccesful, error returned: %d\n",info );
+		return -1;
+	    }
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time estimation of effects:		%10.3f s\n", ( c0 - c1 ) /1000000.0 );
             }
-            pdcopy_(&Adim,ytot,&i_one,&i_one,DESCYTOT,&i_one,solution,&i_one,&i_one, DESCSOL, i_one);
+            pdcopy_(&k,densesol,&i_one,&i_one,DESCDENSESOL,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
+            pdcopy_(&Adim,ytot,&i_one,&i_one,DESCYTOT,&i_one,solution,&i_one,&i_one, DESCSOL, &i_one);
             if (iam==0) {
+		printdense(ydim,1,ytot,"ytot_dense.txt");
                 Btsparse.transposeIt(1);
-                mult_colsA_colsC_denseC(Btsparse,solution,ydim,0,Btsparse.ncols,0,1,solution,ydim,true,-1.0);
-                solveSystemWithDet(Asparse, solution,solution, 2, 1,loglikelihood);
+                mult_colsA_colsC_denseC(Btsparse,solution+m+l,ydim,0,Btsparse.ncols,0,1,solution,ydim,true,-1.0);
+		printdense(ydim,1,solution,"RHS_sparse.txt");
+		double * sparse_sol=(double *) calloc(Asparse.ncols, sizeof(double));
+                loglikelihood=solveSystemWithDet(Asparse, sparse_sol,solution, 2, 1);
+		memcpy(solution,sparse_sol,(m+l) * sizeof(double));
+		printdense(ydim,1,solution,"solution.txt");
+		printf("Log of determinant of A is: %g\n",loglikelihood);
                 Btsparse.transposeIt(1);
             }
             else
@@ -586,11 +617,12 @@ int main ( int argc, char **argv ) {
 
             // sigma is updated based on estimations of effects and square of norm of y (y'y)
 
-            pddot_ ( &Ddim,&dot,RHS,&i_one,&i_one,DESCRHS,&i_one,solution,&i_one,&i_one,DESCSOL,&i_one );
+            pddot_ ( &ydim,&dot,ytot,&i_one,&i_one,DESCYTOT,&i_one,solution,&i_one,&i_one,DESCSOL,&i_one );
 
             sigma= ( *respnrm - dot ) / ( n-m );
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 dgebs2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&sigma,&i_one );
+		printf("dot product : %g \n sigma: %g\n", dot,sigma);
             } else
                 dgebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one, &sigma,&i_one,&i_zero,&i_zero );
 
@@ -598,6 +630,7 @@ int main ( int argc, char **argv ) {
             dgsum2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&loglikelihood,&i_one,&i_negone,&i_negone );
 
             if ( * ( position+1 ) ==0 && *position==0 ) {
+		printf("Log of determinant of M is: %g\n",loglikelihood);
                 gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                 printf ( "\t elapsed wall time calculation and sending of sigma and log(det(M)):	%10.3f s\n", ( c1 - c0 ) /1000000.0 );
@@ -709,7 +742,7 @@ int main ( int argc, char **argv ) {
 
             //Calculating diagonal elements 1 by 1 of the (0,0)-block of C^-1.
             for (i=1; i<=Adim; ++i) {
-                pdsymm_ ("R","U",&i_one,&Ddim,&d_one,D,&i_one,&i_one,DESCD,AB_sol,&i,&i_one,DESCAB_sol,&d_zero,YSrow,&i_one,&i_one,DESCYSROW);
+                pdsymm_ ("R","U",&i_one,&Ddim,&d_one,Dmat,&i_one,&i_one,DESCD,AB_sol,&i,&i_one,DESCAB_sol,&d_zero,YSrow,&i_one,&i_one,DESCYSROW);
                 pddot_(&Ddim,Diag_inv_rand_block+i-1,AB_sol,&i,&i_one,DESCAB_sol,&Adim,YSrow,&i_one,&i_one,DESCYSROW,&i_one);
             }
             blacs_barrier_(&ICTXT2D,"A");
@@ -750,8 +783,9 @@ int main ( int argc, char **argv ) {
             }
 
             // The norm of the estimation of the random effects is calculated for use in the score function
-
-            pdnrm2_ ( &k,randnrm,ytot,&m_plus,&i_one,DESCYTOT,&i_one );
+            
+	    randeffects=k+l;
+            pdnrm2_ ( &randeffects,randnrm,ytot,&m_plus,&i_one,DESCYTOT,&i_one );
 
             // The score function (first derivative of log likelihood) and the update for lambda are only calculated in proces (0,0)
             // Afterwards the update is sent to every proces.
@@ -765,7 +799,7 @@ int main ( int argc, char **argv ) {
                 printf ( "parallel sigma = %15.10g\n",sigma );
                 printf ( "The trace of the random block of the inverse of M is: %15.10g \n",trace_proc );
                 printf ( "The norm of the estimation of u and d is: %g \n",*randnrm );
-                loglikelihood += ( k * log ( 1/lambda ) + ( n-m ) * log ( sigma ) + n-m ) /2;
+                loglikelihood += ( (k+l) * log ( 1/lambda ) + ( n-m ) * log ( sigma ) + n-m ) /2;
                 loglikelihood *= -1.0;
 
 
@@ -774,7 +808,7 @@ int main ( int argc, char **argv ) {
                     printf ( "unable to allocate memory for score function\n" );
                     return EXIT_FAILURE;
                 }
-                * ( score+1 ) = - ( k-trace_proc*lambda- *randnrm * *randnrm * lambda / sigma ) * lambda / 2;
+                * ( score+1 ) = - ( (k+l)-trace_proc*lambda- *randnrm * *randnrm * lambda / sigma ) * lambda / 2;
                 printf ( "The score function is: %g\n",* ( score+1 ) );
                 printdense ( 2,2, AImat, "AI_par.txt" );
                 breakvar=0;
@@ -789,7 +823,7 @@ int main ( int argc, char **argv ) {
                 //Use of damping factor
 
                 if ( counter==1 ) {
-                    trace_proc= *AImat + * ( AImat+3 );
+                    //trace_proc= *AImat + * ( AImat+3 );
                     //damping=trace_proc/m;
                     prevloglike=loglikelihood;
                     printf ( "The loglikelihood is: %g\n",loglikelihood );
@@ -880,7 +914,7 @@ int main ( int argc, char **argv ) {
 
         //Set of equations is solved. Solution matrix is distributed across processes and needs to be sent back to proces 0
 
-        if ( * ( position+1 ) ==0 ) {
+        /*if ( * ( position+1 ) ==0 ) {
             for ( i=0,j=0; i<Dblocks; ++i,++j ) {
                 if ( j==*dims )
                     j=0;
@@ -891,7 +925,7 @@ int main ( int argc, char **argv ) {
                     dgerv2d_ ( &ICTXT2D,&blocksize,&i_one,solution+blocksize*i,&blocksize,&j,&i_zero );
                 }
             }
-        }
+        }*/
 
         blacs_barrier_ ( &ICTXT2D, "A" );
 
@@ -918,8 +952,11 @@ int main ( int argc, char **argv ) {
             printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
             printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
             printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
-            printdense ( Ddim,1,solution,"solution.txt" );
+            printdense ( m,1,solution,"estimates_fixed_effects.txt" );
+	    printdense ( l,1,solution+m,"estimates_random_sparse_effects.txt" );
+	    printdense ( k,1,solution+m+l,"estimates_random_genetic_effects.txt" );
             free ( solution );
+	    free ( ytot );
         }
 
         /*char *srank, filen[50];
@@ -939,7 +976,6 @@ int main ( int argc, char **argv ) {
         free ( filenameT );
         free ( filenameX );
         free ( TestSet );
-        free ( ytot );
         free ( SNPdata );
         free ( phenodata );
 
@@ -952,5 +988,6 @@ int main ( int argc, char **argv ) {
     MPI_Finalize();
 
     return 0;
+    
 }
 

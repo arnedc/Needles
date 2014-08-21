@@ -5,6 +5,24 @@
 #include <string>
 #include <stdio.h>
 #include <cstring>
+#include "shared_var.h"
+#include "CSRdouble.hpp"
+
+void printdense ( int m, int n, double *mat, char *filename ) {
+    FILE *fd;
+    fd = fopen ( filename,"w" );
+    if ( fd==NULL )
+        printf ( "error creating file" );
+    int i,j;
+    for ( i=0; i<m; ++i ) {
+        fprintf ( fd,"[\t" );
+        for ( j=0; j<n; ++j ) {
+            fprintf ( fd,"%12.8g\t",*(mat+i*n +j));
+        }
+        fprintf ( fd,"]\n" );
+    }
+    fclose ( fd );
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -13,7 +31,6 @@
 // size and resident set size, and return the results in KB.
 //
 // On failure, returns 0.0, 0.0
-
 void process_mem_usage(double& vm_usage, double& resident_set, double& cpu_user, double& cpu_sys)
 {
     using std::ios_base;
@@ -113,5 +130,27 @@ void mult_colsA_colsC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int A
     if ( trans )
         C.transposeIt ( 1 );
 }
+
+void mult_colsA_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, 
+			       double *C, int lld_C, bool sum, double alpha ) {
+    int i, j,row, col, C_nnz,C_ncols, *prows;
+    double cij;
+
+    /*assert(Cncols < lld_B);
+    assert(Ccolstart+Cncols <= C.ncols);*/
+    
+    for ( row=0; row<A.nrows; ++row ) {
+        for ( col=Ccolstart; col<Ccolstart+Cncols; ++col ) {
+            if (!sum)
+	      *(C + row + col * lld_C) = 0;
+            for ( i=A.pRows[row]; i<A.pRows[row+1]; ++i ) {
+                j = A.pCols[i];
+                if ( j>=Acolstart && j<Acolstart+Ancols )
+                    *(C + row + col * lld_C) = *(C + row + col * lld_C) + alpha * A.pData[i] * * ( B + lld_B * (col-Ccolstart) + j-Acolstart  ) ;
+            }
+        }
+    }
+}
+
 
 

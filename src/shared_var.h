@@ -12,6 +12,8 @@
 #include <complex>
 #include <cstdlib>
 #include <vector>
+#include <mpi.h>
+
 
 using std::complex;
 using std::endl;
@@ -32,7 +34,7 @@ enum MatrixStorage
 };
 
 #endif
-
+/*
 #define MPI_COMM_WORLD ((MPI_Comm)0x44000000)
 
 typedef int MPI_Comm;
@@ -64,6 +66,81 @@ typedef struct MPI_Status {
     int MPI_ERROR;
     
 } MPI_Status;
+*/
+
+#ifndef timing_hpp
+#define timing_hpp
+
+#ifndef WIN32
+#include "sys/time.h"
+#include <iostream>
+using std::cout;
+
+class timing
+{
+private:
+    struct timeval timer_;
+    struct timezone timezone_;
+
+public:
+    timing()
+    {}
+
+    inline void tick(double& time_counter)
+    {
+        gettimeofday(&timer_, &timezone_);
+        time_counter -= 1000 * timer_.tv_sec + timer_.tv_usec / 1000;
+    }
+
+    inline void tack(double& time_counter)
+    {
+        gettimeofday(&timer_, &timezone_);
+        time_counter += 1000 * timer_.tv_sec + timer_.tv_usec / 1000;
+    }
+
+    void reportTimeNeeded(const char* message, double time_counter)
+    {
+        cout << message << " | " << time_counter << " milliseconds |\n" ;
+    }
+};
+
+#endif
+
+#ifdef WIN32
+
+#include <time.h>
+#include <iostream>
+using std::cout;
+
+class timing
+{
+private:
+    double timePassed_;
+    long begin_;
+    long end_;
+
+public:
+    timing()
+    {}
+
+    inline void tick(double& time_counter)
+    {
+        time_counter -= clock();
+    }
+
+    inline void tack(double& time_counter)
+    {
+        time_counter += clock();
+    }
+
+    void reportTimeNeeded(const char* message, double time_counter)
+    {
+        cout << message << " | " << time_counter << " milliseconds |\n" ;
+    }
+};
+
+#endif
+#endif
 
 class CSRdouble;
 
@@ -98,10 +175,10 @@ void create2x2SymBlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& T, // input
 void makeIdentity(int n, CSRdouble& I);
 void errorReport(int number_of_rhs, CSRdouble& A, double* x, double* b);
 void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
-void solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs, double det);
+double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
 
-extern double d_one=1.0, d_zero=0.0, d_negone=-1.0;
-extern int DLEN_=9, i_negone=-1, i_zero=0, i_one=1, i_two=2, i_four=4; // some many used constants
+extern double d_one, d_zero, d_negone;
+extern int DLEN_, i_negone, i_zero, i_one, i_two, i_four; // some many used constants
 extern int k,n,m,l, blocksize; //dimensions of different matrices
 extern int lld_D, Dblocks, Ddim, m_plus,ml_plus,Adim, ydim;
 extern int Drows,Dcols,Srows,Scols,Brows,Bcols;

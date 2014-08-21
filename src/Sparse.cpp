@@ -225,7 +225,7 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
     cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;
 }
 
-void solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs, double det)
+double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs)
 {
     cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
     cout << "@@@ S O L V I N G     A    L I N E A R    S Y S T E M  @@@" << endl;
@@ -284,8 +284,6 @@ void solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, i
     pardiso.solve(A, X, B);
     secs.tack(solutionTime);
 
-    det=pardiso.dparm[33];
-
     errorReport(number_of_rhs, A, B, X);
     // writeSolution(number_of_rhs, A.nrows, X);
 
@@ -298,6 +296,8 @@ void solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, i
     cout << "Initialization phase: " << initializationTime*0.001 << " sec" << endl;
     cout << "Factorization  phase: " << factorizationTime*0.001 << " sec" << endl;
     cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;
+    
+    return pardiso.dparm[33];
 }
 
 void errorReport(int number_of_rhs, CSRdouble& A, double* b, double* x)
@@ -338,6 +338,17 @@ void errorReport(int number_of_rhs, CSRdouble& A, double* b, double* x)
     cout << endl << endl;
 
     delete[] r;
+}
+
+//Convert CSR to column-wise stored dense matrix
+void CSR2dense ( CSRdouble& matrix,double *dense ) {
+    int i, row;
+    row=0;
+    for ( i=0; i<matrix.nonzeros; ++i ) {
+        while ( i==matrix.pRows[row+1] )
+            row++;
+        * ( dense + row + matrix.nrows * matrix.pCols[i] ) =matrix.pData[i] ;
+    }
 }
 
 
