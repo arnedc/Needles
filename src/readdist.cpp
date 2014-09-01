@@ -86,6 +86,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 
     //local leading dimension of the strip of T' (different from process to process)
     lld_T=pTblocks*blocksize;
+    lld_Y= *(dims+1) * nstrips * blocksize;
 
     // Initialisation of descriptor of strips of matrix T'
     DESCT= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
@@ -116,7 +117,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         printf ( "Descriptor of matrix T returns info: %d\n",info );
         return info;
     }
-    descinit_ ( DESCY, &n, &i_one, &n, &blocksize, &i_zero, &i_zero, &ICTXT2D, &n, &info );
+    descinit_ ( DESCY, &lld_Y, &i_one, &lld_Y, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_Y, &info );
     if ( info!=0 ) {
         printf ( "Descriptor of matrix Y returns info: %d\n",info );
         return info;
@@ -142,7 +143,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         return -1;
     }
     if(iam==0) {
-        Y= ( double* ) calloc ( n, sizeof ( double ) );
+        Y= ( double* ) calloc ( lld_Y, sizeof ( double ) );
         if ( Y==NULL ) {
             printf ( "Error in allocating memory for Y in root process\n" );
             return -1;
@@ -183,6 +184,10 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 	if(info<n){
 	  printf("Only %d values were read from %s",info,filenameY);
 	}
+	printf("Responses were read in correctly.\n");
+	for (i=n;i<lld_Y;++i){
+	  *(Y+i)=0;
+	}
     }
 
     fT=fopen ( filenameT,"rb" );
@@ -190,6 +195,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         printf ( "Error opening file\n" );
         return -1;
     }
+    
+    blacs_barrier_(&ICTXT2D,"A");
 
     // Set up of matrix D and B per strip of T'
 
@@ -277,6 +284,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
        
 
         blacs_barrier_ ( &ICTXT2D,"A" );
+	
+	printf("Strip %d was read in by process %d\n",ni,iam);
 
         // End of read-in
 
@@ -285,11 +294,13 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         // Be aware, that you akways have to allocate memory for the enitre matrix, even when only dealing with the upper/lower triangular part
 
         pdgemm_ ( "N","T",&k,&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &i_one, &i_one, DESCD ); //T'T
-	
+	printf("Strip %d was used to create T'T by process %d\n",ni,iam);
         //pdsyrk_ ( "U","N",&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &t_plus, &t_plus, DESCD );
         Ystart=ni * *(dims+1) * blocksize + 1;
+	if (iam==0)
+	  printf("Ystart= %d\n", Ystart);
         pdgemm_ ( "N","N",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Y,&Ystart,&i_one,DESCY,&d_one,ytot,&ml_plus,&i_one,DESCYTOT ); //T'y
-	
+	printf("Strip %d was used to create T'y by process %d\n",ni,iam);
 
         // Matrix B consists of X'T and Z'T, since each process only has some parts of T at its disposal,
         // we need to make sure that the correct columns of Z and X are multiplied with the correct columns of T.
@@ -322,6 +333,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         }
         blacs_barrier_ ( &ICTXT2D,"A" );
     }
+    printf("Process %d finished calculating XtT and ZtT",iam);
     free ( Tblock );
     if (iam==0) {
         *respnrm = dnrm2_ (&n,Y,&i_one);
@@ -340,6 +352,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         mult_colsA_colsC_denseC ( Ztsparse, Y, n, 0, n, 0, 1, ZtY, l, false, 1.0);
         free(Y);
     }
+    blacs_barrier_(&ICTXT2D,"A");
     pdlacpy_("A",&m,&i_one,XtY,&i_one,&i_one,DESCXtY, ytot,&i_one,&i_one,DESCYTOT);
     pdlacpy_("A",&l,&i_one,ZtY,&i_one,&i_one,DESCZtY, ytot,&m_plus,&i_one,DESCYTOT);
 
@@ -1110,8 +1123,8 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     for ( ni=0; ni<nstrips; ++ni ) {
         if ( ni==nstrips-1 ) {
             // The last strip may consist of less rows than $blocksize so previous values should be erased
-            free ( Tblock );
-            free ( Tdblock );
+            //free ( Tblock );
+            //free ( Tdblock );
             Tblock= ( double* ) calloc ( pTblocks*blocksize*blocksize, sizeof ( double ) );
             if ( Tblock==NULL ) {
                 printf ( "Error in allocating memory for a strip of Z in processor (%d,%d)\n",*position,* ( position+1 ) );
@@ -1285,16 +1298,16 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     pdcopy_ ( &ydim,solution,&i_one,&i_one,DESCSOL,&i_one,Qsol,&i_one,&i_one,DESCQSOL,&i_one );
     pdscal_ ( &ydim,&sigma_rec,Qsol,&i_one,&i_one,DESCQSOL,&i_one );
     
-    printdense(2,ydim,QRHS,"QRHS.txt");
-    printdense(2,ydim,Qsol,"Qsol.txt");
+    //printdense(2,ydim,QRHS,"QRHS.txt");
+    //printdense(2,ydim,Qsol,"Qsol.txt");
 
     // AImat = (Q'Q - QRHS' * Qsol) / 2 / sigma
     
-    printdense(2,2,AImat,"QQ.txt");
+    //printdense(2,2,AImat,"QQ.txt");
 
     pdgemm_ ( "T","N",&i_two,&i_two,&ydim,&d_negone,QRHS,&i_one,&i_one,DESCQRHS,Qsol,&i_one,&i_one,DESCQSOL,&d_one, AImat,&i_one,&i_one,DESCAI );
     
-    printdense(2,2,AImat,"AI_nonorm.txt");
+    //printdense(2,2,AImat,"AI_nonorm.txt");
 
     for ( i=0; i<4; ++i )
         * ( AImat + i ) = * ( AImat + i ) / 2 / sigma;
@@ -1317,8 +1330,8 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     free ( Tblock );
     free ( yblock );
     free ( nrmblock );
-    free ( QRHS );
-    free ( Qsol );
+    //free ( QRHS );
+    //free ( Qsol );
     free ( Tdblock );
 
     return 0;
@@ -1388,15 +1401,16 @@ double log_determinant_C ( double *mat, int * DESCMAT ) {
         if ( colcur==* ( dims+1 ) )
             colcur=0;
         if ( *position==rowcur && * ( position+1 ) == colcur ) {
-            if ( i< ( Dblocks -1 ) ) {
-                for ( j=0; j<blocksize; ++j ) {
-                    logdet_proc += log( * ( mat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ));
-                }
-            } else {
+	  if(i==Dblocks-1 && Ddim%blocksize !=0){
                 for ( j=0; j< Ddim % blocksize; ++j ) {
                     logdet_proc += log(* ( mat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ));
                 }
             }
+            else{
+            for ( j=0; j<blocksize; ++j ) {
+                    logdet_proc += log( * ( mat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ));
+                }
+	    }
         }
     }
     return logdet_proc;

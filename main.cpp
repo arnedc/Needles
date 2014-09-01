@@ -18,11 +18,11 @@ typedef int MPI_Comm;
 typedef int MPI_Datatype;
 
 double d_one=1.0, d_zero=0.0, d_negone=-1.0;
-int DLEN_=9, i_negone=-1, i_zero=0, i_one=1, i_two=2, i_four=4; // some many used constants
+int DLEN_=9, i_negone=-1, i_zero=0, i_one=1, i_two=2; // some many used constants
 int k,n,m, l, blocksize; //dimensions of different matrices
-int lld_D, Dblocks, Ddim, m_plus, ml_plus, lld_y, yblocks, ydim, Adim;
-int Drows,Dcols,yrows,ycols;
-int size, *dims, * position, ICTXT2D, ICTXT1D, ICTXT1PROC, iam;
+int lld_D, Dblocks, Ddim, m_plus, ml_plus, yblocks, ydim, Adim;
+int Drows,Dcols;
+int size, *dims, * position, ICTXT2D, iam;
 int ntests, maxiterations,datahdf5, copyC;
 char *SNPdata, *phenodata;
 char *filenameT, *filenameX, *filenameZ, *filenameY, *TestSet;
@@ -52,24 +52,13 @@ extern "C" {
     void pdpotrs_ ( char *uplo, int *n, int *nrhs, double *a, int *ia, int *ja, int *desca, double *b, int *ib, int *jb, int *descb, int *info );
     void pdpotri_ ( char *uplo, int *n, double *a, int *ia, int *ja, int *desca, int *info );
     void pdnrm2_ ( int *n, double *norm2, double *x, int *ix, int *jx, int *descx, int *incx );
-    void pdgemm_ ( char *transa, char *transb, int *m, int *n, int *k, double *alpha, double *a, int *ia, int *ja, int *desca, double *b, int *ib, 
-		   int *jb, int *descb, double *beta, double *c, int *ic, int *jc, int *descc );
     void pdsymm_( char *side, char *uplo, int *m, int *n, double *alpha, double *a, int *ia, int *ja, int *desca, double *b, int *ib, int *jb,
                   int *descb, double *beta, double *c, int *ic, int *jc, int *descc );
-    void dsyrk ( const char *uplo, const char *trans, const int *n, const int *k, const double *alpha, const double *a, const int *lda, 
-		 const double *beta, double *c, const int *ldc );
-    void dgemm ( const char *transa, const char *transb, const int *m, const int *n, const int *k, const double *alpha, const double *a, const int *lda, 
-		 const double *b, const int *ldb, const double *beta, double *c, const int *ldc );
-    double  dnrm2 ( const int *n, const double *x, const int *incx );
-    void    dcopy ( const int *n, const double *x, const int *incx, double *y, const int *incy );
-    double  ddot ( const int *n, const double *x, const int *incx, const double *y, const int *incy );
     void dpotrf_ ( const char* uplo, const int* n, double* a, const int* lda, int* info );
     void dpotrs_ ( const char* uplo, const int* n, const int* nrhs, const double* a, const int* lda, double* b, const int* ldb, int* info );
-    void dpotri_ ( const char* uplo, const int* n, double* a, const int* lda, int* info );
     int MPI_Init ( int *, char *** );
     int MPI_Dims_create ( int, int, int * );
     int MPI_Finalize ( void );
-    int MPI_Bcast ( void*, int, MPI_Datatype, int, MPI_Comm );
     int MPI_Barrier( MPI_Comm comm );
 }
 
@@ -81,9 +70,9 @@ int main ( int argc, char **argv ) {
         return info;
     }
     int i,j,pcol, counter, breakvar, randeffects;
-    double *Dmat, *Smat, *Bmat, *Btransmat,*ytot, *RHS, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol;
+    double *Dmat, *ytot, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol;
     double sigma, dot, trace_proc, convergence_criterium, loglikelihood,prevloglike,update_loglikelihood;
-    int *DESCD, *DESCYTOT, *DESCRHS, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL;
+    int *DESCD, *DESCYTOT, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL;
     double c0, c1, c2, c3, c4;
     struct timeval tz0,tz1, tz2,tz3;
     double vm_usage, resident_set, cpu_sys, cpu_user;
@@ -100,11 +89,6 @@ int main ( int argc, char **argv ) {
     DESCYTOT= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
     if ( DESCYTOT==NULL ) {
         printf ( "unable to allocate memory for descriptor for Ytot\n" );
-        return -1;
-    }
-    DESCRHS= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
-    if ( DESCRHS==NULL ) {
-        printf ( "unable to allocate memory for descriptor for RHS\n" );
         return -1;
     }
     DESCAI= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
@@ -209,7 +193,6 @@ int main ( int argc, char **argv ) {
         /*yblocks= ydim%blocksize==0 ? ydim/blocksize : ydim/blocksize +1;	 //define number of blocks needed to store a complete column/row of C
         yrows= ( yblocks - *position ) % *dims == 0 ? ( yblocks- *position ) / *dims : ( yblocks- *position ) / *dims +1;
         yrows= yrows<1? 1 : yrows;*/
-        lld_y=ydim;
 
         // Initialisation of different descriptors
 
@@ -251,11 +234,6 @@ int main ( int argc, char **argv ) {
             printf ( "Descriptor of response matrix returns info: %d\n",info );
             return info;
         }
-        descinit_ ( DESCRHS, &ydim, &i_one, &blocksize, &i_one, &i_zero, &i_zero, &ICTXT2D, &ydim, &info );
-        if ( info!=0 ) {
-            printf ( "Descriptor of RHS matrix returns info: %d\n",info );
-            return info;
-        }
         descinit_ ( DESCAI, &i_two, &i_two, &i_two, &i_two, &i_zero, &i_zero, &ICTXT2D, &i_two, &info );
         if ( info!=0 ) {
             printf ( "Descriptor of AI matrix returns info: %d\n",info );
@@ -291,20 +269,15 @@ int main ( int argc, char **argv ) {
             return EXIT_FAILURE;
         }
         densesol = (double *) calloc ( Drows * blocksize,sizeof ( double ) );
-        if (iam==0){
-        ytot = ( double* ) calloc ( ydim,sizeof ( double ) );
-        if ( ytot==NULL ) {
-            printf ( "unable to allocate memory for Matrix Y (required: %d bytes)\n", yrows * blocksize*sizeof ( double ) );
-            return EXIT_FAILURE;
+        if (iam==0) {
+            ytot = ( double* ) calloc ( ydim,sizeof ( double ) );
+            if ( ytot==NULL ) {
+                printf ( "unable to allocate memory for Matrix Y (required: %d bytes)\n", ydim*sizeof ( double ) );
+                return EXIT_FAILURE;
+            }
         }
-        RHS = ( double* ) calloc ( ydim,sizeof ( double ) );
-        if ( RHS==NULL ) {
-            printf ( "unable to allocate memory for RHS (required: %d bytes)\n", yrows * blocksize * sizeof ( double ) );
-            return EXIT_FAILURE;
-        }
-	}
         AImat = ( double* ) calloc ( 2*2,sizeof ( double ) );
-        if ( RHS==NULL ) {
+        if ( AImat==NULL ) {
             printf ( "unable to allocate memory for AI matrix (required: %d bytes)\n",2*2*sizeof ( double ) );
             return EXIT_FAILURE;
         }
@@ -354,13 +327,13 @@ int main ( int argc, char **argv ) {
                     printf ( "unable to allocate memory for Matrix C (required: %d bytes)\n", Drows*blocksize*Dcols*blocksize*sizeof ( double ) );
                     return EXIT_FAILURE;
                 }
-                ytot = ( double* ) calloc ( yrows * blocksize,sizeof ( double ) );
+                ytot = ( double* ) calloc ( ydim,sizeof ( double ) );
                 if ( ytot==NULL ) {
                     printf ( "unable to allocate memory for Matrix Y\n" );
                     return EXIT_FAILURE;
                 }
                 AImat = ( double* ) calloc ( 2*2,sizeof ( double ) );
-                if ( RHS==NULL ) {
+                if ( AImat==NULL ) {
                     printf ( "unable to allocate memory for AI matrix\n" );
                     return EXIT_FAILURE;
                 }
@@ -427,7 +400,7 @@ int main ( int argc, char **argv ) {
 
                 // RHS is copied for use afterwards (in ytot we will get the estimates for the effects)
                 // This only needs to be done the first time
-                pdcopy_ ( &Ddim, ytot,&i_one,&i_one,DESCYTOT,&i_one,RHS,&i_one,&i_one,DESCRHS,&i_one );
+                //pdcopy_ ( &Ddim, ytot,&i_one,&i_one,DESCYTOT,&i_one,RHS,&i_one,&i_one,DESCRHS,&i_one );
                 if ( copyC )
                     pdlacpy_ ( "U", &Ddim, &Ddim, Dmat, &i_one, &i_one, DESCD, Cmatcopy, &i_one, &i_one, DESCCCOPY );
 
@@ -560,11 +533,11 @@ int main ( int argc, char **argv ) {
 
             //From here on the Schur complement S of D is stored in D
             pdcopy_(&k,ytot,&ml_plus,&i_one,DESCYTOT,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
-	    
+
             if (iam==0) {
-		printdense(m+l,1,ytot,"ytot_sparse.txt");
+                printdense(m+l,1,ytot,"ytot_sparse.txt");
                 solveSystem(Asparse, solution,ytot, 2, 1);
-		printdense(m+l,1,solution,"Solution_sparse.txt");
+                printdense(m+l,1,solution,"Solution_sparse.txt");
                 mult_colsA_colsC_denseC(Btsparse,solution,ydim,0,Btsparse.ncols,0,1,solution+m+l,ydim, true,-1.0);
             }
 
@@ -583,16 +556,16 @@ int main ( int argc, char **argv ) {
 
             //Estimation of genetic effects, stored in solution on root process.
             printf("ydim : %d \n ml_plus : %d \n Ddim : %d\n",ydim,ml_plus,Ddim);
-	    
-	    pdcopy_(&k,solution,&ml_plus,&i_one,DESCSOL,&i_one,densesol,&i_one,&i_one, DESCDENSESOL, &i_one);
-	    
-	    //printf("Solution copied \n");
+
+            pdcopy_(&k,solution,&ml_plus,&i_one,DESCSOL,&i_one,densesol,&i_one,&i_one, DESCDENSESOL, &i_one);
+
+            //printf("Solution copied \n");
 
             pdpotrs_ ( "U",&Ddim,&i_one,Dmat,&i_one,&i_one,DESCD,densesol,&i_one,&i_one,DESCDENSESOL,&info );
-            if ( info!=0 ){
+            if ( info!=0 ) {
                 printf ( "Parallel Cholesky solution was unsuccesful, error returned: %d\n",info );
-		return -1;
-	    }
+                return -1;
+            }
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
@@ -601,15 +574,15 @@ int main ( int argc, char **argv ) {
             pdcopy_(&k,densesol,&i_one,&i_one,DESCDENSESOL,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
             pdcopy_(&Adim,ytot,&i_one,&i_one,DESCYTOT,&i_one,solution,&i_one,&i_one, DESCSOL, &i_one);
             if (iam==0) {
-		printdense(ydim,1,ytot,"ytot_dense.txt");
+                printdense(ydim,1,ytot,"ytot_dense.txt");
                 Btsparse.transposeIt(1);
                 mult_colsA_colsC_denseC(Btsparse,solution+m+l,ydim,0,Btsparse.ncols,0,1,solution,ydim,true,-1.0);
-		printdense(ydim,1,solution,"RHS_sparse.txt");
-		double * sparse_sol=(double *) calloc(Asparse.ncols, sizeof(double));
-                loglikelihood=solveSystemWithDet(Asparse, sparse_sol,solution, 2, 1);
-		memcpy(solution,sparse_sol,(m+l) * sizeof(double));
-		printdense(ydim,1,solution,"solution.txt");
-		printf("Log of determinant of A is: %g\n",loglikelihood);
+                printdense(ydim,1,solution,"RHS_sparse.txt");
+                double * sparse_sol=(double *) calloc(Asparse.ncols, sizeof(double));
+                loglikelihood=solveSystemWithDet(Asparse, sparse_sol,solution, -2, 1)/2;
+                memcpy(solution,sparse_sol,(m+l) * sizeof(double));
+                printdense(ydim,1,solution,"solution.txt");
+                printf("Half of the log of determinant of A is: %g\n",loglikelihood);
                 Btsparse.transposeIt(1);
             }
             else
@@ -622,15 +595,21 @@ int main ( int argc, char **argv ) {
             sigma= ( *respnrm - dot ) / ( n-m );
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 dgebs2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&sigma,&i_one );
-		printf("dot product : %g \n sigma: %g\n", dot,sigma);
+                printf("dot product : %g \n sigma: %g\n", dot,sigma);
             } else
                 dgebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one, &sigma,&i_one,&i_zero,&i_zero );
+
+            char *Dfile;
+            Dfile=(char *) calloc(100,sizeof(char));
+            *Dfile='\0';
+            sprintf(Dfile,"Dmat_(%d,%d).txt",*position,pcol);
+            printdense(Drows * blocksize,Dcols * blocksize,Dmat,Dfile);
 
             loglikelihood+=log_determinant_C ( Dmat,DESCD );
             dgsum2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&loglikelihood,&i_one,&i_negone,&i_negone );
 
             if ( * ( position+1 ) ==0 && *position==0 ) {
-		printf("Log of determinant of M is: %g\n",loglikelihood);
+                printf("Half of the log of determinant of M is: %g\n",loglikelihood);
                 gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                 printf ( "\t elapsed wall time calculation and sending of sigma and log(det(M)):	%10.3f s\n", ( c1 - c0 ) /1000000.0 );
@@ -754,9 +733,9 @@ int main ( int argc, char **argv ) {
                     *(Diag_inv_rand_block+i) += Asparse.pData[j];
                 }
                 trace_proc=0;
-                for (i=m; i<ydim;++i){
-		  trace_proc +=*(Diag_inv_rand_block+i);
-		}
+                for (i=m; i<ydim; ++i) {
+                    trace_proc +=*(Diag_inv_rand_block+i);
+                }
                 //printdense ( Adim+k,1,Diag_inv_rand_block,"diag_inverse_C_parallel.txt" );
             }
 
@@ -783,9 +762,9 @@ int main ( int argc, char **argv ) {
             }
 
             // The norm of the estimation of the random effects is calculated for use in the score function
-            
-	    randeffects=k+l;
-            pdnrm2_ ( &randeffects,randnrm,ytot,&m_plus,&i_one,DESCYTOT,&i_one );
+
+            randeffects=k+l;
+            pdnrm2_ ( &randeffects,randnrm,solution,&m_plus,&i_one,DESCSOL,&i_one );
 
             // The score function (first derivative of log likelihood) and the update for lambda are only calculated in proces (0,0)
             // Afterwards the update is sent to every proces.
@@ -888,12 +867,10 @@ int main ( int argc, char **argv ) {
 
 
         free ( AImat );
-        free ( RHS );
         free ( respnrm );
         free ( randnrm );
         free ( DESCD );
         free ( DESCAI );
-        free ( DESCRHS );
 
         if ( copyC ) {
             free ( Cmatcopy );
@@ -953,10 +930,10 @@ int main ( int argc, char **argv ) {
             printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
             printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
             printdense ( m,1,solution,"estimates_fixed_effects.txt" );
-	    printdense ( l,1,solution+m,"estimates_random_sparse_effects.txt" );
-	    printdense ( k,1,solution+m+l,"estimates_random_genetic_effects.txt" );
+            printdense ( l,1,solution+m,"estimates_random_sparse_effects.txt" );
+            printdense ( k,1,solution+m+l,"estimates_random_genetic_effects.txt" );
             free ( solution );
-	    free ( ytot );
+            free ( ytot );
         }
 
         /*char *srank, filen[50];
@@ -988,6 +965,6 @@ int main ( int argc, char **argv ) {
     MPI_Finalize();
 
     return 0;
-    
+
 }
 

@@ -178,11 +178,11 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
 double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
 
 extern double d_one, d_zero, d_negone;
-extern int DLEN_, i_negone, i_zero, i_one, i_two, i_four; // some many used constants
+extern int DLEN_, i_negone, i_zero, i_one, i_two; // some many used constants
 extern int k,n,m,l, blocksize; //dimensions of different matrices
 extern int lld_D, Dblocks, Ddim, m_plus,ml_plus,Adim, ydim;
-extern int Drows,Dcols,Srows,Scols,Brows,Bcols;
-extern int size, *dims, * position, ICTXT2D, ICTXT1D, ICTXT1PROC, iam;
+extern int Drows,Dcols;
+extern int size, *dims, * position, ICTXT2D, iam;
 extern int ntests, maxiterations,datahdf5, copyC;
 extern char *SNPdata, *phenodata;
 extern char *filenameT, *filenameX, *filenameZ, *filenameY, *TestSet;
