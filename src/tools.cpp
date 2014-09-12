@@ -125,6 +125,7 @@ void mult_colsA_colsC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int A
     memcpy ( pcols, &Ccols[0], C_nnz*sizeof ( int ) );
     memcpy ( pdata, &Cdata[0], C_nnz*sizeof ( double ) );
 
+    C.clear();
     C.make ( A.nrows,C_ncols,C_nnz,prows,pcols,pdata );
 
     if ( trans )

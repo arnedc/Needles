@@ -750,9 +750,7 @@ void CSRdouble::extendrows ( CSRdouble& B, int startrowB, int nrowsB ) {
     memcpy ( &(pcols[nonzeros]), & ( B.pCols[colindex] ), nonzeroesB * sizeof(int));
     memcpy ( &(pdata[nonzeros]), & ( B.pData[colindex] ), nonzeroesB * sizeof(double));
 
-    delete[] pRows;
-    delete[] pCols;
-    delete[] pData;
+    clear();
 
     make ( n, B.ncols, nonzeroes, prows, pcols, pdata );
 }
