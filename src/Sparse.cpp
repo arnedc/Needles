@@ -54,6 +54,7 @@ void create1x2BlockMatrix(CSRdouble& A, CSRdouble& B, // input
         cout << "Nonzeroes do not match, nonzero_counter= " << nonzero_counter << "; nonzeros= " << nonzeros <<endl;
 
 
+    C.clear();
     C.make(nrows, ncols, nonzeros, ic, jc, c);
     C.sortColumns();
     // C.writeToFile("C.csr");
@@ -129,6 +130,7 @@ void create2x2SymBlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& T, // input
         cout << "Nonzeroes do not match, nonzero_counter= " << nonzero_counter << "; nonzeros= " << nonzeros <<endl;
 
 
+    C.clear();
     C.make(nrows, ncols, nonzeros, ic, jc, c);
     C.sortColumns();
     // C.writeToFile("C.csr");
@@ -149,6 +151,7 @@ void makeIdentity(int n, CSRdouble& I)
         pdata[i]    = -1.0;
     }
 
+    I.clear();
     I.make(n, n, n, prows, pcols, pdata);
 }
 

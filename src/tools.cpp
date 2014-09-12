@@ -133,8 +133,7 @@ void mult_colsA_colsC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int A
 
 void mult_colsA_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, 
 			       double *C, int lld_C, bool sum, double alpha ) {
-    int i, j,row, col, C_nnz,C_ncols, *prows;
-    double cij;
+    int index, j,row, col;
 
     /*assert(Cncols < lld_B);
     assert(Ccolstart+Cncols <= C.ncols);*/
@@ -143,10 +142,10 @@ void mult_colsA_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart,
         for ( col=Ccolstart; col<Ccolstart+Cncols; ++col ) {
             if (!sum)
 	      *(C + row + col * lld_C) = 0;
-            for ( i=A.pRows[row]; i<A.pRows[row+1]; ++i ) {
-                j = A.pCols[i];
+            for ( index=A.pRows[row]; index<A.pRows[row+1]; ++index ) {
+                j = A.pCols[index];
                 if ( j>=Acolstart && j<Acolstart+Ancols )
-                    *(C + row + col * lld_C) = *(C + row + col * lld_C) + alpha * A.pData[i] * * ( B + lld_B * (col-Ccolstart) + j-Acolstart  ) ;
+                    *(C + row + col * lld_C) = *(C + row + col * lld_C) + alpha * A.pData[index] * * ( B + lld_B * (col-Ccolstart) + j-Acolstart  ) ;
             }
         }
     }

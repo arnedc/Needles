@@ -26,13 +26,16 @@ CSRdouble::CSRdouble()
 
 void CSRdouble::clear()
 {
+  if (pData != NULL)
     delete[] pData;
+  pData=NULL;
+  if(pRows != NULL)
     delete[] pRows;
+  pRows=NULL;
+  if(pCols != NULL)
     delete[] pCols;
+  pCols=NULL;
 }
-
-
-
 
 void CSRdouble::allocate(int n, int m, int nzeros)
 {
@@ -45,9 +48,6 @@ void CSRdouble::allocate(int n, int m, int nzeros)
     pCols            = new int[nonzeros];
     pData            = new double[nonzeros];
 }
-
-
-
 
 void CSRdouble::make(int n, int m, int nzeros, int* prows,
                      int* pcols, double* pdata)
@@ -62,6 +62,24 @@ void CSRdouble::make(int n, int m, int nzeros, int* prows,
     pData            = pdata;
     name             = "UnNamed";
 }
+
+void CSRdouble::make2(int n, int m, int nzeros, int* prows,
+                      int* pcols, double* pdata)
+{
+    // this is used to set the sparse structure mainly; here the pointer
+    // to the values, pdata, is not necessarily ready (initialized)
+    nrows            = n;
+    ncols            = m;
+    nonzeros         = nzeros;
+    pRows            = new int[n+1];
+    pCols            = new int[nzeros];
+    pData            = new double[nzeros];
+    memcpy(pRows,prows,(n+1) * sizeof(int));
+    memcpy(pCols,pcols,nzeros * sizeof(int));
+    memcpy(pData,pdata,nzeros * sizeof(double));
+    name             = "UnNamed";
+}
+
 
 
 void CSRdouble::sortColumns()
@@ -152,10 +170,6 @@ void CSRdouble::transposeIt(int block_size)
   matrixType     = NORMAL;
 }
 
-
-
-
-
 void CSRdouble::multiply(double* x, double* y)
 {
   switch (matrixType)
@@ -178,10 +192,6 @@ void CSRdouble::multiply(double* x, double* y)
   }
 }
 
-
-
-
-
 void CSRdouble::multiplyS(double* x, double* b)
 {
   memset(b, 0, nrows*sizeof(double));
@@ -203,9 +213,6 @@ void CSRdouble::multiplyS(double* x, double* b)
   }
 }
 
-
-
-
 void CSRdouble::multiplyN(double* x, double* y)
 {
     for (int i = 0; i < nrows; i++)
@@ -221,8 +228,6 @@ void CSRdouble::multiplyN(double* x, double* y)
     }
 }
 
-
-
 void CSRdouble::multiplyT(double* x, double* y)
 {
     memset(y, 0, ncols*sizeof(double));
@@ -235,8 +240,6 @@ void CSRdouble::multiplyT(double* x, double* y)
         }
     }
 }
-
-
 
 void CSRdouble::writeToFile(const char* filename, ios::openmode mode) const
 {
@@ -298,8 +301,6 @@ void CSRdouble::writeToFile(const char* filename, ios::openmode mode) const
 
     fout.close();
 }
-
-
 
 void CSRdouble::loadFromFile(const char* file, ios::openmode mode)
 {
@@ -393,7 +394,6 @@ void CSRdouble::loadFromFile(const char* file, ios::openmode mode)
 
 
 }
-
 
 void CSRdouble::loadFromFileCOO(const char* file)
 {
@@ -549,6 +549,51 @@ void CSRdouble::fillSymmetric()
   matrixType = NORMAL;
 }
 
+// This method deletes the symmetric sparse structure
+// so that the matrix is stored in upper
+// triangular form.
+void CSRdouble::reduceSymmetric()
+{
+    int nonzeroes, nnz_count;
+    int  n = nrows       ;
+    int* prows    ;
+    int* pcols    ;
+    double* pdata ;
+
+    vector<vector<double> > vA(n);
+    vector<vector<int> >    vcols(n);
+    nonzeroes = (nonzeros + nrows)/2;
+
+    prows = new int[n+1];
+    pcols = new int[nonzeroes];
+    pdata = new double[nonzeroes];
+    nnz_count=0;
+    prows[0]=0;
+    for (int i = 0; i < n; i++)
+    {
+        for (int index = pRows[i]; index < pRows[i+1]; index++)
+        {
+            int j = pCols[index];
+            if(j>=i) {
+                pcols[nnz_count]=j;
+                pdata[nnz_count]=pData[index];
+                ++nnz_count;
+            }
+        }
+        prows[i+1]=nnz_count;
+    }
+
+    if (nnz_count != nonzeroes)
+        cout << "Nonzeroes do not match, nonzero_counter= " << nnz_count << "; nonzeroes= " << nonzeroes <<endl;
+
+    delete[] pRows;
+    delete[] pCols;
+    delete[] pData;
+
+    make(n, n, nonzeroes, prows, pcols, pdata);
+    matrixType = SYMMETRIC;
+}
+
 void CSRdouble::savedebug(const char* filename) const
 {
   fstream fout(filename, ios::out);
@@ -646,6 +691,8 @@ void CSRdouble::addBCSR ( CSRdouble& B ) {
 
     memcpy ( pcols, &ABcols[0], nonzeroes*sizeof ( int ) );
     memcpy ( pdata, &ABdata[0], nonzeroes*sizeof ( double ) );
+    ABcols.clear();
+    ABdata.clear();
 
     delete[] pRows;
     delete[] pCols;

@@ -20,7 +20,7 @@ typedef int MPI_Datatype;
 double d_one=1.0, d_zero=0.0, d_negone=-1.0;
 int DLEN_=9, i_negone=-1, i_zero=0, i_one=1, i_two=2; // some many used constants
 int k,n,m, l, blocksize; //dimensions of different matrices
-int lld_D, Dblocks, Ddim, m_plus, ml_plus, yblocks, ydim, Adim;
+int lld_D, Dblocks, Ddim, m_plus, ml_plus, ydim, Adim;
 int Drows,Dcols;
 int size, *dims, * position, ICTXT2D, iam;
 int ntests, maxiterations,datahdf5, copyC;
@@ -70,14 +70,15 @@ int main ( int argc, char **argv ) {
         return info;
     }
     int i,j,pcol, counter, breakvar, randeffects;
-    double *Dmat, *ytot, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol;
+    double *Dmat, *ytot, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol, *AB_sol;
     double sigma, dot, trace_proc, convergence_criterium, loglikelihood,prevloglike,update_loglikelihood;
-    int *DESCD, *DESCYTOT, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL;
+    int *DESCD, *DESCYTOT, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL, *DESCAB_sol;
     double c0, c1, c2, c3, c4;
     struct timeval tz0,tz1, tz2,tz3;
     double vm_usage, resident_set, cpu_sys, cpu_user;
     double *work, normC,norm1C, norminv, norm1inv, Cmax, colmax;
-    CSRdouble BT_i, B_j, Xsparse, Zsparse, Btsparse;
+    CSRdouble BT_i, B_j, Xsparse, Zsparse, Btsparse, Asparse;
+    CSRdouble XtX_sparse, XtZ_sparse, ZtZ_sparse, Imat;
 
     // declaration of descriptors of different matrices
 
@@ -104,6 +105,12 @@ int main ( int argc, char **argv ) {
     DESCDENSESOL= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
     if ( DESCDENSESOL==NULL ) {
         printf ( "unable to allocate memory for descriptor for AI\n" );
+        return -1;
+    }
+    //AB_sol will contain the solution of A*X=B, distributed across the process rows. Processes in the same process row possess the same part of AB_sol
+    DESCAB_sol= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
+    if ( DESCAB_sol==NULL ) {
+        printf ( "unable to allocate memory for descriptor for AB_sol\n" );
         return -1;
     }
 
@@ -244,12 +251,21 @@ int main ( int argc, char **argv ) {
             printf ( "Descriptor of solution returns info: %d\n",info );
             return info;
         }
+        //AB_sol (Adim, Ddim) is distributed across all processes in ICTXT2D starting from process (0,0) into blocks of size (Adim, blocksize)
+        descinit_ ( DESCAB_sol, &Adim, &Ddim, &Adim, &blocksize, &i_zero, &i_zero, &ICTXT2D, &Adim, &info );
+        if ( info!=0 ) {
+            printf ( "Descriptor of matrix C returns info: %d\n",info );
+            return info;
+        }
+
 
         convergence_criterium=0;
         counter=0;
         /*strcat ( filenameZ, ".bin" );
         strcat ( filenameX, ".bin" );
         strcat ( filenameTest, ".bin" );*/
+
+        //solution= ( double * ) calloc ( (k+l+m), sizeof ( double ) );
 
         if ( * ( position+1 ) ==0 && *position==0 ) {
             printf ( "\nA linear mixed model with %d observations, %d random effects and %d fixed effects\n", n,k,m );
@@ -269,6 +285,10 @@ int main ( int argc, char **argv ) {
             return EXIT_FAILURE;
         }
         densesol = (double *) calloc ( Drows * blocksize,sizeof ( double ) );
+        if ( densesol==NULL ) {
+            printf ( "unable to allocate memory for distributed solution matrix (required: %d bytes)\n", Drows * blocksize*sizeof ( double ) );
+            return EXIT_FAILURE;
+        }
         if (iam==0) {
             ytot = ( double* ) calloc ( ydim,sizeof ( double ) );
             if ( ytot==NULL ) {
@@ -291,6 +311,42 @@ int main ( int argc, char **argv ) {
             printf ( "unable to allocate memory for norm\n" );
             return EXIT_FAILURE;
         }
+        AB_sol=(double *) calloc(Adim * Dcols*blocksize,sizeof(double));
+        if ( AB_sol==NULL ) {
+            printf ( "unable to allocate memory for AB_sol (required %d bytes)\n",Adim * Dcols*blocksize*sizeof(double) );
+            return EXIT_FAILURE;
+        }
+
+        //Now every matrix has to set up the sparse matrix A, consisting of X'X, X'Z, Z'X and Z'Z + lambda*I
+        Xsparse.loadFromFile ( filenameX );
+        Zsparse.loadFromFile ( filenameZ );
+
+        smat_t *X_smat, *Z_smat;
+
+        X_smat = smat_new_from ( Xsparse.nrows,Xsparse.ncols,Xsparse.pRows,Xsparse.pCols,Xsparse.pData,0,0 );
+        Z_smat = smat_new_from ( Zsparse.nrows,Zsparse.ncols,Zsparse.pRows,Zsparse.pCols,Zsparse.pData,0,0 );
+
+        smat_t *Xt_smat, *Zt_smat;
+        Xt_smat = smat_copy_trans ( X_smat );
+        Zt_smat = smat_copy_trans ( Z_smat );
+
+
+        smat_t *XtX_smat, *XtZ_smat, *ZtZ_smat, *lambda_smat, *ZtZlambda_smat;
+
+        XtX_smat = smat_matmul ( Xt_smat, X_smat );
+        XtZ_smat = smat_matmul ( Xt_smat, Z_smat );
+        ZtZ_smat = smat_matmul ( Zt_smat,Z_smat );
+
+        Xsparse.clear();
+        Zsparse.clear();
+        smat_free(Xt_smat);
+        smat_free(Zt_smat);
+
+        smat_to_symmetric_structure ( XtX_smat );
+
+        XtX_sparse.make2 ( XtX_smat->m,XtX_smat->n,XtX_smat->nnz,XtX_smat->ia,XtX_smat->ja,XtX_smat->a );
+        XtZ_sparse.make2 ( XtZ_smat->m,XtZ_smat->n,XtZ_smat->nnz,XtZ_smat->ia,XtZ_smat->ja,XtZ_smat->a );
+
 
 // Start of AI-REML iteration cycle, stops when relative update of gamma < epsilon
 
@@ -318,19 +374,24 @@ int main ( int argc, char **argv ) {
             // Maybe it would be better not to free and allocate every time but just set every element to zero (for loop)??
 
             if ( counter > 1 ) {
-                free ( ytot );
-                //free ( Cmat );
-                free ( AImat );
+                if(AImat != NULL)
+                    free ( AImat );
+                AImat=NULL;
 
                 Dmat= ( double* ) calloc ( Drows*blocksize*Dcols*blocksize,sizeof ( double ) );
                 if ( Dmat==NULL ) {
                     printf ( "unable to allocate memory for Matrix C (required: %d bytes)\n", Drows*blocksize*Dcols*blocksize*sizeof ( double ) );
                     return EXIT_FAILURE;
                 }
-                ytot = ( double* ) calloc ( ydim,sizeof ( double ) );
-                if ( ytot==NULL ) {
-                    printf ( "unable to allocate memory for Matrix Y\n" );
-                    return EXIT_FAILURE;
+                if (iam==0) {
+                    if(ytot != NULL)
+                        free ( ytot );
+                    ytot=NULL;
+                    ytot = ( double* ) calloc ( ydim,sizeof ( double ) );
+                    if ( ytot==NULL ) {
+                        printf ( "unable to allocate memory for Matrix Y\n" );
+                        return EXIT_FAILURE;
+                    }
                 }
                 AImat = ( double* ) calloc ( 2*2,sizeof ( double ) );
                 if ( AImat==NULL ) {
@@ -356,7 +417,9 @@ int main ( int argc, char **argv ) {
                     }
                     lambda=lambda/ ( 1+convergence_criterium ); // Update for lambda (which is 1/gamma)
                 } else {
-                    free ( respnrm );
+                    if(respnrm != NULL)
+                        free ( respnrm );
+                    respnrm=NULL;
                     respnrm= ( double * ) calloc ( 1,sizeof ( double ) );
                     if ( respnrm==NULL ) {
                         printf ( "unable to allocate memory for norm\n" );
@@ -429,35 +492,7 @@ int main ( int argc, char **argv ) {
                 printf ( "norm of y-vector is: %g\n",*respnrm );
             }
 
-            //Now every matrix has to set up the sparse matrix A, consisting of X'X, X'Z, Z'X and Z'Z + lambda*I
-            Xsparse.loadFromFile ( filenameX );
-            Zsparse.loadFromFile ( filenameZ );
-
-            smat_t *X_smat, *Z_smat;
-
-            X_smat = smat_new_from ( Xsparse.nrows,Xsparse.ncols,Xsparse.pRows,Xsparse.pCols,Xsparse.pData,0,0 );
-            Z_smat = smat_new_from ( Zsparse.nrows,Zsparse.ncols,Zsparse.pRows,Zsparse.pCols,Zsparse.pData,0,0 );
-
-            smat_t *Xt_smat, *Zt_smat;
-            Xt_smat = smat_copy_trans ( X_smat );
-            Zt_smat = smat_copy_trans ( Z_smat );
-
-            CSRdouble Asparse;
-            smat_t *XtX_smat, *XtZ_smat, *ZtZ_smat, *lambda_smat, *ZtZlambda_smat;
-
-            XtX_smat = smat_matmul ( Xt_smat, X_smat );
-            XtZ_smat = smat_matmul ( Xt_smat, Z_smat );
-            ZtZ_smat = smat_matmul ( Zt_smat,Z_smat );
-
-            /*smat_free(X_smat);
-            smat_free(Z_smat);
-            smat_free(Xt_smat);
-            smat_free(Zt_smat);
-            Xsparse.clear();
-            Zsparse.clear();*/
-
-            CSRdouble Imat;
-
+            //Since lambda changes every iteration we need to construct A every iteration
             makeIdentity ( l, Imat );
 
             lambda_smat = smat_new_from ( Imat.nrows,Imat.ncols,Imat.pRows,Imat.pCols,Imat.pData,0,0 );
@@ -466,18 +501,11 @@ int main ( int argc, char **argv ) {
 
             ZtZlambda_smat = smat_add ( lambda_smat, ZtZ_smat );
 
-            /*smat_free(ZtZ_smat);
-            smat_free(lambda_smat);
-            Imat.clear();*/
-
-            smat_to_symmetric_structure ( XtX_smat );
             smat_to_symmetric_structure ( ZtZlambda_smat );
 
-            CSRdouble XtX_sparse, XtZ_sparse, ZtZ_sparse;
+            ZtZ_sparse.make2 ( ZtZlambda_smat->m,ZtZlambda_smat->n,ZtZlambda_smat->nnz,ZtZlambda_smat->ia,ZtZlambda_smat->ja,ZtZlambda_smat->a );
 
-            XtX_sparse.make ( XtX_smat->m,XtX_smat->n,XtX_smat->nnz,XtX_smat->ia,XtX_smat->ja,XtX_smat->a );
-            XtZ_sparse.make ( XtZ_smat->m,XtZ_smat->n,XtZ_smat->nnz,XtZ_smat->ia,XtZ_smat->ja,XtZ_smat->a );
-            ZtZ_sparse.make ( ZtZlambda_smat->m,ZtZlambda_smat->n,ZtZlambda_smat->nnz,ZtZlambda_smat->ia,ZtZlambda_smat->ja,ZtZlambda_smat->a );
+            Imat.clear();
 
             if (iam==0) {
                 cout << "***                                           [  t     t  ] *** " << endl;
@@ -496,31 +524,12 @@ int main ( int argc, char **argv ) {
                 printf ( "\t elapsed wall time for creating sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
             }
 
-            /*smat_free(XtX_smat);
+            smat_free(XtX_smat);
             smat_free(XtZ_smat);
             smat_free(ZtZlambda_smat);
-            XtX_sparse.clear();
-            XtZ_sparse.clear();
-            ZtZ_sparse.clear();*/
+            ZtZ_sparse.clear();
 
             blacs_barrier_ ( &ICTXT2D,"ALL" );
-
-            //AB_sol will contain the solution of A*X=B, distributed across the process rows. Processes in the same process row possess the same part of AB_sol
-            double * AB_sol;
-            int * DESCAB_sol;
-            DESCAB_sol= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
-            if ( DESCAB_sol==NULL ) {
-                printf ( "unable to allocate memory for descriptor for AB_sol\n" );
-                return -1;
-            }
-            //AB_sol (Adim, Ddim) is distributed across all processes in ICTXT2D starting from process (0,0) into blocks of size (Adim, blocksize)
-            descinit_ ( DESCAB_sol, &Adim, &Ddim, &Adim, &blocksize, &i_zero, &i_zero, &ICTXT2D, &Adim, &info );
-            if ( info!=0 ) {
-                printf ( "Descriptor of matrix C returns info: %d\n",info );
-                return info;
-            }
-
-            AB_sol=(double *) calloc(Adim * Dcols*blocksize,sizeof(double));
 
             // Each process calculates the Schur complement of the part of D at its disposal. (see src/schur.cpp)
             // The solution of A * Y = B_j is stored in AB_sol (= A^-1 * B_j)
@@ -530,6 +539,8 @@ int main ( int argc, char **argv ) {
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time for creating Schur complement of D:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
             }
+            BT_i.clear();
+            B_j.clear();
 
             //From here on the Schur complement S of D is stored in D
             pdcopy_(&k,ytot,&ml_plus,&i_one,DESCYTOT,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
@@ -572,6 +583,11 @@ int main ( int argc, char **argv ) {
                 printf ( "\t elapsed wall time estimation of effects:		%10.3f s\n", ( c0 - c1 ) /1000000.0 );
             }
             pdcopy_(&k,densesol,&i_one,&i_one,DESCDENSESOL,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
+
+            if(densesol != NULL)
+                free(densesol);
+            densesol=NULL;
+
             pdcopy_(&Adim,ytot,&i_one,&i_one,DESCYTOT,&i_one,solution,&i_one,&i_one, DESCSOL, &i_one);
             if (iam==0) {
                 printdense(ydim,1,ytot,"ytot_dense.txt");
@@ -621,6 +637,10 @@ int main ( int argc, char **argv ) {
                 info = set_up_AI_hdf5 ( AImat, DESCAI,DESCYTOT, ytot, DESCD, Dmat, sigma ) ;
             else
                 info = set_up_AI ( AImat, DESCAI,DESCSOL, solution, DESCD, Dmat, Asparse, Btsparse,sigma ) ;
+
+            Btsparse.clear();
+            if(iam != 0)
+                Asparse.clear();
 
             if ( info!=0 ) {
                 printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
@@ -725,6 +745,7 @@ int main ( int argc, char **argv ) {
                 pddot_(&Ddim,Diag_inv_rand_block+i-1,AB_sol,&i,&i_one,DESCAB_sol,&Adim,YSrow,&i_one,&i_one,DESCYSROW,&i_one);
             }
             blacs_barrier_(&ICTXT2D,"A");
+            
 
             //Only in the root process we add the diagonal elements of A^-1
             if (iam ==0) {
@@ -732,6 +753,7 @@ int main ( int argc, char **argv ) {
                     j=Asparse.pRows[i];
                     *(Diag_inv_rand_block+i) += Asparse.pData[j];
                 }
+                Asparse.clear();
                 trace_proc=0;
                 for (i=m; i<ydim; ++i) {
                     trace_proc +=*(Diag_inv_rand_block+i);
@@ -749,11 +771,15 @@ int main ( int argc, char **argv ) {
                 process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             }
 
-            free ( work );
+            if(work != NULL)
+                free ( work );
+            work=NULL;
 
             // The trace of the inverse of C is calculated per diagonal block and then summed over all processes and stored in proces (0,0)
 
-            free ( Dmat );
+            if(Dmat != NULL)
+                free ( Dmat );
+            Dmat=NULL;
 
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 gettimeofday ( &tz1,NULL );
@@ -844,7 +870,9 @@ int main ( int argc, char **argv ) {
                 }
                 convergence_criterium=lambda * * ( score+1 );
                 dgebs2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&convergence_criterium,&i_one );
-                free ( score );
+                if(score != NULL)
+                    free ( score );
+                score=NULL;
                 printf ( "The eventual relative update for gamma is: %g \n", convergence_criterium );
 
             } else {
@@ -865,16 +893,47 @@ int main ( int argc, char **argv ) {
         }
         blacs_barrier_ ( &ICTXT2D,"A" );
 
+	XtX_sparse.clear();
+            XtZ_sparse.clear();
+	    smat_free(ZtZ_smat);
+	    
+	    if(AB_sol != NULL)
+                free ( AB_sol );
+            AB_sol=NULL;
+            if(DESCAB_sol != NULL)
+                free ( DESCAB_sol );
+            DESCAB_sol=NULL;
 
-        free ( AImat );
-        free ( respnrm );
-        free ( randnrm );
-        free ( DESCD );
-        free ( DESCAI );
+        if(AImat != NULL)
+            free ( AImat );
+        AImat=NULL;
+        if(respnrm != NULL)
+            free ( respnrm );
+        respnrm=NULL;
+        if(randnrm != NULL)
+            free ( randnrm );
+        randnrm=NULL;
+        if(DESCD != NULL)
+            free ( DESCD );
+        DESCD=NULL;
+        if(DESCAI != NULL)
+            free ( DESCAI );
+        DESCAI=NULL;
+        if(DESCSOL != NULL)
+            free ( DESCSOL );
+        DESCSOL=NULL;
+        if(DESCDENSESOL != NULL)
+            free ( DESCDENSESOL );
+        DESCDENSESOL=NULL;
+
 
         if ( copyC ) {
-            free ( Cmatcopy );
-            free ( DESCCCOPY );
+            if(Cmatcopy != NULL)
+                free ( Cmatcopy );
+            Cmatcopy=NULL;
+            if(DESCCCOPY != NULL)
+                free ( DESCCCOPY );
+            DESCCCOPY=NULL;
         }
 
         if ( ntests>0 ) {
@@ -932,8 +991,12 @@ int main ( int argc, char **argv ) {
             printdense ( m,1,solution,"estimates_fixed_effects.txt" );
             printdense ( l,1,solution+m,"estimates_random_sparse_effects.txt" );
             printdense ( k,1,solution+m+l,"estimates_random_genetic_effects.txt" );
-            free ( solution );
-            free ( ytot );
+            if (solution != NULL)
+                free ( solution );
+            solution=NULL;
+            if(ytot != NULL)
+                free ( ytot );
+            ytot=NULL;
         }
 
         /*char *srank, filen[50];
@@ -948,16 +1011,39 @@ int main ( int argc, char **argv ) {
 //printdense ( 2,2, AImat, filen );
 //printdense (blocksize,pblocks * blocksize, Zblock, filen );
 
-        free ( DESCYTOT );
-        free ( position ),free ( dims );
-        free ( filenameT );
-        free ( filenameX );
-        free ( TestSet );
-        free ( SNPdata );
-        free ( phenodata );
+        if(DESCYTOT != NULL)
+            free ( DESCYTOT );
+        DESCYTOT=NULL;
+        if(position != NULL)
+            free ( position );
+        position=NULL;
+        if(dims != NULL)
+            free ( dims );
+        dims=NULL;
+        if(filenameT != NULL)
+            free ( filenameT );
+        filenameT=NULL;
+        if(filenameX != NULL)
+            free ( filenameX );
+        filenameX=NULL;
+        if(filenameY != NULL)
+            free ( filenameY );
+        filenameY=NULL;
+        if(filenameZ != NULL)
+            free ( filenameZ );
+        filenameZ=NULL;
+        if (TestSet != NULL)
+            free ( TestSet );
+        TestSet=NULL;
+        if (SNPdata != NULL)
+            free ( SNPdata );
+        SNPdata=NULL;
+        if(phenodata != NULL)
+            free ( phenodata );
+        phenodata=NULL;
 
         blacs_barrier_ ( &ICTXT2D, "A" );
-        blacs_gridexit_ ( &ICTXT2D );
+        //blacs_gridexit_ ( &ICTXT2D );
 
     }
     //cout << iam << " reached end before MPI_Barrier" << endl;
