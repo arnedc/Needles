@@ -1067,8 +1067,8 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         printf ( "Error in allocating memory for a strip of T in processor (%d,%d)\n",*position,* ( position+1 ) );
         return -1;
     }
-    QRHS= ( double * ) calloc ( ydim,sizeof ( double ) );
-    Qsol= ( double * ) calloc ( ydim,sizeof ( double ) );
+    //QRHS= ( double * ) calloc ( ydim,sizeof ( double ) );
+    //Qsol= ( double * ) calloc ( ydim,sizeof ( double ) );
 
     if (iam==0) {
         Zu=(double *) calloc(nstrips * stripcols,sizeof(double));

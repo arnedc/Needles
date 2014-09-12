@@ -70,9 +70,9 @@ int main ( int argc, char **argv ) {
         return info;
     }
     int i,j,pcol, counter, breakvar, randeffects;
-    double *Dmat, *ytot, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol, *AB_sol;
+    double *Dmat, *ytot, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol, *AB_sol, *YSrow;
     double sigma, dot, trace_proc, convergence_criterium, loglikelihood,prevloglike,update_loglikelihood;
-    int *DESCD, *DESCYTOT, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL, *DESCAB_sol;
+    int *DESCD, *DESCYTOT, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL, *DESCAB_sol, *DESCYSROW;
     double c0, c1, c2, c3, c4;
     struct timeval tz0,tz1, tz2,tz3;
     double vm_usage, resident_set, cpu_sys, cpu_user;
@@ -110,6 +110,11 @@ int main ( int argc, char **argv ) {
     //AB_sol will contain the solution of A*X=B, distributed across the process rows. Processes in the same process row possess the same part of AB_sol
     DESCAB_sol= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
     if ( DESCAB_sol==NULL ) {
+        printf ( "unable to allocate memory for descriptor for AB_sol\n" );
+        return -1;
+    }
+    DESCYSROW= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
+    if ( DESCYSROW==NULL ) {
         printf ( "unable to allocate memory for descriptor for AB_sol\n" );
         return -1;
     }
@@ -257,6 +262,12 @@ int main ( int argc, char **argv ) {
             printf ( "Descriptor of matrix C returns info: %d\n",info );
             return info;
         }
+        //YSrow (1,Ddim) is distributed across processes of ICTXT2D starting from process (0,0) into blocks of size (1,blocksize)
+        descinit_ ( DESCYSROW, &i_one, &Ddim, &i_one,&blocksize, &i_zero, &i_zero, &ICTXT2D, &i_one, &info );
+        if ( info!=0 ) {
+            printf ( "Descriptor of matrix C returns info: %d\n",info );
+            return info;
+        }
 
 
         convergence_criterium=0;
@@ -316,6 +327,13 @@ int main ( int argc, char **argv ) {
             printf ( "unable to allocate memory for AB_sol (required %d bytes)\n",Adim * Dcols*blocksize*sizeof(double) );
             return EXIT_FAILURE;
         }
+        // To minimize memory usage, and because only the diagonal elements of the inverse are needed, Y' * S is calculated row by rowblocks
+        // the diagonal element is calculated as the dot product of this row and the corresponding column of Y. (Y is solution of AY=B)
+        YSrow= ( double* ) calloc ( Dcols * blocksize,sizeof ( double ) );
+        if ( YSrow==NULL ) {
+            printf ( "unable to allocate memory for YSrow (required %d bytes)\n",Dcols*blocksize*sizeof(double) );
+            return EXIT_FAILURE;
+        }
 
         //Now every matrix has to set up the sparse matrix A, consisting of X'X, X'Z, Z'X and Z'Z + lambda*I
         Xsparse.loadFromFile ( filenameX );
@@ -346,6 +364,9 @@ int main ( int argc, char **argv ) {
 
         XtX_sparse.make2 ( XtX_smat->m,XtX_smat->n,XtX_smat->nnz,XtX_smat->ia,XtX_smat->ja,XtX_smat->a );
         XtZ_sparse.make2 ( XtZ_smat->m,XtZ_smat->n,XtZ_smat->nnz,XtZ_smat->ia,XtZ_smat->ja,XtZ_smat->a );
+
+        smat_free(XtX_smat);
+        smat_free(XtZ_smat);
 
 
 // Start of AI-REML iteration cycle, stops when relative update of gamma < epsilon
@@ -524,8 +545,6 @@ int main ( int argc, char **argv ) {
                 printf ( "\t elapsed wall time for creating sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
             }
 
-            smat_free(XtX_smat);
-            smat_free(XtZ_smat);
             smat_free(ZtZlambda_smat);
             ZtZ_sparse.clear();
 
@@ -546,9 +565,9 @@ int main ( int argc, char **argv ) {
             pdcopy_(&k,ytot,&ml_plus,&i_one,DESCYTOT,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
 
             if (iam==0) {
-                printdense(m+l,1,ytot,"ytot_sparse.txt");
+                //printdense(m+l,1,ytot,"ytot_sparse.txt");
                 solveSystem(Asparse, solution,ytot, 2, 1);
-                printdense(m+l,1,solution,"Solution_sparse.txt");
+                //printdense(m+l,1,solution,"Solution_sparse.txt");
                 mult_colsA_colsC_denseC(Btsparse,solution,ydim,0,Btsparse.ncols,0,1,solution+m+l,ydim, true,-1.0);
             }
 
@@ -566,12 +585,7 @@ int main ( int argc, char **argv ) {
             }
 
             //Estimation of genetic effects, stored in solution on root process.
-            printf("ydim : %d \n ml_plus : %d \n Ddim : %d\n",ydim,ml_plus,Ddim);
-
             pdcopy_(&k,solution,&ml_plus,&i_one,DESCSOL,&i_one,densesol,&i_one,&i_one, DESCDENSESOL, &i_one);
-
-            //printf("Solution copied \n");
-
             pdpotrs_ ( "U",&Ddim,&i_one,Dmat,&i_one,&i_one,DESCD,densesol,&i_one,&i_one,DESCDENSESOL,&info );
             if ( info!=0 ) {
                 printf ( "Parallel Cholesky solution was unsuccesful, error returned: %d\n",info );
@@ -584,20 +598,19 @@ int main ( int argc, char **argv ) {
             }
             pdcopy_(&k,densesol,&i_one,&i_one,DESCDENSESOL,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
 
-            if(densesol != NULL)
-                free(densesol);
-            densesol=NULL;
-
             pdcopy_(&Adim,ytot,&i_one,&i_one,DESCYTOT,&i_one,solution,&i_one,&i_one, DESCSOL, &i_one);
             if (iam==0) {
-                printdense(ydim,1,ytot,"ytot_dense.txt");
+                //printdense(ydim,1,ytot,"ytot_dense.txt");
                 Btsparse.transposeIt(1);
                 mult_colsA_colsC_denseC(Btsparse,solution+m+l,ydim,0,Btsparse.ncols,0,1,solution,ydim,true,-1.0);
-                printdense(ydim,1,solution,"RHS_sparse.txt");
+                //printdense(ydim,1,solution,"RHS_sparse.txt");
                 double * sparse_sol=(double *) calloc(Asparse.ncols, sizeof(double));
                 loglikelihood=solveSystemWithDet(Asparse, sparse_sol,solution, -2, 1)/2;
                 memcpy(solution,sparse_sol,(m+l) * sizeof(double));
-                printdense(ydim,1,solution,"solution.txt");
+		if (sparse_sol != NULL)
+		  free(sparse_sol);
+		sparse_sol=NULL;
+                //printdense(ydim,1,solution,"solution.txt");
                 printf("Half of the log of determinant of A is: %g\n",loglikelihood);
                 Btsparse.transposeIt(1);
             }
@@ -615,11 +628,11 @@ int main ( int argc, char **argv ) {
             } else
                 dgebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one, &sigma,&i_one,&i_zero,&i_zero );
 
-            char *Dfile;
+            /*char *Dfile;
             Dfile=(char *) calloc(100,sizeof(char));
             *Dfile='\0';
             sprintf(Dfile,"Dmat_(%d,%d).txt",*position,pcol);
-            printdense(Drows * blocksize,Dcols * blocksize,Dmat,Dfile);
+            printdense(Drows * blocksize,Dcols * blocksize,Dmat,Dfile);*/
 
             loglikelihood+=log_determinant_C ( Dmat,DESCD );
             dgsum2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&loglikelihood,&i_one,&i_negone,&i_negone );
@@ -638,10 +651,6 @@ int main ( int argc, char **argv ) {
             else
                 info = set_up_AI ( AImat, DESCAI,DESCSOL, solution, DESCD, Dmat, Asparse, Btsparse,sigma ) ;
 
-            Btsparse.clear();
-            if(iam != 0)
-                Asparse.clear();
-
             if ( info!=0 ) {
                 printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
                 return EXIT_FAILURE;
@@ -652,6 +661,14 @@ int main ( int argc, char **argv ) {
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time set up of AI matrix:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
             }
+
+            blacs_barrier_(&ICTXT2D,"A");
+
+            Btsparse.clear();
+            if(iam != 0)
+                Asparse.clear();
+
+            blacs_barrier_(&ICTXT2D,"A");
 
             // Inverse of C is calculated for use in scoring function
 
@@ -721,21 +738,6 @@ int main ( int argc, char **argv ) {
             }
             blacs_barrier_(&ICTXT2D,"A");
 
-            // To minimize memory usage, and because only the diagonal elements of the inverse are needed, Y' * S is calculated row by rowblocks
-            // the diagonal element is calculated as the dot product of this row and the corresponding column of Y. (Y is solution of AY=B)
-            double* YSrow= ( double* ) calloc ( Dcols * blocksize,sizeof ( double ) );
-            int * DESCYSROW;
-            DESCYSROW= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
-            if ( DESCYSROW==NULL ) {
-                printf ( "unable to allocate memory for descriptor for AB_sol\n" );
-                return -1;
-            }
-            //YSrow (1,Ddim) is distributed across processes of ICTXT2D starting from process (0,0) into blocks of size (1,blocksize)
-            descinit_ ( DESCYSROW, &i_one, &Ddim, &i_one,&blocksize, &i_zero, &i_zero, &ICTXT2D, &i_one, &info );
-            if ( info!=0 ) {
-                printf ( "Descriptor of matrix C returns info: %d\n",info );
-                return info;
-            }
 
             blacs_barrier_(&ICTXT2D,"A");
 
@@ -745,7 +747,7 @@ int main ( int argc, char **argv ) {
                 pddot_(&Ddim,Diag_inv_rand_block+i-1,AB_sol,&i,&i_one,DESCAB_sol,&Adim,YSrow,&i_one,&i_one,DESCYSROW,&i_one);
             }
             blacs_barrier_(&ICTXT2D,"A");
-            
+
 
             //Only in the root process we add the diagonal elements of A^-1
             if (iam ==0) {
@@ -759,6 +761,9 @@ int main ( int argc, char **argv ) {
                     trace_proc +=*(Diag_inv_rand_block+i);
                 }
                 //printdense ( Adim+k,1,Diag_inv_rand_block,"diag_inverse_C_parallel.txt" );
+                if(Diag_inv_rand_block != NULL)
+		  free(Diag_inv_rand_block);
+		Diag_inv_rand_block=NULL;
             }
 
 
@@ -815,7 +820,7 @@ int main ( int argc, char **argv ) {
                 }
                 * ( score+1 ) = - ( (k+l)-trace_proc*lambda- *randnrm * *randnrm * lambda / sigma ) * lambda / 2;
                 printf ( "The score function is: %g\n",* ( score+1 ) );
-                printdense ( 2,2, AImat, "AI_par.txt" );
+                //printdense ( 2,2, AImat, "AI_par.txt" );
                 breakvar=0;
                 if ( fabs ( * ( score+1 ) ) < epsilon * epsilon ) {
                     printf ( "Score function too close to zero to go further, solution may not have converged\n " );
@@ -893,16 +898,28 @@ int main ( int argc, char **argv ) {
         }
         blacs_barrier_ ( &ICTXT2D,"A" );
 
-	XtX_sparse.clear();
-            XtZ_sparse.clear();
-	    smat_free(ZtZ_smat);
-	    
-	    if(AB_sol != NULL)
-                free ( AB_sol );
-            AB_sol=NULL;
-            if(DESCAB_sol != NULL)
-                free ( DESCAB_sol );
-            DESCAB_sol=NULL;
+
+        if(densesol != NULL)
+            free(densesol);
+        densesol=NULL;
+
+        XtX_sparse.clear();
+        XtZ_sparse.clear();
+        smat_free(ZtZ_smat);
+
+        if(AB_sol != NULL)
+            free ( AB_sol );
+        AB_sol=NULL;
+        if(DESCAB_sol != NULL)
+            free ( DESCAB_sol );
+        DESCAB_sol=NULL;
+
+        if(YSrow != NULL)
+            free ( YSrow );
+        YSrow=NULL;
+        if(DESCYSROW != NULL)
+            free ( DESCYSROW );
+        DESCYSROW=NULL;
 
         if(AImat != NULL)
             free ( AImat );

@@ -158,6 +158,9 @@ void CSRdouble::transposeIt(int block_size)
 
     transpose_prows[i+1] = transpose_prows[i] + entries;
   }
+  //clear();
+  
+  //make2(transpose_nrows,transpose_ncols,transpose_nonzeros,transpose_prows,transpose_pcols,transpose_pdata);
 
   nrows          = transpose_nrows;
   ncols          = transpose_ncols;
