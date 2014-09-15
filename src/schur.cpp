@@ -4,7 +4,7 @@
 #include "shared_var.h"
 //#include <mkl_blas.h>
 #include "CSRdouble.hpp"
-#include "ParDiSo.hpp"
+#include "ParDiSO.hpp"
 #include <cassert>
 
 extern "C" {

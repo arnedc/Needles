@@ -342,12 +342,14 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             printf("Unable to allocate memory for XtY in root process.\n");
             return -1;
         }
+        printf("Xtsparse.nrows = %d \nm = %d\n",Xtsparse.nrows,m);
         mult_colsA_colsC_denseC ( Xtsparse, Y, n, 0, n, 0, 1, XtY, m, false, 1.0);
         ZtY=(double * ) calloc(l,sizeof(double));
         if(ZtY==NULL) {
             printf("Unable to allocate memory for ZtY in root process.\n");
             return -1;
         }
+        printf("Ztsparse.nrows = %d \nl = %d\n",Ztsparse.nrows,l);
         mult_colsA_colsC_denseC ( Ztsparse, Y, n, 0, n, 0, 1, ZtY, l, false, 1.0);
         if (Y!= NULL)
             free(Y);
@@ -1181,10 +1183,10 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
             }
 
             if(iam==0) {
-                /*if(Tdblock != NULL)
+                if(Tdblock != NULL)
                     free(Tdblock);
-                Tdblock=NULL;*/
-                Tdblock = ( double* ) calloc ( blocksize,sizeof ( double ) );
+                Tdblock=NULL;
+                Tdblock = ( double* ) calloc ( stripcols,sizeof ( double ) );
                 if ( Tdblock==NULL ) {
                     printf ( "unable to allocate memory for Matrix Y\n" );
                     return EXIT_FAILURE;

@@ -1,7 +1,7 @@
 #include <cassert>
 #include <cstring>
 #include "shared_var.h"
-#include "ParDiSo.hpp"
+#include "ParDiSO.hpp"
 #include "CSRdouble.hpp"
 
 void create1x2BlockMatrix(CSRdouble& A, CSRdouble& B, // input

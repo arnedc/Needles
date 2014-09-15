@@ -9,7 +9,7 @@
 //#include <mkl_types.h>
 #include <smat.h>
 #include "CSRdouble.hpp"
-#include "ParDiSo.hpp"
+#include "ParDiSO.hpp"
 #define MPI_SUCCESS          0      /* Successful return code */
 #define MPI_CHAR           ((MPI_Datatype)0x4c000101)
 

@@ -23,7 +23,7 @@
 #define PARDISOCHECK_Z pardiso_chkmatrix_z_
 #endif
 
-#include "config.hpp"
+//#include "config.hpp"
 /*
 namespace std
 {
@@ -36,55 +36,41 @@ using std::complex;
 */
 
 // ===== forward declarations =====
-extern  "C" int PARDISOCHECK_D(int*, int*, double*, int*, int*, int*);
+extern  "C" int PARDISOCHECK_D ( int*, int*, double*, int*, int*, int* );
 
-extern  "C" int PARDISOINIT_D(void *, int *, int *, int *, double *, int *);
-extern  "C" int PARDISOCALL_D(void *, int *, int *, int *, int *, int *,
-			      double *, int *, int *, int *, int *, int *,
-			      int *, double *, double *, int *, double *);
+extern  "C" int PARDISOINIT_D ( void *, int *, int *, int *, double *, int * );
+extern  "C" int PARDISOCALL_D ( void *, int *, int *, int *, int *, int *,
+                                double *, int *, int *, int *, int *, int *,
+                                int *, double *, double *, int *, double * );
 
-extern  "C" int PARDISOSCHUR_D(void*, int*, int*, int*, double*, int*, int*);
-
-
-
-extern  "C" int PARDISOCHECK_Z(int*, int*, complex<double>*, int*, int*, int*);
-
-extern  "C" int PARDISOINIT_Z(void *, int *, int *, int *, double *, int *);
-extern  "C" int PARDISOCALL_Z(void *, int *, int *, int *, int *, int *,
-			       complex<double> *, int *, int *, int *, int *, int *,
-			       int *, complex<double> *, complex<double> *, int *, double *);
+extern  "C" int PARDISOSCHUR_D ( void*, int*, int*, int*, double*, int*, int* );
 
 
-
-extern  "C" int PARDISOSCHUR_Z(void*, int*, int*, int*, complex<double>*, int*, int*);
 
 // ================================
 
 
 class CSRdouble;
-class CSRcomplex;
 
 
 
-enum PardisoMemoryGroup
-{
-  PARDISO_ALL_MEMORY         = -1,
-  PARDISO_MEMORY_FOR_FACTORS =  0,
+enum PardisoMemoryGroup {
+    PARDISO_ALL_MEMORY         = -1,
+    PARDISO_MEMORY_FOR_FACTORS =  0,
 };
 
 
 
-class ParDiSO
-{
+class ParDiSO {
 public:
 // PT
 // -------------------------------------------------------------------
-// Internal solver memory pointer pt, 
-// 32-bit: int pt[64]; 
-// 64-bit: long int pt[64]         
-// or void *pt[64] should be OK on both architectures  
+// Internal solver memory pointer pt,
+// 32-bit: int pt[64];
+// 64-bit: long int pt[64]
+// or void *pt[64] should be OK on both architectures
 // -------------------------------------------------------------------
-  void* pt[64];
+    void* pt[64];
 
 
 // IPARM
@@ -224,9 +210,9 @@ public:
 //   0  1x1 Diagonal Pivoting.
 // > 1* 1x1 and 2x2 Bunch and Kaufman Pivoting.
 // -------------------------------------------------------------------
-  int iparm[65];
-  double dparm[65];
-    
+    int iparm[65];
+    double dparm[65];
+
 // MAXFCT
 // -------------------------------------------------------------------
 // On entry: Maximal number of factors with identical nonzero sparsity
@@ -240,9 +226,9 @@ public:
 // sparsity structure can be kept in memory with different memory
 // address pointers PT.
 // -------------------------------------------------------------------
-  int maxfct;
+    int maxfct;
 
-    
+
 // MNUM
 // --------------------------------------------------------------------
 // On entry: Actual matrix for the solution phase. With this scalar the
@@ -250,9 +236,9 @@ public:
 // value must be: 1 <= MNUM <= MAXFCT. In most of the applications this
 // value is equal to 1.
 // --------------------------------------------------------------------
-  int mnum;
+    int mnum;
 
-    
+
 // MTYPE
 // --------------------------------------------
 //  1. real and structurally symmetric
@@ -265,18 +251,18 @@ public:
 // 11. real and nonsymmetric matrix
 // 13. complex and nonsymmetric
 // --------------------------------------------
-  int mtype;
+    int mtype;
 
-    
+
 // MSGLVL
 // ----------------------------------------------------------------
 // On entry: Message level information. If MSGLVL = 0 then PARDISO
 // generates no output, if MSGLVL = 1 the solver prints statistical
 // information to the screen.
 // ----------------------------------------------------------------
-  int msglvl;
+    int msglvl;
 
-    
+
 // PHASE
 // -----------------------------------------------------------------------
 // On entry: PHASE controls the execution of the solver. It is a
@@ -285,12 +271,12 @@ public:
 // execution, and j indicates the ending phase. PARDISO has the
 // following phases of execution:
 // 1. Phase 1: Fill-reduction analysis and symbolic factorization
-// 2. Phase 2: Numerical factorization  
+// 2. Phase 2: Numerical factorization
 // 3. Phase 3: Forward and Backward solve including iterative refinements
 // 4. Termination and Memory Release Phase (PHASE <= 0)
 //
 // PHASE | Solver Execution Steps
-// -----------------------------------------------------------------------    
+// -----------------------------------------------------------------------
 // 11    | analysis
 // 12    | analysis, numerical factorization
 // 13    | analysis, numerical factorization, solve, iterative refinement
@@ -298,11 +284,11 @@ public:
 // 23    | numerical factorization, solve, iterative refinement
 // 33    | solve, iterative refinement
 // 0     | release L and U memory for internal matrix number MNUM
-// -1    | release all internal memory for all matrices    
+// -1    | release all internal memory for all matrices
 // -----------------------------------------------------------------------
-  int phase;
+    int phase;
 
-    
+
 // ERROR
 // ----------
 // On output: The error indicator
@@ -311,7 +297,7 @@ public:
 // ------------------------------------------------------------------------------
 // 0        | no error
 // -1       | input inconsistent
-// -2       | not enough memory    
+// -2       | not enough memory
 // -3       | reordering problem
 // -4       | zero pivot, numerical factorization or iterative refinement problem
 // -5       | unclassified (internal) error
@@ -319,7 +305,7 @@ public:
 // -7       | diagonal matrix problem
 // -8       | 32 bit integer overflow problem
 // ------------------------------------------------------------------------------
-  int error;
+    int error;
 
 // PERM (N)
 // -------------------------------------------------------------------
@@ -331,69 +317,61 @@ public:
 // (column) of B. The numbering of the array must start by 1 and it
 // must describe a permutation.
 // -------------------------------------------------------------------
-  int* perm;
+    int* perm;
 
 // NRHS
-// ----------------------------------------------------------------    
+// ----------------------------------------------------------------
 // On entry: NRHS is the number of right-hand sides that need to be
 // solved for
-// ----------------------------------------------------------------        
-  int nrhs;
+// ----------------------------------------------------------------
+    int nrhs;
 
 // N
-// -----------------------------------------------------------------    
+// -----------------------------------------------------------------
 // On entry: Number of equations. This is the number of equations in
 // the sparse linear systems of equations A × X = B.
-// -----------------------------------------------------------------        
-  int n;
-    
+// -----------------------------------------------------------------
+    int n;
+
 
 // solver
 // -----------------------------------------------------------------
 // On entry: This scalar value defines the solver method the user
 // would like to use:
-// 
+//
 // 0: sparse direct solver
 // -----------------------------------------------------------------
-  int solver;
+    int solver;
 
 
 
 
 private:
-  void shiftIndices_(CSRdouble&  A, int value);
-  void shiftIndices_(CSRcomplex& A, int value);
-  void error_() const;    
-  void clear_(PardisoMemoryGroup memory_to_release);
+    void shiftIndices_ ( CSRdouble&  A, int value );
+    void error_() const;
+    void clear_ ( PardisoMemoryGroup memory_to_release );
 
 
 
 public:
-  ~ParDiSO();
-  ParDiSO();
-  ParDiSO(int pardiso_mtype, int pardiso_msglvl);
-  
-  double memoryAllocated() const;
-  void clear();
+    ~ParDiSO();
+    ParDiSO();
+    ParDiSO ( int pardiso_mtype, int pardiso_msglvl );
+
+    double memoryAllocated() const;
+    void clear();
 
 
-  // -------------------------------
-  // drivers using double arithmetic
-  // -------------------------------
-  void init(CSRdouble& A, int number_of_rhs);
-  void factorize(CSRdouble& A);
-  void solve(CSRdouble& A, double* x, double* rhs);
-  bool makeSchurComplement(CSRdouble& A, CSRdouble& S);
-  void findInverseOfA(CSRdouble& A);
+    // -------------------------------
+    // drivers using double arithmetic
+    // -------------------------------
+    void init ( CSRdouble& A, int number_of_rhs );
+    void factorize ( CSRdouble& A );
+    void solve ( CSRdouble& A, double* x, double* rhs );
+    bool makeSchurComplement ( CSRdouble& A, CSRdouble& S );
+    void findInverseOfA ( CSRdouble& A );
 
-  // --------------------------------
-  // drivers using complex arithmetic
-  // --------------------------------
-  void init(CSRcomplex& A, int number_of_rhs);
-  void factorize(CSRcomplex& A);
-  void solve(CSRcomplex& A, complex<double>* x, complex<double>* rhs);
-  bool makeSchurComplement(CSRcomplex& A, CSRcomplex& S);
-};      
+};
 
 
 #endif

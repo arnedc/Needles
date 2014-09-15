@@ -2,7 +2,6 @@
 // =============
 #include "ParDiSO.hpp"
 #include "CSRdouble.hpp"
-#include "CSRcomplex.hpp"
 // =============
 
 
@@ -505,7 +504,7 @@ void ParDiSO::findInverseOfA(CSRdouble& A)
 // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 
-
+/*
 void ParDiSO::shiftIndices_(CSRcomplex& Z, int value)
 {
   int i;
@@ -729,6 +728,6 @@ bool ParDiSO::makeSchurComplement(CSRcomplex& Z, CSRcomplex& S)
 
   return is_it_full;
 }
-
+*/
 
 
