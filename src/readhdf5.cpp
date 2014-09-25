@@ -167,7 +167,7 @@ int set_up_C_hdf5 ( int * DESCC, double * Cmat, int * DESCYTOT, double * ytot, d
         }
         if ( *position==rowcur && * ( position+1 ) == colcur ) {
             for ( j=0; j<blocksize; ++j ) {
-                * ( temp + j  * lld_D +j ) =lambda;
+                * ( temp + j  * lld_D +j ) =1/gamma_var;
             }
             if ( i==Dblocks-1 && Ddim % blocksize != 0 ) {
                 for ( j=blocksize-1; j>= Ddim % blocksize; --j ) {
@@ -534,7 +534,7 @@ int set_up_AI_hdf5 ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot,
     FILE *fX;
     int ni, i,j, info;
     int *DESCZ, *DESCY, *DESCX, *DESCZU, *DESCQRHS, *DESCQSOL;
-    double *Zblock, *Xblock, *yblock, *Zublock, *QRHS, *Qsol,*nrmblock, sigma_rec;
+    double *Zblock, *Xblock, *yblock, *Zublock, *QRHS, *Qsol,*nrmblock, sigma_rec, gamma_rec;
     int nZblocks, nXblocks, nstrips, pZblocks, pXblocks, stripcols, lld_Z, lld_X, pcol, colcur,rowcur;
 
     hid_t       file_id, dataset_geno_id, dataset_pheno_id, space_geno_id;         /* file and dataset identifiers */
@@ -602,6 +602,7 @@ int set_up_AI_hdf5 ( double * AImat, int * DESCAI,int * DESCYTOT, double * ytot,
     pXblocks= pXblocks <1? 1:pXblocks;
     lld_X=pXblocks*blocksize;														//local leading dimension of the strip of Z (different from processor to processor)
     sigma_rec=1/sigma;
+    gamma_rec=1/gamma_var;
 
     // Initialisation of descriptors of different matrices
 
@@ -927,7 +928,7 @@ CALC:
 
         // Creation of matrix needed for calculation of AI matrix distributed over every process per block of Z, X and y
 
-        pdgemm_ ( "T","N", &i_one, &stripcols,&k,&lambda, ytot, &m_plus,&i_one,DESCYTOT,Zblock,&i_one,&i_one,DESCZ,&d_zero,Zublock,&i_one,&i_one,DESCZU ); //Zu/gamma (in blocks)
+        pdgemm_ ( "T","N", &i_one, &stripcols,&k,&gamma_rec, ytot, &m_plus,&i_one,DESCYTOT,Zblock,&i_one,&i_one,DESCZ,&d_zero,Zublock,&i_one,&i_one,DESCZU ); //Zu/gamma (in blocks)
 
         pdgemm_ ( "N","T",&k,&i_one,&stripcols,&sigma_rec,Zblock,&i_one, &i_one, DESCZ,yblock,&i_one,&i_one,DESCY,&d_one,QRHS,&m_plus,&i_one,DESCQRHS ); //Z'y/sigma
 

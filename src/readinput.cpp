@@ -23,7 +23,7 @@ int read_input(char * filename) {
     SNPdata = ( char* ) calloc ( 100,sizeof ( char ) );
     phenodata = ( char* ) calloc ( 100,sizeof ( char ) );
 
-    lambda=100;
+    gamma_var=100;
     phi=100;
     blocksize=64;
     epsilon=0.01;
@@ -111,7 +111,7 @@ int read_input(char * filename) {
         }
         else if (line=="#Lambda") {
             std::getline (inputfile,line);
-            lambda=atof(line.c_str());
+            gamma_var=atof(line.c_str());
             lam_bool=true;
         }
         else if (line=="#Phi") {
@@ -232,9 +232,9 @@ int read_input(char * filename) {
             printf("Default blocksize of %d was used to distribute matrices across processes\n", blocksize);
         }
         if(lam_bool)
-            printf("Start value of %g was used to estimate variance component lambda\n", lambda);
+            printf("Start value of %g was used to estimate variance component lambda\n", gamma_var);
         else
-            printf("Default start value of %g was used to estimate variance component lambda\n", lambda);
+            printf("Default start value of %g was used to estimate variance component lambda\n", gamma_var);
 	if(phi_bool)
             printf("Start value of %g was used to estimate variance component phi\n", phi);
         else

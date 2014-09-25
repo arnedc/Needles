@@ -160,7 +160,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         }
         if ( *position==rowcur && * ( position+1 ) == colcur ) {
             for ( j=0; j<blocksize; ++j ) {
-                * ( temp + j  * lld_D +j ) =lambda;
+                * ( temp + j  * lld_D +j ) = 1/gamma_var;
             }
             if ( i==Dblocks-1 && Ddim % blocksize != 0 ) {
                 for ( j=blocksize-1; j>= Ddim % blocksize; --j ) {
@@ -646,7 +646,7 @@ int set_up_C ( int * DESCC, double * Cmat, int * DESCB, double * Bmat,int * DESC
         }
         if ( *position==rowcur && * ( position+1 ) == colcur ) {
             for ( j=0; j<blocksize; ++j ) {
-                * ( temp + j  * lld_D +j ) =lambda;
+                * ( temp + j  * lld_D +j ) =1/gamma_var;
             }
             if ( i==Dblocks-1 && Ddim % blocksize != 0 ) {
                 for ( j=blocksize-1; j>= Ddim % blocksize; --j ) {
@@ -1004,7 +1004,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     FILE* fT, * fY;
     int ni, i,j, info;
     int *DESCT, *DESCY, *DESCTD, *DESCZU, *DESCQRHS, *DESCQSOL, *DESCQDENSE;
-    double *Tblock, *yblock, *Tdblock, *QRHS, *Qsol,*nrmblock, sigma_rec, phi_rec, *Zu, *Qdense;
+    double *Tblock, *yblock, *Tdblock, *QRHS, *Qsol,*nrmblock, sigma_rec, phi_rec, gamma_rec, *Zu, *Qdense;
     int nTblocks, nstrips, pTblocks, stripcols, lld_T, pcol, colcur,rowcur, lld_Y;
 
     CSRdouble Xtsparse, Ztsparse,XtT_sparse,ZtT_sparse,XtT_temp, ZtT_temp;
@@ -1061,6 +1061,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     lld_Y= *(dims+1) * nstrips * blocksize;
     sigma_rec=1/sigma;
     phi_rec=1/phi;
+    gamma_rec=1/gamma_var;
 
     // Initialisation of descriptors of different matrices
 
@@ -1305,7 +1306,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
         int ystart=ni * *(dims+1) * blocksize + 1;
 
-        pdgemm_ ( "T","N", &i_one, &stripcols,&k,&lambda, solution, &ml_plus,&i_one,DESCSOL,Tblock,&i_one,&i_one,DESCT,&d_zero,Tdblock,&i_one,&i_one,DESCTD ); //Td/gamma (in blocks)
+        pdgemm_ ( "T","N", &i_one, &stripcols,&k,&gamma_rec, solution, &ml_plus,&i_one,DESCSOL,Tblock,&i_one,&i_one,DESCT,&d_zero,Tdblock,&i_one,&i_one,DESCTD ); //Td/gamma (in blocks)
 
         /*if(iam==0) {
             //printf("Tdblock calculated\n");

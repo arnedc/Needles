@@ -186,7 +186,7 @@ extern int size, *dims, * position, ICTXT2D, iam;
 extern int ntests, maxiterations,datahdf5, copyC;
 extern char *SNPdata, *phenodata;
 extern char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
-extern double lambda, phi,epsilon;
+extern double gamma_var, phi,epsilon;
 
 #endif
 

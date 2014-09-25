@@ -26,7 +26,7 @@ int size, *dims, * position, ICTXT2D, iam;
 int ntests, maxiterations,datahdf5, copyC;
 char *SNPdata, *phenodata;
 char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
-double lambda, phi, epsilon;
+double gamma_var, phi, epsilon;
 
 extern "C" {
     void blacs_pinfo_ ( int *mypnum, int *nprocs );
@@ -69,9 +69,9 @@ int main ( int argc, char **argv ) {
         printf ( "Error in MPI initialisation: %d",info );
         return info;
     }
-    int i,j,pcol, counter, breakvar, randeffects;
+    int i,j,pcol, counter, breakvar;
     double *Dmat, *ytot, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol, *AB_sol, *YSrow;
-    double sigma, dot, trace_proc, convergence_criterium, loglikelihood,prevloglike,update_loglikelihood;
+    double sigma, dot, trace_ZZ, trace_TT, *convergence_criterium, loglikelihood,prevloglike,update_loglikelihood;
     int *DESCD, *DESCYTOT, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL, *DESCAB_sol, *DESCYSROW;
     double c0, c1, c2, c3, c4;
     struct timeval tz0,tz1, tz2,tz3;
@@ -270,7 +270,7 @@ int main ( int argc, char **argv ) {
         }
 
 
-        convergence_criterium=0;
+        convergence_criterium=calloc(2*sizeof(double));
         counter=0;
         /*strcat ( filenameZ, ".bin" );
         strcat ( filenameX, ".bin" );
@@ -317,7 +317,7 @@ int main ( int argc, char **argv ) {
             printf ( "unable to allocate memory for norm\n" );
             return EXIT_FAILURE;
         }
-        randnrm= ( double * ) calloc ( 1,sizeof ( double ) );
+        randnrm= ( double * ) calloc ( 2,sizeof ( double ) );
         if ( randnrm==NULL ) {
             printf ( "unable to allocate memory for norm\n" );
             return EXIT_FAILURE;
@@ -371,7 +371,8 @@ int main ( int argc, char **argv ) {
 
 // Start of AI-REML iteration cycle, stops when relative update of gamma < epsilon
 
-        while ( fabs ( convergence_criterium ) >epsilon || fabs ( update_loglikelihood/loglikelihood ) > epsilon || counter<2 ) {
+        while ( fabs ( *convergence_criterium ) >epsilon || fabs ( update_loglikelihood/loglikelihood ) > epsilon || counter<2 ||
+                fabs ( *(convergence_criterium+1) ) >epsilon) {
             ++counter;
 
             // Number of iterations is limited to $maxiterations to avoid divergence of algorithm
@@ -428,7 +429,7 @@ int main ( int argc, char **argv ) {
                 }
 
                 if ( copyC ) {
-                    update_C ( DESCCCOPY,Cmatcopy,lambda/ ( 1+convergence_criterium ) - lambda );
+                    update_C ( DESCCCOPY,Cmatcopy,gamma_var*convergence_criterium );
                     pdlacpy_ ( "U", &Ddim, &Ddim, Cmatcopy, &i_one, &i_one, DESCCCOPY, Dmat, &i_one, &i_one, DESCD );
                     //pdcopy_ ( &Ddim, RHS,&i_one,&i_one,DESCRHS,&i_one,ytot,&i_one,&i_one,DESCYTOT,&i_one );
                     if ( * ( position+1 ) ==0 && *position==0 ) {
@@ -436,7 +437,7 @@ int main ( int argc, char **argv ) {
                         c0= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                         printf ( "\t elapsed wall time copy of Y and C:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
                     }
-                    lambda=lambda/ ( 1+convergence_criterium ); // Update for lambda (which is 1/gamma)
+                    gamma_var=gamma_var * ( 1+convergence_criterium ); // Update for gamma
                 } else {
                     if(respnrm != NULL)
                         free ( respnrm );
@@ -446,7 +447,8 @@ int main ( int argc, char **argv ) {
                         printf ( "unable to allocate memory for norm\n" );
                         return EXIT_FAILURE;
                     }
-                    lambda=lambda/ ( 1+convergence_criterium ); // Update for lambda (which is 1/gamma)
+                    gamma_var=gamma_var * ( 1+convergence_criterium ); // Update for lambda (which is 1/gamma)
+                    phi=phi*(1+convergence_criterium);
                     if ( datahdf5 )
                         info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
                     else
@@ -509,7 +511,7 @@ int main ( int argc, char **argv ) {
                 gettimeofday ( &tz0,NULL );
                 c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time norm and max of C:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
-                printf ( "The new parallel lambda is: %15.10g\n",lambda );
+                printf ( "The new variance components gamma and phi are: %15.10g \t 15.10g\n",gamma_var, phi );
                 printf ( "norm of y-vector is: %g\n",*respnrm );
             }
 
@@ -607,9 +609,9 @@ int main ( int argc, char **argv ) {
                 double * sparse_sol=(double *) calloc(Asparse.ncols, sizeof(double));
                 loglikelihood=solveSystemWithDet(Asparse, sparse_sol,solution, -2, 1)/2;
                 memcpy(solution,sparse_sol,(m+l) * sizeof(double));
-		if (sparse_sol != NULL)
-		  free(sparse_sol);
-		sparse_sol=NULL;
+                if (sparse_sol != NULL)
+                    free(sparse_sol);
+                sparse_sol=NULL;
                 //printdense(ydim,1,solution,"solution.txt");
                 printf("Half of the log of determinant of A is: %g\n",loglikelihood);
                 Btsparse.transposeIt(1);
@@ -756,14 +758,18 @@ int main ( int argc, char **argv ) {
                     *(Diag_inv_rand_block+i) += Asparse.pData[j];
                 }
                 Asparse.clear();
-                trace_proc=0;
-                for (i=m; i<ydim; ++i) {
-                    trace_proc +=*(Diag_inv_rand_block+i);
+                trace_ZZ=0;
+                for (i=m; i<m+l; ++i) {
+                    trace_ZZ +=*(Diag_inv_rand_block+i);
+                }
+                trace_TT=0;
+                for (i=m+l; i<ydim; ++i) {
+                    trace_TT +=*(Diag_inv_rand_block+i);
                 }
                 //printdense ( Adim+k,1,Diag_inv_rand_block,"diag_inverse_C_parallel.txt" );
                 if(Diag_inv_rand_block != NULL)
-		  free(Diag_inv_rand_block);
-		Diag_inv_rand_block=NULL;
+                    free(Diag_inv_rand_block);
+                Diag_inv_rand_block=NULL;
             }
 
 
@@ -794,8 +800,8 @@ int main ( int argc, char **argv ) {
 
             // The norm of the estimation of the random effects is calculated for use in the score function
 
-            randeffects=k+l;
-            pdnrm2_ ( &randeffects,randnrm,solution,&m_plus,&i_one,DESCSOL,&i_one );
+            pdnrm2_ ( &l,randnrm,solution,&m_plus,&i_one,DESCSOL,&i_one );
+            pdnrm2_ ( &k,randnrm+1,solution,&ml_plus,&i_one,DESCSOL,&i_one );
 
             // The score function (first derivative of log likelihood) and the update for lambda are only calculated in proces (0,0)
             // Afterwards the update is sent to every proces.
@@ -807,19 +813,21 @@ int main ( int argc, char **argv ) {
                 double *score;
                 printf ( "dot product = %15.10g \n",dot );
                 printf ( "parallel sigma = %15.10g\n",sigma );
-                printf ( "The trace of the random block of the inverse of M is: %15.10g \n",trace_proc );
+                printf ( "The trace of the (1,1) block of the inverse of M is: %15.10g \n",trace_ZZ );
+                printf ( "The trace of the (2,2) block of the inverse of M is: %15.10g \n",trace_TT );
                 printf ( "The norm of the estimation of u and d is: %g \n",*randnrm );
-                loglikelihood += ( (k+l) * log ( 1/lambda ) + ( n-m ) * log ( sigma ) + n-m ) /2;
+                loglikelihood += ( k * log ( gamma_var ) + l * log(phi) + ( n-m ) * log ( sigma ) + n - m) /2;
                 loglikelihood *= -1.0;
 
 
-                score= ( double * ) calloc ( 2,sizeof ( double ) );
+                score= ( double * ) calloc ( 3,sizeof ( double ) );
                 if ( score==NULL ) {
                     printf ( "unable to allocate memory for score function\n" );
                     return EXIT_FAILURE;
                 }
-                * ( score+1 ) = - ( (k+l)-trace_proc*lambda- *randnrm * *randnrm * lambda / sigma ) * lambda / 2;
-                printf ( "The score function is: %g\n",* ( score+1 ) );
+                * ( score+1 ) = - ( l - trace_ZZ / phi - *randnrm * *randnrm / phi / sigma ) / phi / 2;
+                * ( score+2 ) = - ( k - trace_TT / gamma_var - *(randnrm+1) * *(randnrm+1) / gamma_var / sigma ) / gamma_var / 2;
+                printf ( "The score function is: [%g, %g]\n",* ( score+1 ), *(score+2) );
                 //printdense ( 2,2, AImat, "AI_par.txt" );
                 breakvar=0;
                 if ( fabs ( * ( score+1 ) ) < epsilon * epsilon ) {
@@ -855,12 +863,12 @@ int main ( int argc, char **argv ) {
 
                             printf("Used damping factor is %g\n",damping);
                 */
-                dpotrf_ ( "U", &i_two, AImat, &i_two, &info );
+                dpotrf_ ( "U", &i_three, AImat, &i_three, &info );
                 if ( info!=0 ) {
                     printf ( "Cholesky decomposition of AI matrix was unsuccesful, error returned: %d\n",info );
                     return -1;
                 }
-                dpotrs_ ( "U",&i_two,&i_one,AImat,&i_two,score,&i_two,&info );
+                dpotrs_ ( "U",&i_three,&i_one,AImat,&i_three,score,&i_three,&info );
                 if ( info!=0 ) {
                     printf ( "Parallel solution for AI matrix was unsuccesful, error returned: %d\n",info );
                     return -1;
@@ -868,17 +876,21 @@ int main ( int argc, char **argv ) {
                 gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                 printf ( "\t elapsed wall time update for lambda:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
-                printf ( "The update for gamma is: %g \n", * ( score+1 ) );
-                while ( * ( score+1 ) +1/lambda <0 ) {
+                printf ( "The update for phi is: %g \n", * ( score+1 ) );
+                printf ( "The update for gamma is: %g \n", * ( score+2 ) );
+                while ( * ( score+2 ) + gamma_var <0 || *(score+1) + phi < 0 ) {
                     * ( score+1 ) =* ( score+1 ) /2;
-                    printf ( "Half a step is used to avoid negative gamma\n" );
+                    * (score+2)= *(score+2)/2;
+                    printf ( "Half a step is used to avoid negative gamma or phi\n" );
                 }
-                convergence_criterium=lambda * * ( score+1 );
-                dgebs2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&convergence_criterium,&i_one );
+                *convergence_criterium= *(score+1)/phi;
+                *(convergence_criterium+1)= * ( score+2 )/gamma_var;
+                dgebs2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_two,convergence_criterium,&i_one );
                 if(score != NULL)
                     free ( score );
                 score=NULL;
-                printf ( "The eventual relative update for gamma is: %g \n", convergence_criterium );
+                printf ( "The eventual relative update for phi is: %g \n", *convergence_criterium );
+                printf ( "The eventual relative update for gamma is: %g \n", *(convergence_criterium+1) );
 
             } else {
                 igebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one, &breakvar,&i_one,&i_zero,&i_zero );
@@ -886,7 +898,7 @@ int main ( int argc, char **argv ) {
                     break;
                 }
                 dgebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one, &update_loglikelihood,&i_one,&i_zero,&i_zero );
-                dgebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one, &convergence_criterium,&i_one,&i_zero,&i_zero );
+                dgebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_two, convergence_criterium,&i_one,&i_zero,&i_zero );
             }
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 gettimeofday ( &tz0,NULL );
@@ -995,7 +1007,7 @@ int main ( int argc, char **argv ) {
             printf ( "\tThe Frobenius condition number is:    %15.10e\n", norminv*normC );
             printf ( "\tThe condition number (1-norm) is:     %15.10e\n", norm1inv*norm1C );
             printf ( "\tThe accuracy is:                      %15.10e\n", norminv*normC*Cmax/pow ( 2,53 ) );
-            printf ( "\tThe ultimate lambda is:               %15.10g\n",lambda );
+            printf ( "\tThe ultimate gamma is:               %15.10g\n", gamma_var );
             printf ( "\tThe ultimate sigma is:                %15.10g\n", sigma );
 
             printf ( "\telapsed total wall time:              %10.3f s\n", ( c0 - c2 ) /1000000.0 );
