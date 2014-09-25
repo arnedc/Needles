@@ -18,15 +18,15 @@ typedef int MPI_Comm;
 typedef int MPI_Datatype;
 
 double d_one=1.0, d_zero=0.0, d_negone=-1.0;
-int DLEN_=9, i_negone=-1, i_zero=0, i_one=1, i_two=2; // some many used constants
-int k,n,m, l, blocksize; //dimensions of different matrices
+int DLEN_=9, i_negone=-1, i_zero=0, i_one=1, i_two=2, i_three=3; // some many used constants
+int k,l,m, n, blocksize; //dimensions of different matrices
 int lld_D, Dblocks, Ddim, m_plus, ml_plus, ydim, Adim;
 int Drows,Dcols;
 int size, *dims, * position, ICTXT2D, iam;
 int ntests, maxiterations,datahdf5, copyC;
 char *SNPdata, *phenodata;
-char *filenameT, *filenameX, *filenameZ, *filenameY, *TestSet;
-double lambda, epsilon;
+char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
+double lambda, phi, epsilon;
 
 extern "C" {
     void blacs_pinfo_ ( int *mypnum, int *nprocs );
@@ -246,7 +246,7 @@ int main ( int argc, char **argv ) {
             printf ( "Descriptor of response matrix returns info: %d\n",info );
             return info;
         }
-        descinit_ ( DESCAI, &i_two, &i_two, &i_two, &i_two, &i_zero, &i_zero, &ICTXT2D, &i_two, &info );
+        descinit_ ( DESCAI, &i_three, &i_three, &i_three, &i_three, &i_zero, &i_zero, &ICTXT2D, &i_three, &info );
         if ( info!=0 ) {
             printf ( "Descriptor of AI matrix returns info: %d\n",info );
             return info;
@@ -279,7 +279,7 @@ int main ( int argc, char **argv ) {
         //solution= ( double * ) calloc ( (k+l+m), sizeof ( double ) );
 
         if ( * ( position+1 ) ==0 && *position==0 ) {
-            printf ( "\nA linear mixed model with %d observations, %d random effects and %d fixed effects\n", n,k,m );
+            printf ( "\nA linear mixed model with %d observations, %d random effects, %d SNP effects and %d fixed effects\n", n,k,l,m );
             printf ( "was analyzed using %d (%d x %d) processors\n",size,*dims,* ( dims+1 ) );
             gettimeofday ( &tz2,NULL );
             c2= tz2.tv_sec*1000000 + ( tz2.tv_usec );
@@ -307,9 +307,9 @@ int main ( int argc, char **argv ) {
                 return EXIT_FAILURE;
             }
         }
-        AImat = ( double* ) calloc ( 2*2,sizeof ( double ) );
+        AImat = ( double* ) calloc ( 3*3,sizeof ( double ) );
         if ( AImat==NULL ) {
-            printf ( "unable to allocate memory for AI matrix (required: %d bytes)\n",2*2*sizeof ( double ) );
+            printf ( "unable to allocate memory for AI matrix (required: %d bytes)\n",3*3*sizeof ( double ) );
             return EXIT_FAILURE;
         }
         respnrm= ( double * ) calloc ( 1,sizeof ( double ) );
@@ -349,7 +349,7 @@ int main ( int argc, char **argv ) {
         Zt_smat = smat_copy_trans ( Z_smat );
 
 
-        smat_t *XtX_smat, *XtZ_smat, *ZtZ_smat, *lambda_smat, *ZtZlambda_smat;
+        smat_t *XtX_smat, *XtZ_smat, *ZtZ_smat, *phi_smat, *ZtZlambda_smat;
 
         XtX_smat = smat_matmul ( Xt_smat, X_smat );
         XtZ_smat = smat_matmul ( Xt_smat, Z_smat );
@@ -414,7 +414,7 @@ int main ( int argc, char **argv ) {
                         return EXIT_FAILURE;
                     }
                 }
-                AImat = ( double* ) calloc ( 2*2,sizeof ( double ) );
+                AImat = ( double* ) calloc ( 3*3,sizeof ( double ) );
                 if ( AImat==NULL ) {
                     printf ( "unable to allocate memory for AI matrix\n" );
                     return EXIT_FAILURE;
@@ -516,11 +516,11 @@ int main ( int argc, char **argv ) {
             //Since lambda changes every iteration we need to construct A every iteration
             makeIdentity ( l, Imat );
 
-            lambda_smat = smat_new_from ( Imat.nrows,Imat.ncols,Imat.pRows,Imat.pCols,Imat.pData,0,0 );
+            phi_smat = smat_new_from ( Imat.nrows,Imat.ncols,Imat.pRows,Imat.pCols,Imat.pData,0,0 );
 
-            smat_scale_diag ( lambda_smat, -lambda );
+            smat_scale_diag ( phi_smat, -1/phi );
 
-            ZtZlambda_smat = smat_add ( lambda_smat, ZtZ_smat );
+            ZtZlambda_smat = smat_add ( phi_smat, ZtZ_smat );
 
             smat_to_symmetric_structure ( ZtZlambda_smat );
 

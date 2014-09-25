@@ -29,6 +29,7 @@ extern "C" {
     void pdscal_( int *n, double *a, double *x, int *ix, int *jx, int *descx, int *incx );
     void pdnrm2_ ( int *n, double *norm2, double *x, int *ix, int *jx, int *descx, int *incx );
     double dnrm2_ ( int *n, double *x, int *incx );
+    double ddot_ (const int *n, const double *x, const int *incx, const double *y, const int *incy);
 }
 
 int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, int * DESCYTOT, double * ytot, double *respnrm, CSRdouble& Btsparse  ) {
@@ -1002,8 +1003,8 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
     FILE* fT, * fY;
     int ni, i,j, info;
-    int *DESCT, *DESCY, *DESCTD, *DESCQRHS, *DESCQSOL, *DESCQDENSE;
-    double *Tblock, *yblock, *Tdblock, *QRHS, *Qsol,*nrmblock, sigma_rec, *Zu, *Qdense;
+    int *DESCT, *DESCY, *DESCTD, *DESCZU, *DESCQRHS, *DESCQSOL, *DESCQDENSE;
+    double *Tblock, *yblock, *Tdblock, *QRHS, *Qsol,*nrmblock, sigma_rec, phi_rec, *Zu, *Qdense;
     int nTblocks, nstrips, pTblocks, stripcols, lld_T, pcol, colcur,rowcur, lld_Y;
 
     CSRdouble Xtsparse, Ztsparse,XtT_sparse,ZtT_sparse,XtT_temp, ZtT_temp;
@@ -1022,6 +1023,11 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         return -1;
     }
     DESCTD= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
+    if ( DESCTD==NULL ) {
+        printf ( "unable to allocate memory for descriptor for Td\n" );
+        return -1;
+    }
+    DESCZU= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
     if ( DESCTD==NULL ) {
         printf ( "unable to allocate memory for descriptor for Zu\n" );
         return -1;
@@ -1054,6 +1060,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
     lld_Y= *(dims+1) * nstrips * blocksize;
     sigma_rec=1/sigma;
+    phi_rec=1/phi;
 
     // Initialisation of descriptors of different matrices
 
@@ -1072,17 +1079,22 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         printf ( "Descriptor of matrix Z returns info: %d\n",info );
         return info;
     }
-    descinit_ ( DESCQRHS, &ydim, &i_two, &ydim, &i_two, &i_zero, &i_zero, &ICTXT2D, &ydim, &info );
+    descinit_ ( DESCZU, &lld_Y, &i_one, &lld_Y, &i_one, &i_zero, &i_zero, &ICTXT2D, &lld_Y, &info );
     if ( info!=0 ) {
         printf ( "Descriptor of matrix Z returns info: %d\n",info );
         return info;
     }
-    descinit_ ( DESCQSOL, &ydim, &i_two, &ydim, &i_two, &i_zero, &i_zero, &ICTXT2D, &ydim, &info );
+    descinit_ ( DESCQRHS, &ydim, &i_three, &ydim, &i_three, &i_zero, &i_zero, &ICTXT2D, &ydim, &info );
     if ( info!=0 ) {
         printf ( "Descriptor of matrix Z returns info: %d\n",info );
         return info;
     }
-    descinit_ ( DESCQDENSE, &Ddim, &i_one, &blocksize, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_D, &info );
+    descinit_ ( DESCQSOL, &ydim, &i_three, &ydim, &i_three, &i_zero, &i_zero, &ICTXT2D, &ydim, &info );
+    if ( info!=0 ) {
+        printf ( "Descriptor of matrix Z returns info: %d\n",info );
+        return info;
+    }
+    descinit_ ( DESCQDENSE, &Ddim, &i_two, &blocksize, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_D, &info );
     if ( info!=0 ) {
         printf ( "Descriptor of matrix Y returns info: %d\n",info );
         return info;
@@ -1100,7 +1112,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         printf ( "unable to allocate memory for norm\n" );
         return EXIT_FAILURE;
     }
-    Qdense= ( double* ) calloc ( Drows*blocksize, sizeof ( double ) );
+    Qdense= ( double* ) calloc ( Drows*blocksize * 2, sizeof ( double ) );
     if ( Tblock==NULL ) {
         printf ( "Error in allocating memory for a strip of T in processor (%d,%d)\n",*position,* ( position+1 ) );
         return -1;
@@ -1108,7 +1120,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
 
     if (iam==0) {
-        Zu=(double *) calloc(nstrips * stripcols,sizeof(double));
+        Zu=(double *) calloc(lld_Y,sizeof(double));
         if ( Zu==NULL ) {
             printf ( "Error in allocating memory for Zu in root process\n");
             return -1;
@@ -1135,25 +1147,30 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
             printf ( "Error in closing open streams\n" );
             return -1;
         }
-        QRHS= ( double * ) calloc ( ydim * 2,sizeof ( double ) );
+        QRHS= ( double * ) calloc ( ydim * 3,sizeof ( double ) );
         if ( QRHS==NULL ) {
             printf ( "Error in allocating memory for QRHS in root process\n");
             return -1;
         }
-        Qsol= ( double * ) calloc ( ydim * 2,sizeof ( double ) );
+        Qsol= ( double * ) calloc ( ydim * 3,sizeof ( double ) );
         if ( Qsol==NULL ) {
             printf ( "Error in allocating memory for Qsol in root process\n");
             return -1;
         }
         Tdblock = ( double* ) calloc ( stripcols,sizeof ( double ) );
         if ( Tdblock==NULL ) {
-            printf ( "unable to allocate memory for Matrix Zu\n" );
+            printf ( "unable to allocate memory for Matrix Td\n" );
             return EXIT_FAILURE;
         }
         mult_colsA_colsC_denseC(Xtsparse,yblock,lld_Y,0,n,0,1,QRHS,ydim,false,sigma_rec);		//X'y/sigma
         mult_colsA_colsC_denseC(Ztsparse,yblock,n,0,n,0,1,QRHS+m,ydim,false,sigma_rec);		//Z'y/sigma
+	mult_colsA_colsC_denseC(Xtsparse,Zu,lld_Y,0,n,0,1,QRHS+ydim,ydim,false,phi_rec);		//X'Zu/phi
+        mult_colsA_colsC_denseC(Ztsparse,Zu,n,0,n,0,1,QRHS+ydim+m,ydim,false,phi_rec);		//Z'Zu/phi
         *nrmblock = dnrm2_ ( &n,yblock,&i_one);
         *AImat = *nrmblock * *nrmblock/sigma/sigma; 								//y'y/sigma²
+        *(AImat+1)= ddot_(&n,yblock,&i_one,Zu,&i_one)/sigma/phi;
+	*(AImat+3)= ddot_(&n,yblock,&i_one,Zu,&i_one)/sigma/phi;
+	*(AImat+4)= dnrm2_(&n,Zu,&i_one)/phi/phi;
         //printf("First element of AImat is: %g\n", *AImat);
     }
     
@@ -1290,7 +1307,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
         pdgemm_ ( "T","N", &i_one, &stripcols,&k,&lambda, solution, &ml_plus,&i_one,DESCSOL,Tblock,&i_one,&i_one,DESCT,&d_zero,Tdblock,&i_one,&i_one,DESCTD ); //Td/gamma (in blocks)
 
-        if(iam==0) {
+        /*if(iam==0) {
             //printf("Tdblock calculated\n");
             for (i=0; i<stripcols; ++i) {
                 *(Tdblock+i) += *(Zu+ ni*stripcols+i) * lambda;  //(Td + Zu)/gamma (in blocks)
@@ -1300,24 +1317,25 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
             *Tdfile='\0';
             sprintf(Tdfile,"Tdmat_%d.txt",ni);
             printdense(1,stripcols, Tdblock,Tdfile);*/
-        }
+        //}
 
         pdgemm_ ( "N","N",&k,&i_one,&stripcols,&sigma_rec,Tblock,&i_one, &i_one, DESCT,yblock,&ystart,&i_one,DESCY,&d_one,QRHS,&ml_plus,&i_one,DESCQRHS ); //T'y/sigma
 
         //pdgemm_ ( "N","T",&m,&i_one,&stripcols,&sigma_rec,Xblock,&i_one, &i_one, DESCX,yblock,&i_one,&i_one,DESCY,&d_one,QRHS,&i_one,&i_one,DESCQRHS ); //X'y/sigma
 
-        pdgemm_ ( "N","T",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Tdblock,&i_one,&i_one,DESCTD,&d_one,Qdense,&i_one,&i_one,DESCQDENSE ); //T'(Td+Zu)/gamma
+        pdgemm_ ( "N","T",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Tdblock,&i_one,&i_one,DESCTD,&d_one,Qdense,&i_one,&i_one,DESCQDENSE ); //T'Td/gamma
+	pdgemm_ ( "N","N",&k,&i_one,&stripcols,&phi_rec,Tblock,&i_one, &i_one, DESCT,Zu,&ystart,&i_one,DESCZU,&d_one,QRHS,&ml_plus,&i_two,DESCQRHS ); //T'Zu/phi
 
         //pdgemm_ ( "N","T",&m,&i_one,&stripcols,&d_one,Xblock,&i_one, &i_one, DESCX,Tdblock,&i_one,&i_one,DESCTD,&d_one,QRHS,&i_one,&i_two,DESCQRHS ); //X'Zu/gamma
 
         blacs_barrier_(&ICTXT2D,"A");
         if(iam==0) {
-            mult_colsA_colsC_denseC ( Xtsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+ydim, ydim, true, 1.0 ); 	//X'(Td+Zu)/gamma
+            mult_colsA_colsC_denseC ( Xtsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+2*ydim, ydim, true, 1.0 ); 	//X'Td/gamma
 
-            mult_colsA_colsC_denseC ( Ztsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+ydim+m, ydim, true, 1.0 );	//Z'(Td+Zu)/gamma
+            mult_colsA_colsC_denseC ( Ztsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+2*ydim+m, ydim, true, 1.0 );	//Z'Td/gamma
 
-            *nrmblock = dnrm2_ ( &stripcols,Tdblock,&i_one );							// norm (Td+Zu)/gamma
-            * ( AImat + 3 ) += *nrmblock * *nrmblock;										//(Td+Zu)' * (Td +Zu)/gamma^2
+            *nrmblock = dnrm2_ ( &stripcols,Tdblock,&i_one );							// norm (Td/gamma)
+            * ( AImat + 8 ) += *nrmblock * *nrmblock;										//(Td)'(Td)/gamma^2
         }
 
         blacs_barrier_(&ICTXT2D,"A");
@@ -1325,8 +1343,11 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
         // Q'Q is calculated and stored directly in AI matrix (complete in every process)
         pddot_ ( &stripcols,nrmblock,Tdblock,&i_one,&i_one,DESCTD,&i_one,yblock,&ystart,&i_one,DESCY,&i_one );
-        * ( AImat + 1 ) += *nrmblock /sigma;							//y'(Zu+Td)/gamma/sigma
-        * ( AImat + 2 ) += *nrmblock /sigma;							//y'(Zu+Td)/gamma/sigma
+        * ( AImat + 6 ) += *nrmblock /sigma;							//y'Td/gamma/sigma
+        * ( AImat + 2 ) += *nrmblock /sigma;							//y'Td/gamma/sigma
+	pddot_ ( &stripcols,nrmblock,Tdblock,&i_one,&i_one,DESCTD,&i_one,Zu,&ystart,&i_one,DESCZU,&i_one );
+        * ( AImat + 5 ) += *nrmblock /phi;							//y'Td/gamma/sigma
+        * ( AImat + 7 ) += *nrmblock /phi;							//y'Td/gamma/sigma
         blacs_barrier_ ( &ICTXT2D,"A" );
     }
 
@@ -1359,26 +1380,30 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     sprintf(TdZufile,"TTdZumat_(%d,%d).txt",*position,pcol);
     printdense(1,Drows*blocksize, Qdense,TdZufile);*/
 
-    //T'(Td+Zu)/gamma is in Qdense and is copied to QRHS
-    pdcopy_(&k,Qdense,&i_one, &i_one, DESCQDENSE, &i_one, QRHS,&ml_plus,&i_two,DESCQRHS, &i_one);
+    //T'(Td)/gamma is in Qdense and is copied to QRHS
+    pdcopy_(&k,Qdense,&i_one, &i_one, DESCQDENSE, &i_one, QRHS,&ml_plus,&i_three,DESCQRHS, &i_one);
 
     if(iam==0)
-        printdense(2,ydim,QRHS,"QRHS.txt");
+        printdense(3,ydim,QRHS,"QRHS.txt");
 
     // In Qsol we calculate the solution of M * Qsol = QRHS, but we still need QRHS a bit further
+	
+	int cop=ydim+k;
 
-    pdcopy_ ( &ydim,QRHS,&i_one,&i_two,DESCQRHS,&i_one,Qsol,&i_one,&i_two,DESCQSOL, &i_one );
+    pdcopy_ ( &cop,QRHS,&ml_plus,&i_two,DESCQRHS,&i_one,Qsol,&ml_plus,&i_two,DESCQSOL, &i_one );
     blacs_barrier_(&ICTXT2D,"A");
     if (iam==0) {
         solveSystem(Asparse, Qsol,QRHS+ydim, 2, 1);
-        printf("AQsol=QRHS_2 is solved\n");
-        mult_colsA_colsC_denseC(Btsparse,Qsol,ydim,0,Btsparse.ncols,0,1,Qsol+ydim+m+l,ydim, true,-1.0);
+	solveSystem(Asparse, Qsol+ydim,QRHS+2*ydim, 2, 1);
+        //printf("AQsol=QRHS_2 is solved\n");
+        mult_colsA_colsC_denseC(Btsparse,Qsol,ydim,0,Btsparse.ncols,0,2,Qsol+ydim+m+l,ydim, true,-1.0);
         printf("B^T * Qsol is calculated\n");
     }
     blacs_barrier_(&ICTXT2D,"A");
     pdcopy_ ( &k,Qsol,&ml_plus,&i_two,DESCQSOL,&i_one,Qdense,&i_one,&i_one,DESCQDENSE,&i_one );
+    pdcopy_ ( &k,Qsol,&ml_plus,&i_three,DESCQSOL,&i_one,Qdense,&i_one,&i_two,DESCQDENSE,&i_one );
 
-    pdpotrs_ ( "U",&Ddim,&i_one,Dmat,&i_one,&i_one,DESCD,Qdense,&i_one,&i_one,DESCQDENSE,&info );
+    pdpotrs_ ( "U",&Ddim,&i_two,Dmat,&i_one,&i_one,DESCD,Qdense,&i_one,&i_one,DESCQDENSE,&info );
     if ( info!=0 ) {
         printf ( "Parallel Cholesky solution for Q was unsuccesful, error returned: %d\n",info );
         return -1;
@@ -1386,33 +1411,41 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     blacs_barrier_(&ICTXT2D,"A");
 
     pdcopy_ ( &k,Qdense,&i_one,&i_one,DESCQDENSE,&i_one,Qsol,&ml_plus,&i_two,DESCQSOL,&i_one );
+    pdcopy_ ( &k,Qdense,&i_one,&i_two,DESCQDENSE,&i_one,Qsol,&ml_plus,&i_three,DESCQSOL,&i_one );
     
     if(Qdense != NULL)
       free(Qdense);
     Qdense=NULL;
 
     blacs_barrier_(&ICTXT2D,"A");
+    
+    
+
+    pdcopy_ ( &Adim,QRHS,&i_one,&i_two,DESCQRHS,&i_one,Qsol,&i_one,&i_two,DESCQSOL, &i_one );
+    pdcopy_ ( &Adim,QRHS,&i_one,&i_three,DESCQRHS,&i_one,Qsol,&i_one,&i_three,DESCQSOL, &i_one );
 
     if (iam==0) {
-        printf("Solution of DX=Q OK\n");
+        //printf("Solution of DX=Q OK\n");
         Btsparse.transposeIt(1);
-        mult_colsA_colsC_denseC(Btsparse,Qsol+ydim+m+l,ydim,0,Btsparse.ncols,0,1,Qsol+ydim,ydim, true,-1.0);
+        mult_colsA_colsC_denseC(Btsparse,Qsol+ydim+m+l,ydim,0,Btsparse.ncols,0,2,Qsol+ydim,ydim, true,-1.0);
         double * sparse_sol=(double *) calloc(Asparse.nrows, sizeof(double));
         solveSystem(Asparse, sparse_sol,Qsol+ydim, 2, 1);
-        printf("Sparse system AX=Q_2 is solved \n");
-        memcpy(Qsol+ydim,sparse_sol,(m+l) * sizeof(double));
-        printf("sparse_sol copied to Qsol\n");
+	memcpy(Qsol+ydim,sparse_sol,(m+l) * sizeof(double));
+        //printf("Sparse system AX=Q_2 is solved \n");
+	solveSystem(Asparse, sparse_sol,Qsol+2*ydim, 2, 1);
+        memcpy(Qsol+2*ydim,sparse_sol,(m+l) * sizeof(double));
+        //printf("sparse_sol copied to Qsol\n");
     }
     blacs_barrier_(&ICTXT2D,"A");
 
     pdcopy_ ( &ydim,solution,&i_one,&i_one,DESCSOL,&i_one,Qsol,&i_one,&i_one,DESCQSOL,&i_one );
     blacs_barrier_(&ICTXT2D,"A");
-    if(iam==0)
-        printf("solution copied to Qsol\n");
+    /*if(iam==0)
+        printf("solution copied to Qsol\n");*/
     pdscal_ ( &ydim,&sigma_rec,Qsol,&i_one,&i_one,DESCQSOL,&i_one );
     blacs_barrier_(&ICTXT2D,"A");
-    if(iam==0)
-        printf("Qsol scaled with sigma_rec\n");
+    /*if(iam==0)
+        printf("Qsol scaled with sigma_rec\n");*/
 
     //printdense(2,ydim,QRHS,"QRHS.txt");
     //printdense(2,ydim,Qsol,"Qsol.txt");
@@ -1421,7 +1454,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
     //printdense(2,2,AImat,"QQ.txt");
 
-    pdgemm_ ( "T","N",&i_two,&i_two,&ydim,&d_negone,QRHS,&i_one,&i_one,DESCQRHS,Qsol,&i_one,&i_one,DESCQSOL,&d_one, AImat,&i_one,&i_one,DESCAI );
+    pdgemm_ ( "T","N",&i_three,&i_three,&ydim,&d_negone,QRHS,&i_one,&i_one,DESCQRHS,Qsol,&i_one,&i_one,DESCQSOL,&d_one, AImat,&i_one,&i_one,DESCAI );
 
     /*if(iam==0) {
         if(QRHS != NULL)
@@ -1434,7 +1467,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
     //printdense(2,2,AImat,"AI_nonorm.txt");
 
-    for ( i=0; i<4; ++i )
+    for ( i=0; i<9; ++i )
         * ( AImat + i ) = * ( AImat + i ) / 2 / sigma;
 
     blacs_barrier_(&ICTXT2D,"A");

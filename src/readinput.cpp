@@ -13,7 +13,7 @@ int read_input(char * filename) {
     string line;
     bool fixedfile_bool=false, randfile_bool=false, SNPdatafile_bool=false, lam_bool=false, phenopath_bool=false, testpath_bool=false;
     bool eps_bool=false, maxit_bool=false, blocksize_bool=false, testfile_bool=false, ntest_bool=false, h5_bool=false, genopath_bool=false, rand_bool=false;
-    bool Phenodatafile_bool=false;
+    bool Phenodatafile_bool=false,phi_bool=false;
 
     filenameT=( char* ) calloc ( 100,sizeof ( char ) );
     filenameX=( char* ) calloc ( 100,sizeof ( char ) );
@@ -24,6 +24,7 @@ int read_input(char * filename) {
     phenodata = ( char* ) calloc ( 100,sizeof ( char ) );
 
     lambda=100;
+    phi=100;
     blocksize=64;
     epsilon=0.01;
     maxiterations=20;
@@ -112,6 +113,11 @@ int read_input(char * filename) {
             std::getline (inputfile,line);
             lambda=atof(line.c_str());
             lam_bool=true;
+        }
+        else if (line=="#Phi") {
+            std::getline (inputfile,line);
+            phi=atof(line.c_str());
+            phi_bool=true;
         }
         else if (line=="#Epsilon") {
             std::getline (inputfile,line);
@@ -229,6 +235,10 @@ int read_input(char * filename) {
             printf("Start value of %g was used to estimate variance component lambda\n", lambda);
         else
             printf("Default start value of %g was used to estimate variance component lambda\n", lambda);
+	if(phi_bool)
+            printf("Start value of %g was used to estimate variance component phi\n", phi);
+        else
+            printf("Default start value of %g was used to estimate variance component phi\n", phi);
         if(eps_bool)
             printf("Convergence criterium of %g was used to estimate variance component lambda\n", epsilon);
         else
