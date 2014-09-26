@@ -23,8 +23,8 @@ int read_input(char * filename) {
     SNPdata = ( char* ) calloc ( 100,sizeof ( char ) );
     phenodata = ( char* ) calloc ( 100,sizeof ( char ) );
 
-    gamma_var=100;
-    phi=100;
+    gamma_var=0.01;
+    phi=0.01;
     blocksize=64;
     epsilon=0.01;
     maxiterations=20;
@@ -109,7 +109,7 @@ int read_input(char * filename) {
             blocksize=atoi(line.c_str());
             blocksize_bool=true;
         }
-        else if (line=="#Lambda") {
+        else if (line=="#Gamma") {
             std::getline (inputfile,line);
             gamma_var=atof(line.c_str());
             lam_bool=true;

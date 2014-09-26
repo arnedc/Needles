@@ -69,9 +69,13 @@ testset.bin
 #BlockSize
 64
 
-/start value of variance parameter to be estimated (optional, default=100)
-#Lambda
-100
+/start value of variance parameter gamma to be estimated (optional, default=0.01)
+#Gamma
+0.01
+
+/start value of variance parameter phi to be estimated (optional, default=0.01)
+#Gamma
+0.01
 
 /convergence criterium (optional, default=0.01)
 #Epsilon

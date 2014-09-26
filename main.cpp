@@ -270,7 +270,7 @@ int main ( int argc, char **argv ) {
         }
 
 
-        convergence_criterium=calloc(2*sizeof(double));
+        convergence_criterium=(double *) calloc(2,sizeof(double));
         counter=0;
         /*strcat ( filenameZ, ".bin" );
         strcat ( filenameX, ".bin" );
@@ -429,7 +429,7 @@ int main ( int argc, char **argv ) {
                 }
 
                 if ( copyC ) {
-                    update_C ( DESCCCOPY,Cmatcopy,gamma_var*convergence_criterium );
+                    update_C ( DESCCCOPY,Cmatcopy,gamma_var * *(convergence_criterium+1) );
                     pdlacpy_ ( "U", &Ddim, &Ddim, Cmatcopy, &i_one, &i_one, DESCCCOPY, Dmat, &i_one, &i_one, DESCD );
                     //pdcopy_ ( &Ddim, RHS,&i_one,&i_one,DESCRHS,&i_one,ytot,&i_one,&i_one,DESCYTOT,&i_one );
                     if ( * ( position+1 ) ==0 && *position==0 ) {
@@ -437,7 +437,7 @@ int main ( int argc, char **argv ) {
                         c0= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                         printf ( "\t elapsed wall time copy of Y and C:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
                     }
-                    gamma_var=gamma_var * ( 1+convergence_criterium ); // Update for gamma
+                    gamma_var=gamma_var * ( 1+ *(convergence_criterium+1) ); // Update for gamma
                 } else {
                     if(respnrm != NULL)
                         free ( respnrm );
@@ -447,8 +447,8 @@ int main ( int argc, char **argv ) {
                         printf ( "unable to allocate memory for norm\n" );
                         return EXIT_FAILURE;
                     }
-                    gamma_var=gamma_var * ( 1+convergence_criterium ); // Update for lambda (which is 1/gamma)
-                    phi=phi*(1+convergence_criterium);
+                    gamma_var=gamma_var * ( 1 + *(convergence_criterium+1) ); // Update for lambda (which is 1/gamma)
+                    phi=phi*(1 + *convergence_criterium);
                     if ( datahdf5 )
                         info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
                     else
@@ -889,8 +889,8 @@ int main ( int argc, char **argv ) {
                 if(score != NULL)
                     free ( score );
                 score=NULL;
-                printf ( "The eventual relative update for phi is: %g \n", *convergence_criterium );
-                printf ( "The eventual relative update for gamma is: %g \n", *(convergence_criterium+1) );
+                printf ( "The relative update for phi is: %g \n", *convergence_criterium );
+                printf ( "The relative update for gamma is: %g \n", *(convergence_criterium+1) );
 
             } else {
                 igebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one, &breakvar,&i_one,&i_zero,&i_zero );
@@ -1008,6 +1008,7 @@ int main ( int argc, char **argv ) {
             printf ( "\tThe condition number (1-norm) is:     %15.10e\n", norm1inv*norm1C );
             printf ( "\tThe accuracy is:                      %15.10e\n", norminv*normC*Cmax/pow ( 2,53 ) );
             printf ( "\tThe ultimate gamma is:               %15.10g\n", gamma_var );
+	    printf ( "\tThe ultimate phi is:               %15.10g\n", phi );
             printf ( "\tThe ultimate sigma is:                %15.10g\n", sigma );
 
             printf ( "\telapsed total wall time:              %10.3f s\n", ( c0 - c2 ) /1000000.0 );

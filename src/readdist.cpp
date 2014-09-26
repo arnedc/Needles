@@ -1172,7 +1172,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         *(AImat+1)= ddot_(&n,yblock,&i_one,Zu,&i_one)/sigma/phi;
 	*(AImat+3)= ddot_(&n,yblock,&i_one,Zu,&i_one)/sigma/phi;
 	*(AImat+4)= dnrm2_(&n,Zu,&i_one)/phi/phi;
-        //printf("First element of AImat is: %g\n", *AImat);
+        printf("First element of AImat is: %g\n", *AImat);
     }
     
     blacs_barrier_(&ICTXT2D,"A");
@@ -1331,12 +1331,14 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
         blacs_barrier_(&ICTXT2D,"A");
         if(iam==0) {
+	  printf("Dense multiplications with strip %d of T done\n",ni);
             mult_colsA_colsC_denseC ( Xtsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+2*ydim, ydim, true, 1.0 ); 	//X'Td/gamma
 
             mult_colsA_colsC_denseC ( Ztsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+2*ydim+m, ydim, true, 1.0 );	//Z'Td/gamma
 
             *nrmblock = dnrm2_ ( &stripcols,Tdblock,&i_one );							// norm (Td/gamma)
             * ( AImat + 8 ) += *nrmblock * *nrmblock;										//(Td)'(Td)/gamma^2
+	    printf("Sparse multiplications with strip %d of T done\n",ni);
         }
 
         blacs_barrier_(&ICTXT2D,"A");
@@ -1357,6 +1359,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     Tblock=NULL;
 
     if(iam==0) {
+      printf("All strips of T processed\n");
       if(Zu != NULL)
             free ( Zu );
         Zu=NULL;
@@ -1389,14 +1392,15 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
     // In Qsol we calculate the solution of M * Qsol = QRHS, but we still need QRHS a bit further
 	
-	int cop=ydim+k;
 
-    pdcopy_ ( &cop,QRHS,&ml_plus,&i_two,DESCQRHS,&i_one,Qsol,&ml_plus,&i_two,DESCQSOL, &i_one );
+    pdcopy_ ( &k,QRHS,&ml_plus,&i_two,DESCQRHS,&i_one,Qsol,&ml_plus,&i_two,DESCQSOL, &i_one );
+    pdcopy_ ( &k,QRHS,&ml_plus,&i_three,DESCQRHS,&i_one,Qsol,&ml_plus,&i_three,DESCQSOL, &i_one );
     blacs_barrier_(&ICTXT2D,"A");
     if (iam==0) {
+      printf("Copy of QRHS to Qsol OK\n");
         solveSystem(Asparse, Qsol,QRHS+ydim, 2, 1);
 	solveSystem(Asparse, Qsol+ydim,QRHS+2*ydim, 2, 1);
-        //printf("AQsol=QRHS_2 is solved\n");
+        printf("AQsol=QRHS_2 is solved\n");
         mult_colsA_colsC_denseC(Btsparse,Qsol,ydim,0,Btsparse.ncols,0,2,Qsol+ydim+m+l,ydim, true,-1.0);
         printf("B^T * Qsol is calculated\n");
     }

@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 2.6)
 
 enable_language(Fortran)
 
+
+
 find_package(MPI REQUIRED)
 find_package(HDF5 REQUIRED)
 include_directories(${HDF5_INCLUDE_DIR} ${MPI_INCLUDE_PATH} ${PROJECT_SOURCE_DIR}/src)
