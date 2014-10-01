@@ -344,14 +344,14 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             printf("Unable to allocate memory for XtY in root process.\n");
             return -1;
         }
-        printf("Xtsparse.nrows = %d \nm = %d\n",Xtsparse.nrows,m);
+        //printf("Xtsparse.nrows = %d \nm = %d\n",Xtsparse.nrows,m);
         mult_colsA_colsC_denseC ( Xtsparse, Y, n, 0, n, 0, 1, XtY, m, false, 1.0);
         ZtY=(double * ) calloc(l,sizeof(double));
         if(ZtY==NULL) {
             printf("Unable to allocate memory for ZtY in root process.\n");
             return -1;
         }
-        printf("Ztsparse.nrows = %d \nl = %d\n",Ztsparse.nrows,l);
+        //printf("Ztsparse.nrows = %d \nl = %d\n",Ztsparse.nrows,l);
         mult_colsA_colsC_denseC ( Ztsparse, Y, n, 0, n, 0, 1, ZtY, l, false, 1.0);
         if (Y!= NULL)
             free(Y);
@@ -1173,8 +1173,9 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         *AImat = *nrmblock * *nrmblock/sigma/sigma; 								//y'y/sigma²
         *(AImat+1)= ddot_(&n,yblock,&i_one,Zu,&i_one)/sigma/phi;
 	*(AImat+3)= ddot_(&n,yblock,&i_one,Zu,&i_one)/sigma/phi;
-	*(AImat+4)= dnrm2_(&n,Zu,&i_one)/phi/phi;
-        //printf("First element of AImat is: %g\n", *AImat);
+	*(AImat+4)= dnrm2_(&n,Zu,&i_one)/phi/phi * dnrm2_(&n,Zu,&i_one);
+	  printdense(n,1,Zu,"Zu.txt");
+        printf("Fourth element of AImat is: %g\n", *(AImat+4));
     }
     
     blacs_barrier_(&ICTXT2D,"A");

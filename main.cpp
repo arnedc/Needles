@@ -512,7 +512,7 @@ int main ( int argc, char **argv ) {
                 gettimeofday ( &tz0,NULL );
                 c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time norm and max of C:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
-                printf ( "The new variance components gamma and phi are: %15.10g \t 15.10g\n",gamma_var, phi );
+                printf ( "The new variance components gamma and phi are: %15.10g \t %15.10g\n",gamma_var, phi );
                 printf ( "norm of y-vector is: %g\n",*respnrm );
             }
 
@@ -660,7 +660,7 @@ int main ( int argc, char **argv ) {
             }
 
             if ( * ( position+1 ) ==0 && *position==0 ) {
-                gettimeofday ( &tz0,NULL );
+		gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time set up of AI matrix:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
             }
@@ -816,7 +816,7 @@ int main ( int argc, char **argv ) {
                 printf ( "parallel sigma = %15.10g\n",sigma );
                 printf ( "The trace of the (1,1) block of the inverse of M is: %15.10g \n",trace_ZZ );
                 printf ( "The trace of the (2,2) block of the inverse of M is: %15.10g \n",trace_TT );
-                printf ( "The norm of the estimation of u and d is: %g \n",*randnrm );
+                printf ( "The norm of the estimation of u and d is: %g and %g \n",*randnrm, *(randnrm+1) );
                 loglikelihood += ( k * log ( gamma_var ) + l * log(phi) + ( n-m ) * log ( sigma ) + n - m) /2;
                 loglikelihood *= -1.0;
 
@@ -828,7 +828,7 @@ int main ( int argc, char **argv ) {
                 }
                 * ( score+1 ) = - ( l - trace_ZZ / phi - *randnrm * *randnrm / phi / sigma ) / phi / 2;
                 * ( score+2 ) = - ( k - trace_TT / gamma_var - *(randnrm+1) * *(randnrm+1) / gamma_var / sigma ) / gamma_var / 2;
-                printf ( "The score function is: [%g, %g]\n",* ( score+1 ), *(score+2) );
+                printf ( "The score function is: [%g, %g, %g]\n",*score,* ( score+1 ), *(score+2) );
                 //printdense ( 2,2, AImat, "AI_par.txt" );
                 breakvar=0;
                 if ( fabs ( * ( score+1 ) ) < epsilon * epsilon ) {
@@ -864,11 +864,13 @@ int main ( int argc, char **argv ) {
 
                             printf("Used damping factor is %g\n",damping);
                 */
+		printdense(3,3,AImat,"AImat.txt");
                 dpotrf_ ( "U", &i_three, AImat, &i_three, &info );
                 if ( info!=0 ) {
                     printf ( "Cholesky decomposition of AI matrix was unsuccesful, error returned: %d\n",info );
                     return -1;
                 }
+                printdense(3,3,AImat,"AImat_chol.txt");
                 dpotrs_ ( "U",&i_three,&i_one,AImat,&i_three,score,&i_three,&info );
                 if ( info!=0 ) {
                     printf ( "Parallel solution for AI matrix was unsuccesful, error returned: %d\n",info );
@@ -877,6 +879,7 @@ int main ( int argc, char **argv ) {
                 gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                 printf ( "\t elapsed wall time update for lambda:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
+		printf ( "The update for sigma is: %g \n", *score  );
                 printf ( "The update for phi is: %g \n", * ( score+1 ) );
                 printf ( "The update for gamma is: %g \n", * ( score+2 ) );
                 while ( * ( score+2 ) + gamma_var <0 || *(score+1) + phi < 0 ) {
