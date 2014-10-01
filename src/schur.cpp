@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 //#include <mkl_lapack.h>
@@ -82,7 +83,7 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
       free(B_j_dense);
     B_j_dense=NULL;
 
-    printf("Processor %d finished solving system AX=B\n",iam);
+    //printf("Processor %d finished solving system AX=B\n",iam);
 
     dgemm_("N","N",&(BT_i.nrows),&(B_j.ncols),&(BT_i.ncols),&d_negone,BT_i_dense,&(BT_i.nrows),
            AB_sol_out,&(A.nrows),&d_one,T_ij,&lld_T

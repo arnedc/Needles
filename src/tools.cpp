@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include <unistd.h>
 #include <ios>
 #include <iostream>
