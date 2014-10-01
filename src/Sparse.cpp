@@ -1,3 +1,4 @@
+#include <mpi.h>
 #include <cassert>
 #include <cstring>
 #include "shared_var.h"

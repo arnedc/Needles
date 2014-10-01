@@ -1,5 +1,6 @@
 // include files
 // =============
+#include <mpi.h>
 #include "CSRdouble.hpp"
 #include <cstring>
 #include "searchingsorting.hpp"

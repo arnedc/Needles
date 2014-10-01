@@ -1,5 +1,6 @@
 // include files
 // =============
+#include <mpi.h>
 #include "ParDiSO.hpp"
 #include "CSRdouble.hpp"
 // =============
