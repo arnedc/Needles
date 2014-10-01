@@ -956,7 +956,7 @@ int update_C ( int * DESCC, double * Cmat, double update) {
 
     int i,j, rowcur,colcur,nXblocks;
 
-    nXblocks= m%blocksize==0 ? m/blocksize : m/blocksize +1;
+    //nXblocks= m%blocksize==0 ? m/blocksize : m/blocksize +1;
 
     for ( i=0,rowcur=0,colcur=0; i<Dblocks; ++i, ++colcur, ++rowcur ) {
         if ( rowcur==*dims )
@@ -975,7 +975,7 @@ int update_C ( int * DESCC, double * Cmat, double update) {
             }
         }
     }
-
+/*
     for ( i=0,rowcur=0,colcur=0; i<nXblocks; ++i, ++colcur, ++rowcur ) {
         if ( rowcur==*dims )
             rowcur=0;
@@ -992,7 +992,7 @@ int update_C ( int * DESCC, double * Cmat, double update) {
                 }
             }
         }
-    }
+    }*/
 }
 
 
