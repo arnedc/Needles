@@ -310,7 +310,7 @@ void CSRdouble::loadFromFile(const char* file, ios::openmode mode)
 {
     fstream fin(file, ios::in | mode);
 
-    cout << "opening file: " << file << " in mode: ";
+    //cout << "opening file: " << file << " in mode: ";
     if (!fin.is_open())
     {
         cout << "couldn't open file ... " << file << "\n";
@@ -320,7 +320,7 @@ void CSRdouble::loadFromFile(const char* file, ios::openmode mode)
 
     if (mode == ios::binary)
     {
-        cout << " binary" << std::endl;
+        //cout << " binary" << std::endl;
         fin.seekg(0);
         fin.read((char*)&nrows, sizeof(int));
 
@@ -352,7 +352,7 @@ void CSRdouble::loadFromFile(const char* file, ios::openmode mode)
     }
     else
     {
-        cout << " ascii" << std::endl;
+        //cout << " ascii" << std::endl;
 
         fin >> nrows;
         fin >> ncols;
@@ -402,7 +402,7 @@ void CSRdouble::loadFromFile(const char* file, ios::openmode mode)
 void CSRdouble::loadFromFileCOO(const char* file)
 {
     fstream fin(file, ios::in);
-    cout << "opening file: " << file << " in mode: ";
+    //cout << "opening file: " << file << " in mode: ";
     if (!fin.is_open())
     {
         cout << "couldn't open file ... " << file << "\n";
@@ -410,13 +410,13 @@ void CSRdouble::loadFromFileCOO(const char* file)
     }
 
 
-   cout << " ascii" << std::endl;
+   //cout << " ascii" << std::endl;
 
    fin >> nrows >> ncols >> nonzeros;
 
-   cout << "nrows:    " << nrows    << std::endl;
+   /*cout << "nrows:    " << nrows    << std::endl;
    cout << "ncols:    " << ncols    << std::endl;
-   cout << "nonzeros: " << nonzeros << std::endl;
+   cout << "nonzeros: " << nonzeros << std::endl;*/
 
    pRows = new int[nrows+1];
    pCols = new int[nonzeros];

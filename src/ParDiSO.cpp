@@ -435,7 +435,7 @@ void ParDiSO::findInverseOfA(CSRdouble& A)
   error_();
   phase     = 12;
 
-  printf("Matrix checked by PARDISO\n");
+  //printf("Matrix checked by PARDISO\n");
 
   // Perform symbolic analysis and numerical factorization
   PARDISOCALL_D(pt,
@@ -461,7 +461,7 @@ void ParDiSO::findInverseOfA(CSRdouble& A)
     printf("Error when factorizing matrix PARDISO: %d\n",error);
   
   error_();
-  printf("Matrix factorized by PARDISO\n");
+  //printf("Matrix factorized by PARDISO\n");
   
   
   phase     = -22;
@@ -491,7 +491,7 @@ void ParDiSO::findInverseOfA(CSRdouble& A)
     printf("Error when inverting matrix PARDISO: %d\n",error);
   
   error_();
-  printf("Matrix inverted by PARDISO\n");
+  //printf("Matrix inverted by PARDISO\n");
   shiftIndices_(A, -1);
 }
 

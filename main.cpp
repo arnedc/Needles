@@ -263,6 +263,7 @@ int main ( int argc, char **argv ) {
             printf ( "Descriptor of matrix C returns info: %d\n",info );
             return info;
         }
+        
         //YSrow (1,Ddim) is distributed across processes of ICTXT2D starting from process (0,0) into blocks of size (1,blocksize)
         descinit_ ( DESCYSROW, &i_one, &Ddim, &i_one,&blocksize, &i_zero, &i_zero, &ICTXT2D, &i_one, &info );
         if ( info!=0 ) {
@@ -280,7 +281,7 @@ int main ( int argc, char **argv ) {
         //solution= ( double * ) calloc ( (k+l+m), sizeof ( double ) );
 
         if ( * ( position+1 ) ==0 && *position==0 ) {
-            printf ( "\nA linear mixed model with %d observations, %d random effects, %d SNP effects and %d fixed effects\n", n,k,l,m );
+            printf ( "\nA linear mixed model with %d observations, %d random effects, %d SNP effects and %d fixed effects\n", n,l,k,m );
             printf ( "was analyzed using %d (%d x %d) processors\n",size,*dims,* ( dims+1 ) );
             gettimeofday ( &tz2,NULL );
             c2= tz2.tv_sec*1000000 + ( tz2.tv_usec );
@@ -323,6 +324,13 @@ int main ( int argc, char **argv ) {
             printf ( "unable to allocate memory for norm\n" );
             return EXIT_FAILURE;
         }
+         if(iam==0){
+	   process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+	   printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
+            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
+            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
+            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
+	}        
         AB_sol=(double *) calloc(Adim * Dcols*blocksize,sizeof(double));
         if ( AB_sol==NULL ) {
             printf ( "unable to allocate memory for AB_sol (required %d bytes)\n",Adim * Dcols*blocksize*sizeof(double) );

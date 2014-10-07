@@ -8,7 +8,7 @@
 void create1x2BlockMatrix(CSRdouble& A, CSRdouble& B, // input
                           CSRdouble& C)  // output
 {
-    cout << "***  G e n e r a t i n g    m a t r i x   C = [ A      B ] *** " << endl;
+    //cout << "***  G e n e r a t i n g    m a t r i x   C = [ A      B ] *** " << endl;
 
     int nrows    = A.nrows;
     int ncols    = A.ncols + B.ncols;
@@ -158,12 +158,12 @@ void makeIdentity(int n, CSRdouble& I)
 
 void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs)
 {
-    cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
+    /*cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
     cout << "@@@ S O L V I N G     A    L I N E A R    S Y S T E M  @@@" << endl;
     cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
 
 
-    cout << "*** G e n e r a t i n g    # " << number_of_rhs << "   r h s *** " << endl;
+    cout << "*** G e n e r a t i n g    # " << number_of_rhs << "   r h s *** " << endl;*/
 
     // initialize pardiso and forward to it minimum number of necessary parameters
     int pardiso_message_level = 0;
@@ -192,7 +192,7 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
 
 
 
-    cout << "S Y M B O L I C     V O O D O O" << endl;
+    //cout << "S Y M B O L I C     V O O D O O" << endl;
 
     secs.tick(initializationTime);
     pardiso.init(A, number_of_rhs);
@@ -200,7 +200,7 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
 
 
 
-    cout << "L U                 F A C T O R I Z A T I O N" << endl;
+    //cout << "L U                 F A C T O R I Z A T I O N" << endl;
 
     secs.tick(factorizationTime);
     pardiso.factorize(A);
@@ -208,7 +208,7 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
 
 
 
-    cout << "L U                 B A C K - S U B S T I T U T I O N" << endl;
+    //cout << "L U                 B A C K - S U B S T I T U T I O N" << endl;
 
     secs.tick(solutionTime);
     pardiso.solve(A, X, B);
@@ -218,7 +218,7 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
     errorReport(number_of_rhs, A, B, X);
     // writeSolution(number_of_rhs, A.nrows, X);
 
-
+    if (iam==0){
     cout << "-------------------------------" << endl;
     cout << "T I M I N G         R E P O R T" << endl;
     cout << "-------------------------------" << endl;
@@ -227,6 +227,7 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
     cout << "Initialization phase: " << initializationTime*0.001 << " sec" << endl;
     cout << "Factorization  phase: " << factorizationTime*0.001 << " sec" << endl;
     cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;
+    }
 }
 
 double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs)
@@ -288,7 +289,7 @@ double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype,
     pardiso.solve(A, X, B);
     secs.tack(solutionTime);
 
-    errorReport(number_of_rhs, A, B, X);
+    //errorReport(number_of_rhs, A, B, X);
     // writeSolution(number_of_rhs, A.nrows, X);
 
 
