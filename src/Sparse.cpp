@@ -215,7 +215,7 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
     secs.tack(solutionTime);
 
 
-    errorReport(number_of_rhs, A, B, X);
+    //errorReport(number_of_rhs, A, B, X);
     // writeSolution(number_of_rhs, A.nrows, X);
 
     if (iam==0){
@@ -232,12 +232,12 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
 
 double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs)
 {
-    cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
+    /*cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
     cout << "@@@ S O L V I N G     A    L I N E A R    S Y S T E M  @@@" << endl;
     cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
 
 
-    cout << "*** G e n e r a t i n g    # " << number_of_rhs << "   r h s *** " << endl;
+    cout << "*** G e n e r a t i n g    # " << number_of_rhs << "   r h s *** " << endl;*/
 
     // initialize pardiso and forward to it minimum number of necessary parameters
     int pardiso_message_level = 0;
@@ -267,7 +267,7 @@ double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype,
 
 
 
-    cout << "S Y M B O L I C     V O O D O O" << endl;
+    //cout << "S Y M B O L I C     V O O D O O" << endl;
 
     secs.tick(initializationTime);
     pardiso.init(A, number_of_rhs);
@@ -275,7 +275,7 @@ double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype,
 
 
 
-    cout << "L U                 F A C T O R I Z A T I O N" << endl;
+    //cout << "L U                 F A C T O R I Z A T I O N" << endl;
 
     secs.tick(factorizationTime);
     pardiso.factorize(A);
@@ -283,7 +283,7 @@ double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype,
 
 
 
-    cout << "L U                 B A C K - S U B S T I T U T I O N" << endl;
+    //cout << "L U                 B A C K - S U B S T I T U T I O N" << endl;
 
     secs.tick(solutionTime);
     pardiso.solve(A, X, B);
@@ -292,7 +292,7 @@ double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype,
     //errorReport(number_of_rhs, A, B, X);
     // writeSolution(number_of_rhs, A.nrows, X);
 
-
+  if (iam==0){
     cout << "-------------------------------" << endl;
     cout << "T I M I N G         R E P O R T" << endl;
     cout << "-------------------------------" << endl;
@@ -300,7 +300,7 @@ double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype,
     cout.precision(2);
     cout << "Initialization phase: " << initializationTime*0.001 << " sec" << endl;
     cout << "Factorization  phase: " << factorizationTime*0.001 << " sec" << endl;
-    cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;
+    cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;}
     
     return pardiso.dparm[33];
 }
@@ -356,4 +356,41 @@ void CSR2dense ( CSRdouble& matrix,double *dense ) {
     }
 }
 
+void calculateSchurComplement(CSRdouble& A, int pardiso_mtype, CSRdouble& S)
+{
+    /*cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;
+    cout << "@@@ C A L C U L A T I N G     S C H U R - C O M P L M. @@@" << endl;
+    cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << endl;*/
+
+
+    // initialize pardiso and forward to it minimum number of necessary parameters
+    int pardiso_message_level = 0;
+
+    ParDiSO pardiso(pardiso_mtype, pardiso_message_level);
+
+    // Numbers of processors, value of OMP_NUM_THREADS
+    int number_of_processors = 1;
+    char* var = getenv("OMP_NUM_THREADS");
+    if (var != NULL)
+        sscanf( var, "%d", &number_of_processors );
+
+    pardiso.iparm[2]  = 2;
+    pardiso.iparm[3]  = number_of_processors;
+    pardiso.iparm[8]  = 0;
+    pardiso.iparm[11] = 1;
+    pardiso.iparm[13]  = 1;
+    pardiso.iparm[28]  = 0;
+
+
+    double schurTime  = 0.0;
+    timing secs;
+
+    //cout << "number of perturbed pivots = " << pardiso.iparm[14] << endl;
+
+    secs.tick(schurTime);
+    pardiso.makeSchurComplement(A, S);
+    secs.tack(schurTime);
+
+    //cout << "number of perturbed pivots = " << pardiso.iparm[14] << endl;
+}
 

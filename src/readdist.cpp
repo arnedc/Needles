@@ -1400,8 +1400,9 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     pdcopy_ ( &k,QRHS,&ml_plus,&i_three,DESCQRHS,&i_one,Qsol,&ml_plus,&i_three,DESCQSOL, &i_one );
     blacs_barrier_(&ICTXT2D,"A");
     if (iam==0) {
-      //printf("Copy of QRHS to Qsol OK\n");
+	printf("Solving system AQsol_1,2 = Q_1,2 on process 0\n");
         solveSystem(Asparse, Qsol,QRHS+ydim, 2, 1);
+	printf("Solving system AQsol_1,3 = Q_1,3 on process 0\n");
 	solveSystem(Asparse, Qsol+ydim,QRHS+2*ydim, 2, 1);
         //printf("AQsol=QRHS_2 is solved\n");
         mult_colsA_colsC_denseC(Btsparse,Qsol,ydim,0,Btsparse.ncols,0,2,Qsol+ydim+m+l,ydim, true,-1.0);
@@ -1437,9 +1438,10 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         Btsparse.transposeIt(1);
         mult_colsA_colsC_denseC(Btsparse,Qsol+ydim+m+l,ydim,0,Btsparse.ncols,0,2,Qsol+ydim,ydim, true,-1.0);
         double * sparse_sol=(double *) calloc(Asparse.nrows, sizeof(double));
+	printf("Solving system AQsol_1,2 = Q_1,2 - B Qsol_2,2 on process 0\n");
         solveSystem(Asparse, sparse_sol,Qsol+ydim, 2, 1);
 	memcpy(Qsol+ydim,sparse_sol,(m+l) * sizeof(double));
-        //printf("Sparse system AX=Q_2 is solved \n");
+        printf("Solving system AQsol_1,3 = Q_1,3 - B Qsol_2,3 on process 0\n");
 	solveSystem(Asparse, sparse_sol,Qsol+2*ydim, 2, 1);
         memcpy(Qsol+2*ydim,sparse_sol,(m+l) * sizeof(double));
         //printf("sparse_sol copied to Qsol\n");

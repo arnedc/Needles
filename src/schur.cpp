@@ -77,6 +77,8 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
     CSR2dense(BT_i,BT_i_dense);
     CSR2dense(B_j,B_j_dense);
 
+    if(iam==0)
+	  printf("Solving systems AX_j = B_j on all processes\n");
     solveSystem(A, AB_sol_out,B_j_dense, 2, B_j.ncols);
     
     if(B_j_dense != NULL)

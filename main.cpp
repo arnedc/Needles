@@ -6,7 +6,6 @@
 #include <string.h>
 #include <sys/time.h>
 #include "src/shared_var.h"
-#include <shared_var.h>
 //#include <mkl_types.h>
 #include <smat.h>
 #include "CSRdouble.hpp"
@@ -326,6 +325,8 @@ int main ( int argc, char **argv ) {
         }
          if(iam==0){
 	   process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+	   printf("Before allocation of AB_sol\n");
+	   printf("===========================\n");
 	   printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
             printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
             printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
@@ -576,7 +577,7 @@ int main ( int argc, char **argv ) {
             pdcopy_(&k,ytot,&ml_plus,&i_one,DESCYTOT,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
 
             if (iam==0) {
-                //printdense(m+l,1,ytot,"ytot_sparse.txt");
+                printf("Solving system Ax_u = y_u on process 0\n");
                 solveSystem(Asparse, solution,ytot, 2, 1);
                 //printdense(m+l,1,solution,"Solution_sparse.txt");
                 mult_colsA_colsC_denseC(Btsparse,solution,ydim,0,Btsparse.ncols,0,1,solution+m+l,ydim, true,-1.0);
@@ -605,7 +606,7 @@ int main ( int argc, char **argv ) {
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-                printf ( "\t elapsed wall time estimation of effects:		%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+                printf ( "\t elapsed wall time estimation of dense effects:		%10.3f s\n", ( c0 - c1 ) /1000000.0 );
             }
             pdcopy_(&k,densesol,&i_one,&i_one,DESCDENSESOL,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
 
@@ -616,6 +617,7 @@ int main ( int argc, char **argv ) {
                 mult_colsA_colsC_denseC(Btsparse,solution+m+l,ydim,0,Btsparse.ncols,0,1,solution,ydim,true,-1.0);
                 //printdense(ydim,1,solution,"RHS_sparse.txt");
                 double * sparse_sol=(double *) calloc(Asparse.ncols, sizeof(double));
+		printf("Solving system Au=y_u - Bd on process 0\n");
                 loglikelihood=solveSystemWithDet(Asparse, sparse_sol,solution, -2, 1)/2;
                 memcpy(solution,sparse_sol,(m+l) * sizeof(double));
                 if (sparse_sol != NULL)
