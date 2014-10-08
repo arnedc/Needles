@@ -564,8 +564,6 @@ void CSRdouble::reduceSymmetric()
     int* pcols    ;
     double* pdata ;
 
-    vector<vector<double> > vA(n);
-    vector<vector<int> >    vcols(n);
     nonzeroes = (nonzeros + nrows)/2;
 
     prows = new int[n+1];
@@ -594,7 +592,7 @@ void CSRdouble::reduceSymmetric()
     delete[] pCols;
     delete[] pData;
 
-    make(n, n, nonzeroes, prows, pcols, pdata);
+    make(n, n, nnz_count, prows, pcols, pdata);
     matrixType = SYMMETRIC;
 }
 

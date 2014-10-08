@@ -112,7 +112,7 @@ void mult_colsA_colsC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int A
                 if ( j>=Acolstart && j<Acolstart+Ancols )
                     cij += A.pData[i] * * ( B + col-Ccolstart + lld_B * ( j-Acolstart ) ) ;
             }
-            if ( abs ( cij ) >1e-10 ) {
+            if ( fabs ( cij ) >1e-10 ) {
                 C_nnz++;
                 Ccols.push_back ( col );
                 Cdata.push_back ( cij );

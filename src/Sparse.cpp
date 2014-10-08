@@ -132,7 +132,7 @@ void create2x2SymBlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& T, // input
 
 
     C.clear();
-    C.make(nrows, ncols, nonzeros, ic, jc, c);
+    C.make(nrows, ncols, nonzero_counter, ic, jc, c);
     C.sortColumns();
     // C.writeToFile("C.csr");
 }

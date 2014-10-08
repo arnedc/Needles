@@ -79,7 +79,7 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
 
     if(iam==0)
 	  printf("Solving systems AX_j = B_j on all processes\n");
-    solveSystem(A, AB_sol_out,B_j_dense, 2, B_j.ncols);
+    solveSystem(A, AB_sol_out,B_j_dense, -2, B_j.ncols);
     
     if(B_j_dense != NULL)
       free(B_j_dense);
