@@ -73,15 +73,17 @@ int main ( int argc, char **argv ) {
     double *Dmat, *ytot, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol, *AB_sol, *YSrow;
     double sigma, dot, trace_ZZ, trace_TT, *convergence_criterium, loglikelihood,prevloglike,update_loglikelihood;
     int *DESCD, *DESCYTOT, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL, *DESCAB_sol, *DESCYSROW;
+    double vm_usage, resident_set, cpu_sys, cpu_user;
     double c0, c1, c2, c3, c4;
     struct timeval tz0,tz1, tz2,tz3;
-    double vm_usage, resident_set, cpu_sys, cpu_user;
     double *work, normC,norm1C, norminv, norm1inv, Cmax, colmax;
     CSRdouble BT_i, B_j, Xsparse, Zsparse, Btsparse, Asparse;
     CSRdouble XtX_sparse, XtZ_sparse, ZtZ_sparse, Imat;
+    timing secs;
+    double totalTime, interTime;
 
     // declaration of descriptors of different matrices
-
+    secs.tick(totalTime);
     DESCD= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
     if ( DESCD==NULL ) {
         printf ( "unable to allocate memory for descriptor for C\n" );
@@ -1007,7 +1009,7 @@ int main ( int argc, char **argv ) {
         }*/
 
         blacs_barrier_ ( &ICTXT2D, "A" );
-
+	secs.tack(totalTime);
         if ( * ( position+1 ) ==0 && *position==0 ) {
             gettimeofday ( &tz0,NULL );
             c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
@@ -1025,7 +1027,7 @@ int main ( int argc, char **argv ) {
 	    printf ( "\tThe ultimate phi is:               %15.10g\n", phi );
             printf ( "\tThe ultimate sigma is:                %15.10g\n", sigma );
 
-            printf ( "\telapsed total wall time:              %10.3f s\n", ( c0 - c2 ) /1000000.0 );
+            printf ( "\telapsed total wall time:              %10.3f s\n", totalTime * 0.001 );
 
             printf ( "\tProcessor: %d \n\t ========================\n", iam );
             printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
