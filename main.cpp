@@ -27,6 +27,7 @@ int ntests, maxiterations,datahdf5, copyC;
 char *SNPdata, *phenodata;
 char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
 double gamma_var, phi, epsilon;
+ParDiSO pardiso_var(-2,0);
 
 extern "C" {
     void blacs_pinfo_ ( int *mypnum, int *nprocs );
@@ -563,6 +564,7 @@ int main ( int argc, char **argv ) {
             ZtZ_sparse.clear();
 
             blacs_barrier_ ( &ICTXT2D,"ALL" );
+	    
 
             // Each process calculates the Schur complement of the part of D at its disposal. (see src/schur.cpp)
             // The solution of A * Y = B_j is stored in AB_sol (= A^-1 * B_j)
@@ -580,7 +582,7 @@ int main ( int argc, char **argv ) {
 
             if (iam==0) {
                 printf("Solving system Ax_u = y_u on process 0\n");
-                solveSystem(Asparse, solution,ytot, 2, 1);
+                solveSystemwoFact(Asparse, solution,ytot, 2, 1);
                 //printdense(m+l,1,solution,"Solution_sparse.txt");
                 mult_colsA_colsC_denseC(Btsparse,solution,ydim,0,Btsparse.ncols,0,1,solution+m+l,ydim, true,-1.0);
             }
@@ -725,11 +727,11 @@ int main ( int argc, char **argv ) {
             //Only the root process performs a selected inversion of A.
             if (iam==0) {
 
-                int pardiso_message_level = 1;
+                /*int pardiso_message_level = 1;
 
                 int pardiso_mtype=-2;
 
-                ParDiSO pardiso ( pardiso_mtype, pardiso_message_level );
+                ParDiSO pardiso ( pardiso_mtype, pardiso_message_level );*/
                 int number_of_processors = 1;
                 char* var = getenv("OMP_NUM_THREADS");
                 if(var != NULL)
@@ -739,15 +741,15 @@ int main ( int argc, char **argv ) {
                     exit(1);
                 }
 
-                pardiso.iparm[2]  = 2;
-                pardiso.iparm[3]  = number_of_processors;
-                pardiso.iparm[8]  = 0;
-                pardiso.iparm[11] = 1;
-                pardiso.iparm[13]  = 0;
-                pardiso.iparm[28]  = 0;
+                pardiso_var.iparm[2]  = 2;
+                pardiso_var.iparm[3]  = number_of_processors;
+                pardiso_var.iparm[8]  = 0;
+                pardiso_var.iparm[11] = 1;
+                pardiso_var.iparm[13]  = 0;
+                pardiso_var.iparm[28]  = 0;
 
                 //This function calculates the factorisation of A once again so this might be optimized.
-                pardiso.findInverseOfA ( Asparse );
+                pardiso_var.findInverseOfA ( Asparse );
 
                 printf("Processor %d inverted matrix A\n",iam);
             }

@@ -365,9 +365,9 @@ public:
     // -------------------------------
     // drivers using double arithmetic
     // -------------------------------
-    void init ( CSRdouble& A, int number_of_rhs );
+    void init ( CSRdouble& A );
     void factorize ( CSRdouble& A );
-    void solve ( CSRdouble& A, double* x, double* rhs );
+    void solve ( CSRdouble& A, double* x, double* rhs, int number_of_rhs );
     bool makeSchurComplement ( CSRdouble& A, CSRdouble& S );
     void findInverseOfA ( CSRdouble& A );
 

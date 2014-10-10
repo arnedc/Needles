@@ -143,6 +143,7 @@ public:
 #endif
 
 class CSRdouble;
+class ParDiSO;
 
 
 double* create_matrix_binary ( long int seed, int m, int n, double max, char* filename );
@@ -176,6 +177,7 @@ void makeIdentity(int n, CSRdouble& I);
 void errorReport(int number_of_rhs, CSRdouble& A, double* x, double* b);
 void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
 double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
+void solveSystemwoFact(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
 
 extern double d_one, d_zero, d_negone;
 extern int DLEN_, i_negone, i_zero, i_one, i_two, i_three; // some many used constants
@@ -187,6 +189,7 @@ extern int ntests, maxiterations,datahdf5, copyC;
 extern char *SNPdata, *phenodata;
 extern char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
 extern double gamma_var, phi,epsilon;
+extern ParDiSO pardiso_var;
 
 #endif
 

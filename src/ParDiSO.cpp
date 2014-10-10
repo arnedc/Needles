@@ -193,7 +193,7 @@ void ParDiSO::shiftIndices_(CSRdouble& A, int value)
 
 
 
-void ParDiSO::init(CSRdouble& A, int number_of_rhs)
+void ParDiSO::init(CSRdouble& A)
 {
   // --------------------------------------------------------------------
   // ..  Convert matrix from 0-based C-notation to Fortran 1-based       
@@ -222,7 +222,7 @@ void ParDiSO::init(CSRdouble& A, int number_of_rhs)
   // --------------------------------------------------------------------
 
   double ddum;
-  nrhs = number_of_rhs;
+  nrhs = 1;
   
   phase = 11;
  
@@ -301,7 +301,7 @@ void ParDiSO::factorize(CSRdouble& A)
 
 
 
-void ParDiSO::solve(CSRdouble& A, double* x, double* rhs)
+void ParDiSO::solve(CSRdouble& A, double* x, double* rhs, int number_of_rhs)
 {
   // --------------------------------------------------------------------
   // ..  Back substitution and iterative refinement.                     
@@ -310,6 +310,7 @@ void ParDiSO::solve(CSRdouble& A, double* x, double* rhs)
 
   shiftIndices_(A, 1);
 
+  nrhs=number_of_rhs;
 
   PARDISOCALL_D(pt,
                 &maxfct,
@@ -438,7 +439,7 @@ void ParDiSO::findInverseOfA(CSRdouble& A)
   //printf("Matrix checked by PARDISO\n");
 
   // Perform symbolic analysis and numerical factorization
-  PARDISOCALL_D(pt,
+  /*PARDISOCALL_D(pt,
                 &maxfct,
                 &mnum,
                 &mtype,
@@ -462,7 +463,7 @@ void ParDiSO::findInverseOfA(CSRdouble& A)
   
   error_();
   //printf("Matrix factorized by PARDISO\n");
-  
+  */
   
   phase     = -22;
   iparm[36] = 1;   // do not overwrite internal factor L

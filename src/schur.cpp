@@ -73,6 +73,7 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
             printf ( "unable to allocate memory for dense B_j (required: %d bytes)\n", B_j.nrows * B_j.ncols*sizeof ( double ) );
             return EXIT_FAILURE;
         }
+    
 
     CSR2dense(BT_i,BT_i_dense);
     CSR2dense(B_j,B_j_dense);
@@ -86,10 +87,10 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
     B_j_dense=NULL;
 
     //printf("Processor %d finished solving system AX=B\n",iam);
+    
 
     dgemm_("N","N",&(BT_i.nrows),&(B_j.ncols),&(BT_i.ncols),&d_negone,BT_i_dense,&(BT_i.nrows),
-           AB_sol_out,&(A.nrows),&d_one,T_ij,&lld_T
-          );
+           AB_sol_out,&(A.nrows),&d_one,T_ij,&lld_T);
     
     if(BT_i_dense != NULL)
       free(BT_i_dense);
