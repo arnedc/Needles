@@ -63,37 +63,39 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
 
     assert(A.nrows == BT_i.ncols);
 
-    BT_i_dense=(double *) calloc(BT_i.nrows * BT_i.ncols,sizeof(double));
+    size_t BT_elements=(size_t)BT_i.nrows *  (size_t)BT_i.ncols;
+    BT_i_dense=(double *) calloc(BT_elements,sizeof(double));
     if ( BT_i_dense==NULL ) {
-            printf ( "unable to allocate memory for dense BT_i (required: %d bytes)\n", BT_i.nrows * BT_i.ncols*sizeof ( double ) );
-            return EXIT_FAILURE;
-        }
-    B_j_dense=(double *) calloc(B_j.nrows * B_j.ncols,sizeof(double));
+        printf ( "unable to allocate memory for dense BT_i (required: %lld bytes)\n", BT_elements*sizeof ( double ) );
+        return EXIT_FAILURE;
+    }
+    size_t B_elements=(size_t)B_j.nrows *  (size_t)B_j.ncols;
+    B_j_dense=(double *) calloc(B_elements,sizeof(double));
     if ( B_j_dense==NULL ) {
-            printf ( "unable to allocate memory for dense B_j (required: %d bytes)\n", B_j.nrows * B_j.ncols*sizeof ( double ) );
-            return EXIT_FAILURE;
-        }
-    
+        printf ( "unable to allocate memory for dense B_j (required: %lld bytes)\n", B_elements*sizeof ( double ) );
+        return EXIT_FAILURE;
+    }
+
 
     CSR2dense(BT_i,BT_i_dense);
     CSR2dense(B_j,B_j_dense);
 
     if(iam==0)
-	  printf("Solving systems AX_j = B_j on all processes\n");
+        printf("Solving systems AX_j = B_j on all processes\n");
     solveSystem(A, AB_sol_out,B_j_dense, -2, B_j.ncols);
-    
+
     if(B_j_dense != NULL)
-      free(B_j_dense);
+        free(B_j_dense);
     B_j_dense=NULL;
 
     //printf("Processor %d finished solving system AX=B\n",iam);
-    
+
 
     dgemm_("N","N",&(BT_i.nrows),&(B_j.ncols),&(BT_i.ncols),&d_negone,BT_i_dense,&(BT_i.nrows),
            AB_sol_out,&(A.nrows),&d_one,T_ij,&lld_T);
-    
+
     if(BT_i_dense != NULL)
-      free(BT_i_dense);
+        free(BT_i_dense);
     BT_i_dense=NULL;
 
     return 0;

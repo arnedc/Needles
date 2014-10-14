@@ -29,6 +29,7 @@ char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
 double gamma_var, phi, epsilon;
 ParDiSO pardiso_var(-2,0);
 
+
 extern "C" {
     void blacs_pinfo_ ( int *mypnum, int *nprocs );
     void blacs_setup_ ( int *mypnum, int *nprocs );
@@ -70,6 +71,7 @@ int main ( int argc, char **argv ) {
         printf ( "Error in MPI initialisation: %d",info );
         return info;
     }
+    
     int i,j,pcol, counter, breakvar;
     double *Dmat, *ytot, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol, *AB_sol, *YSrow;
     double sigma, dot, trace_ZZ, trace_TT, *convergence_criterium, loglikelihood,prevloglike,update_loglikelihood;
@@ -162,6 +164,11 @@ int main ( int argc, char **argv ) {
 
     //Initialisation of the BLACS process grid, which is referenced as ICTXT2D
     blacs_gridinit_ ( &ICTXT2D,"R",dims, dims+1 );
+    
+    if(iam==0){
+    cout << "size of size_t: " << sizeof(size_t) << endl;
+    cout << "size of int: " << sizeof(int) << endl;
+    }
 
     if (iam < size) {
 
@@ -293,15 +300,18 @@ int main ( int argc, char **argv ) {
                 return EXIT_FAILURE;
             }
         }
+        
+        size_t D_elements=(size_t)Drows *  (size_t)blocksize * (size_t)Dcols * (size_t)blocksize;
 
-        Dmat= ( double* ) calloc ( Drows * blocksize * Dcols * blocksize,sizeof ( double ) );
+        Dmat= ( double* ) calloc ( D_elements,sizeof ( double ) );
         if ( Dmat==NULL ) {
-            printf ( "unable to allocate memory for Matrix D  (required: %ld bytes)\n", Drows * blocksize * Dcols * blocksize * sizeof ( double ) );
+            printf ( "unable to allocate memory for Matrix D  (required: %lld bytes)\n",D_elements * sizeof ( double ) );
             return EXIT_FAILURE;
         }
-        densesol = (double *) calloc ( Drows * blocksize,sizeof ( double ) );
+        size_t densesol_elements=(size_t)Drows *  (size_t)blocksize;
+        densesol = (double *) calloc ( densesol_elements,sizeof ( double ) );
         if ( densesol==NULL ) {
-            printf ( "unable to allocate memory for distributed solution matrix (required: %d bytes)\n", Drows * blocksize*sizeof ( double ) );
+            printf ( "unable to allocate memory for distributed solution matrix (required: %lld bytes)\n", densesol_elements*sizeof ( double ) );
             return EXIT_FAILURE;
         }
         if (iam==0) {
@@ -334,17 +344,19 @@ int main ( int argc, char **argv ) {
             printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
             printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
             printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
-	}        
-        AB_sol=(double *) calloc(Adim * Dcols*blocksize,sizeof(double));
+	}
+	size_t AB_elements=(size_t)Adim * (size_t)Dcols * (size_t)blocksize;
+        AB_sol=(double *) calloc(AB_elements,sizeof(double));
         if ( AB_sol==NULL ) {
-            printf ( "unable to allocate memory for AB_sol (required %d bytes)\n",Adim * Dcols*blocksize*sizeof(double) );
+            printf ( "unable to allocate memory for AB_sol (required %lld bytes)\n",AB_elements*sizeof(double) );
             return EXIT_FAILURE;
         }
         // To minimize memory usage, and because only the diagonal elements of the inverse are needed, Y' * S is calculated row by rowblocks
         // the diagonal element is calculated as the dot product of this row and the corresponding column of Y. (Y is solution of AY=B)
-        YSrow= ( double* ) calloc ( Dcols * blocksize,sizeof ( double ) );
+        size_t YS_elements=(size_t)Dcols *  (size_t)blocksize;
+        YSrow= ( double* ) calloc ( YS_elements,sizeof ( double ) );
         if ( YSrow==NULL ) {
-            printf ( "unable to allocate memory for YSrow (required %d bytes)\n",Dcols*blocksize*sizeof(double) );
+            printf ( "unable to allocate memory for YSrow (required %lld bytes)\n",YS_elements*sizeof(double) );
             return EXIT_FAILURE;
         }
 
@@ -412,10 +424,9 @@ int main ( int argc, char **argv ) {
                 if(AImat != NULL)
                     free ( AImat );
                 AImat=NULL;
-
-                Dmat= ( double* ) calloc ( Drows*blocksize*Dcols*blocksize,sizeof ( double ) );
+                Dmat= ( double* ) calloc (D_elements,sizeof ( double ) );
                 if ( Dmat==NULL ) {
-                    printf ( "unable to allocate memory for Matrix C (required: %d bytes)\n", Drows*blocksize*Dcols*blocksize*sizeof ( double ) );
+                    printf ( "unable to allocate memory for Matrix C (required: %lld bytes)\n", D_elements*sizeof ( double ) );
                     return EXIT_FAILURE;
                 }
                 if (iam==0) {
