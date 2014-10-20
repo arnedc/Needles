@@ -370,6 +370,7 @@ public:
     void solve ( CSRdouble& A, double* x, double* rhs, int number_of_rhs );
     bool makeSchurComplement ( CSRdouble& A, CSRdouble& S );
     void findInverseOfA ( CSRdouble& A );
+    void findInverseOfAWithFact(CSRdouble& A);
 
 };
 

@@ -32,6 +32,7 @@ int read_input(char * filename) {
     ntests=0;
     copyC=0;
     k=-1, l=-1,m=-1,n=-1;
+    Bassparse_bool=0;
 
 
     while( std::getline (inputfile,line)) {
@@ -104,6 +105,9 @@ int read_input(char * filename) {
         else if (line=="#KeepCopyOfCMatrix") {
             std::getline (inputfile,line);
             copyC=atoi(line.c_str());
+	    } else if ( line=="#Bsparse" ) {
+            std::getline ( inputfile,line );
+            Bassparse_bool=atoi ( line.c_str() );
         }
         else if (line=="#BlockSize") {
             std::getline (inputfile,line);
@@ -226,6 +230,10 @@ int read_input(char * filename) {
             printf("A copy of the coefficient matrix will be stored throughout the computations\n");
         else
             printf("The coefficient matrix will be read in at the beginning of every iteration to save memory\n");
+	if ( Bassparse_bool )
+	  printf("B will be treated as a sparse matrix \n");
+	else
+	  printf("B will be treated as a dense matrix\n");
         if(blocksize_bool) {
             printf("Blocksize of %d was used to distribute matrices across processes\n", blocksize);
         }

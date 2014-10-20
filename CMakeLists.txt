@@ -16,7 +16,7 @@ add_executable(pardiso_blup ${helpfunctions} main.cpp)
 
 if(MPI_COMPILE_FLAGS)
   set_target_properties(pardiso_blup PROPERTIES
-    COMPILE_FLAGS "-DMKL_ILP64 -mpe=mpilog ${MPI_COMPILE_FLAGS}")
+    COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
 endif()
 
 #if(MPI_LINK_FLAGS)

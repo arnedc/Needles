@@ -59,44 +59,109 @@ extern "C" {
  **/
 int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, double * T_ij, int lld_T, double * AB_sol_out) {
 
-    double *BT_i_dense, *B_j_dense;
+    double *BT_i_dense;
+    
+    timing secs;
+    double MultTime       = 0.0;
 
     assert(A.nrows == BT_i.ncols);
 
-    size_t BT_elements=(size_t)BT_i.nrows *  (size_t)BT_i.ncols;
-    BT_i_dense=(double *) calloc(BT_elements,sizeof(double));
-    if ( BT_i_dense==NULL ) {
-        printf ( "unable to allocate memory for dense BT_i (required: %lld bytes)\n", BT_elements*sizeof ( double ) );
-        return EXIT_FAILURE;
+    if(Bassparse_bool) {
+        CSRdouble AB_sol, W, unit, zero;
+        int ori_cols;
+
+        ori_cols=B_j.ncols;
+
+        if(B_j.ncols < B_j.nrows) {
+            B_j.ncols=B_j.nrows;
+        }
+        zero.nrows=B_j.ncols;
+        zero.ncols=B_j.ncols;
+        zero.nonzeros=0;
+        zero.pCols=new int[1];
+        zero.pData=new double[1];
+        zero.pRows=new int[zero.nrows+1];
+        unit.nrows=B_j.ncols;
+        unit.ncols=A.ncols;
+        unit.nonzeros=A.ncols;
+        unit.pCols=new int[unit.ncols];
+        unit.pData=new double[unit.ncols];
+        unit.pRows=new int[unit.nrows +1];
+        for (int i =0; i<unit.ncols; ++i) {
+            unit.pData[i]=-1.0;
+            unit.pCols[i]=i;
+            unit.pRows[i]=i;
+            zero.pRows[i]=0;
+        }
+        for (int i=unit.ncols; i<=unit.nrows; ++i) {
+            unit.pRows[i]=unit.ncols;
+            zero.pRows[i]=0;
+        }
+        zero.pData[0]=0;
+        zero.pCols[0]=0;
+
+        create2x2BlockMatrix(A, B_j, unit, zero, W);
+
+        unit.clear();
+        zero.clear();
+
+        AB_sol.nrows=B_j.ncols;
+        AB_sol.ncols=B_j.ncols;
+	
+	assert(A.nrows==A.ncols);
+	assert(W.nrows==W.ncols);
+	
+	//printf("Dimension of W: %d \nDimension of A: %d \n Dimension of AB_sol: %d \n", W.nrows, A.nrows, AB_sol.nrows );
+
+        calculateSchurComplement( W, 11, AB_sol);
+
+        W.clear();
+
+        AB_sol.nrows=ori_cols;
+        AB_sol.pRows= (int *) realloc(AB_sol.pRows, (ori_cols +1) * sizeof(int) );
+
+        B_j.ncols=ori_cols;
+
+        CSR2dense(AB_sol,AB_sol_out);
+
+        AB_sol.clear();
+
     }
-    size_t B_elements=(size_t)B_j.nrows *  (size_t)B_j.ncols;
-    B_j_dense=(double *) calloc(B_elements,sizeof(double));
-    if ( B_j_dense==NULL ) {
-        printf ( "unable to allocate memory for dense B_j (required: %lld bytes)\n", B_elements*sizeof ( double ) );
-        return EXIT_FAILURE;
+    else {
+        double *B_j_dense;
+
+        B_j_dense=(double *) calloc(B_j.nrows * B_j.ncols,sizeof(double));
+
+        CSR2dense(B_j,B_j_dense);
+	if(iam==0)
+	  printf("Solving systems AX_j = B_j on all processes\n");
+        solveSystem(A, AB_sol_out,B_j_dense, -2, B_j.ncols);
+
+        if(B_j_dense!=NULL) {
+            free(B_j_dense);
+            B_j_dense=NULL;
+        }
+
+        //printf("Processor %d finished solving system AX=B\n",iam);
+
     }
 
+    BT_i_dense=(double *) calloc(BT_i.nrows * BT_i.ncols,sizeof(double));
 
     CSR2dense(BT_i,BT_i_dense);
-    CSR2dense(B_j,B_j_dense);
-
-    if(iam==0)
-        printf("Solving systems AX_j = B_j on all processes\n");
-    solveSystem(A, AB_sol_out,B_j_dense, -2, B_j.ncols);
-
-    if(B_j_dense != NULL)
-        free(B_j_dense);
-    B_j_dense=NULL;
-
-    //printf("Processor %d finished solving system AX=B\n",iam);
-
-
+    
+    secs.tick(MultTime);
     dgemm_("N","N",&(BT_i.nrows),&(B_j.ncols),&(BT_i.ncols),&d_negone,BT_i_dense,&(BT_i.nrows),
            AB_sol_out,&(A.nrows),&d_one,T_ij,&lld_T);
+    secs.tack(MultTime);
+    
+    if(iam==0)
+      cout << "Time for multiplying BT_i and Y_j: " << MultTime * 0.001 << " sec" << endl;
 
-    if(BT_i_dense != NULL)
+    if(BT_i_dense!=NULL) {
         free(BT_i_dense);
-    BT_i_dense=NULL;
+        BT_i_dense=NULL;
+    }
 
     return 0;
 }

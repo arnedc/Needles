@@ -27,6 +27,7 @@ int ntests, maxiterations,datahdf5, copyC;
 char *SNPdata, *phenodata;
 char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
 double gamma_var, phi, epsilon;
+int Bassparse_bool;
 ParDiSO pardiso_var(-2,0);
 
 
@@ -569,12 +570,14 @@ int main ( int argc, char **argv ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time for creating sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+		//Asparse.writeToFile("Asparse.csr");
             }
 
             smat_free(ZtZlambda_smat);
             ZtZ_sparse.clear();
 
             blacs_barrier_ ( &ICTXT2D,"ALL" );
+	    
 	    
 
             // Each process calculates the Schur complement of the part of D at its disposal. (see src/schur.cpp)
@@ -593,7 +596,10 @@ int main ( int argc, char **argv ) {
 
             if (iam==0) {
                 printf("Solving system Ax_u = y_u on process 0\n");
-                solveSystemwoFact(Asparse, solution,ytot, 2, 1);
+		if (Bassparse_bool)
+		  solveSystem(Asparse,solution,ytot,2,1);
+		else
+		  solveSystemwoFact(Asparse, solution,ytot, 2, 1);
                 //printdense(m+l,1,solution,"Solution_sparse.txt");
                 mult_colsA_colsC_denseC(Btsparse,solution,ydim,0,Btsparse.ncols,0,1,solution+m+l,ydim, true,-1.0);
             }

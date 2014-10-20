@@ -173,11 +173,14 @@ void create1x2BlockMatrix(CSRdouble& A, CSRdouble& B, // input
                           CSRdouble& C);  // output
 void create2x2SymBlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& T, // input
                              CSRdouble& C);  // output
+void create2x2BlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& C, CSRdouble& D, // input
+                             CSRdouble& W);  // output
 void makeIdentity(int n, CSRdouble& I);
 void errorReport(int number_of_rhs, CSRdouble& A, double* x, double* b);
 void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
 double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
 void solveSystemwoFact(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
+void calculateSchurComplement(CSRdouble& A, int pardiso_mtype, CSRdouble& S);
 
 extern double d_one, d_zero, d_negone;
 extern int DLEN_, i_negone, i_zero, i_one, i_two, i_three; // some many used constants
@@ -190,6 +193,7 @@ extern char *SNPdata, *phenodata;
 extern char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
 extern double gamma_var, phi,epsilon;
 extern ParDiSO pardiso_var;
+extern int Bassparse_bool;
 
 #endif
 

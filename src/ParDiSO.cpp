@@ -366,7 +366,8 @@ bool ParDiSO::makeSchurComplement(CSRdouble& A, CSRdouble& S)
   phase     = 12;
   iparm[38] = S.nrows;
 
-
+  //cout << "matrix checked, iparm[38]= " << iparm[38] << endl;
+  
   // Perform symbolic analysis and numerical factorization
   PARDISOCALL_D(pt,
                 &maxfct,
@@ -387,6 +388,7 @@ bool ParDiSO::makeSchurComplement(CSRdouble& A, CSRdouble& S)
                 &dparm[1]);
 
 
+  //cout<<"matrix factorized" << endl;
   S.nonzeros = int(iparm[39]);
   S.allocate(S.nrows, S.ncols, S.nonzeros);
 
@@ -496,6 +498,84 @@ void ParDiSO::findInverseOfA(CSRdouble& A)
   shiftIndices_(A, -1);
 }
 
+
+void ParDiSO::findInverseOfAWithFact(CSRdouble& A)
+{
+  double ddum;
+
+  shiftIndices_(A, 1);
+  
+
+  // Check if this matrix is OK
+  PARDISOCHECK_D(&mtype, 
+                 &A.nrows, 
+                 A.pData, 
+                 A.pRows, 
+                 A.pCols, 
+                 &error);
+ 
+  error_();
+  phase     = 12;
+
+  //printf("Matrix checked by PARDISO\n");
+
+  // Perform symbolic analysis and numerical factorization
+  PARDISOCALL_D(pt,
+                &maxfct,
+                &mnum,
+                &mtype,
+                &phase,
+                &A.nrows,
+                A.pData,
+                A.pRows,
+                A.pCols,
+                perm,
+                &nrhs,
+                &iparm[1],
+                &msglvl,
+                &ddum,
+                &ddum,
+                &error,
+                &dparm[1]);
+
+
+  if(error !=0)
+    printf("Error when factorizing matrix PARDISO: %d\n",error);
+  
+  error_();
+  //printf("Matrix factorized by PARDISO\n");
+  
+  
+  phase     = -22;
+  iparm[36] = 1;   // do not overwrite internal factor L
+  
+  // Perform symbolic analysis and numerical factorization
+  PARDISOCALL_D(pt,
+                &maxfct,
+                &mnum,
+                &mtype,
+                &phase,
+                &A.nrows,
+                A.pData,
+                A.pRows,
+                A.pCols,
+                perm,
+                &nrhs,
+                &iparm[1],
+                &msglvl,
+                &ddum,
+                &ddum,
+                &error,
+                &dparm[1]);
+
+  
+  if(error !=0)
+    printf("Error when inverting matrix PARDISO: %d\n",error);
+  
+  error_();
+  //printf("Matrix inverted by PARDISO\n");
+  shiftIndices_(A, -1);
+}
 
 
 
