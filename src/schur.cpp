@@ -99,8 +99,14 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
         }
         zero.pData[0]=0;
         zero.pCols[0]=0;
+	
+	A.fillSymmetric();
 
         create2x2BlockMatrix(A, B_j, unit, zero, W);
+	
+	A.reduceSymmetric();
+	
+	W.writeToFile("W.csr");
 
         unit.clear();
         zero.clear();
@@ -111,9 +117,11 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
 	assert(A.nrows==A.ncols);
 	assert(W.nrows==W.ncols);
 	
-	//printf("Dimension of W: %d \nDimension of A: %d \n Dimension of AB_sol: %d \n", W.nrows, A.nrows, AB_sol.nrows );
+	printf("Dimension of W: %d \nDimension of A: %d \n Dimension of AB_sol: %d \n", W.nrows, A.nrows, AB_sol.nrows );
 
         calculateSchurComplement( W, 11, AB_sol);
+	
+	AB_sol.writeToFile("AB_sol.csr");
 
         W.clear();
 
@@ -136,6 +144,9 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
 	if(iam==0)
 	  printf("Solving systems AX_j = B_j on all processes\n");
         solveSystem(A, AB_sol_out,B_j_dense, -2, B_j.ncols);
+	
+	if(iam==0)
+	  printdense(B_j.ncols,A.nrows,AB_sol_out,"AB_sol_dense.txt");
 
         if(B_j_dense!=NULL) {
             free(B_j_dense);

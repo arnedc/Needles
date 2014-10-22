@@ -587,6 +587,7 @@ int main ( int argc, char **argv ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time for creating Schur complement of D:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+		printdense(Drows*blocksize, Drows*blocksize,Dmat,"Dmat.txt");
             }
             BT_i.clear();
             B_j.clear();
