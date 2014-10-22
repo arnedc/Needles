@@ -587,7 +587,7 @@ int main ( int argc, char **argv ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time for creating Schur complement of D:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
-		printdense(Drows*blocksize, Drows*blocksize,Dmat,"Dmat.txt");
+		//printdense(Drows*blocksize, Drows*blocksize,Dmat,"Dmat.txt");
             }
             BT_i.clear();
             B_j.clear();
@@ -902,7 +902,7 @@ int main ( int argc, char **argv ) {
                     printf ( "Cholesky decomposition of AI matrix was unsuccesful, error returned: %d\n",info );
                     return -1;
                 }
-                printdense(3,3,AImat,"AImat_chol.txt");
+                //printdense(3,3,AImat,"AImat_chol.txt");
                 dpotrs_ ( "U",&i_three,&i_one,AImat,&i_three,score,&i_three,&info );
                 if ( info!=0 ) {
                     printf ( "Parallel solution for AI matrix was unsuccesful, error returned: %d\n",info );

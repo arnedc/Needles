@@ -106,7 +106,7 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
 	
 	A.reduceSymmetric();
 	
-	W.writeToFile("W.csr");
+	//W.writeToFile("W.csr");
 
         unit.clear();
         zero.clear();
@@ -117,20 +117,30 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
 	assert(A.nrows==A.ncols);
 	assert(W.nrows==W.ncols);
 	
-	printf("Dimension of W: %d \nDimension of A: %d \n Dimension of AB_sol: %d \n", W.nrows, A.nrows, AB_sol.nrows );
+	//printf("Dimension of W: %d \nDimension of A: %d \n Dimension of AB_sol: %d \n", W.nrows, A.nrows, AB_sol.nrows );
 
         calculateSchurComplement( W, 11, AB_sol);
 	
-	AB_sol.writeToFile("AB_sol.csr");
+	//AB_sol.writeToFile("AB_sol.csr");
+	AB_sol.transposeIt(1);
 
         W.clear();
 
         AB_sol.nrows=ori_cols;
+	AB_sol.nonzeros=AB_sol.pRows[ori_cols];
         AB_sol.pRows= (int *) realloc(AB_sol.pRows, (ori_cols +1) * sizeof(int) );
 
         B_j.ncols=ori_cols;
 
+	//AB_sol.writeToFile("AB_sol_trans.csr");
+	
+	AB_sol.transposeIt(1);
+	
+	//AB_sol.writeToFile("AB_sol_trans2.csr");
         CSR2dense(AB_sol,AB_sol_out);
+	
+	/*if(iam==0)
+	  printdense(B_j.ncols,A.nrows,AB_sol_out,"AB_sol_sparse.txt");*/
 
         AB_sol.clear();
 
@@ -145,8 +155,8 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
 	  printf("Solving systems AX_j = B_j on all processes\n");
         solveSystem(A, AB_sol_out,B_j_dense, -2, B_j.ncols);
 	
-	if(iam==0)
-	  printdense(B_j.ncols,A.nrows,AB_sol_out,"AB_sol_dense.txt");
+	/*if(iam==0)
+	  printdense(B_j.ncols,A.nrows,AB_sol_out,"AB_sol_dense.txt");*/
 
         if(B_j_dense!=NULL) {
             free(B_j_dense);
@@ -166,8 +176,8 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
            AB_sol_out,&(A.nrows),&d_one,T_ij,&lld_T);
     secs.tack(MultTime);
     
-    if(iam==0)
-      cout << "Time for multiplying BT_i and Y_j: " << MultTime * 0.001 << " sec" << endl;
+    /*if(iam==0)
+      cout << "Time for multiplying BT_i and Y_j: " << MultTime * 0.001 << " sec" << endl;*/
 
     if(BT_i_dense!=NULL) {
         free(BT_i_dense);

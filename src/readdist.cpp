@@ -1174,8 +1174,8 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         *(AImat+1)= ddot_(&n,yblock,&i_one,Zu,&i_one)/sigma/phi;
 	*(AImat+3)= ddot_(&n,yblock,&i_one,Zu,&i_one)/sigma/phi;
 	*(AImat+4)= dnrm2_(&n,Zu,&i_one)/phi/phi * dnrm2_(&n,Zu,&i_one);
-	  printdense(n,1,Zu,"Zu.txt");
-        printf("Fourth element of AImat is: %g\n", *(AImat+4));
+	  //printdense(n,1,Zu,"Zu.txt");
+        //printf("Fourth element of AImat is: %g\n", *(AImat+4));
     }
     
     blacs_barrier_(&ICTXT2D,"A");
@@ -1390,8 +1390,8 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     //T'(Td)/gamma is in Qdense and is copied to QRHS
     pdcopy_(&k,Qdense,&i_one, &i_one, DESCQDENSE, &i_one, QRHS,&ml_plus,&i_three,DESCQRHS, &i_one);
 
-    if(iam==0)
-        printdense(3,ydim,QRHS,"QRHS.txt");
+    /*if(iam==0)
+        printdense(3,ydim,QRHS,"QRHS.txt");*/
 
     // In Qsol we calculate the solution of M * Qsol = QRHS, but we still need QRHS a bit further
 	
