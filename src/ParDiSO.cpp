@@ -401,7 +401,7 @@ bool ParDiSO::makeSchurComplement(CSRdouble& A, CSRdouble& S)
                  S.pRows, 
                  S.pCols);
 
-  shiftIndices_(S, -1);
+  //shiftIndices_(S, -1);
   shiftIndices_(A, -1);
 
   error_();
