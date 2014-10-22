@@ -32,7 +32,7 @@ target_link_libraries(pardiso_blup
                       #${BLAS_LIBRARIES}
 		      #-mt_mpi
 		      -lpardiso500-GNU461-X86-64
-                      ${MPI_LIBRARIES}
+                      ${MPI_LIBRARY}
 		      ${HDF5_LIBRARIES}
 		      -lmkl_scalapack_lp64          # dit is de MKL variant van ScaLapack
 		      -lmkl_blas95_lp64
@@ -45,7 +45,7 @@ target_link_libraries(pardiso_blup
 		      -liomp5
 		      -lmkl_gf_lp64
 		      -lgfortran
-		      -lifcore
+		      #-lifcore
 		      -fopenmp
 		      -lm -lpthread)
 

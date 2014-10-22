@@ -15,9 +15,9 @@ typedef int MPI_Comm;
 
 
 extern "C" {
-    int MPI_Ssend(void*, int, MPI_Datatype, int, int, MPI_Comm);
+    /*int MPI_Ssend(void*, int, MPI_Datatype, int, int, MPI_Comm);
     int MPI_Recv(void*, int, MPI_Datatype, int, int, MPI_Comm, MPI_Status *);
-    int MPI_Get_count(MPI_Status *, MPI_Datatype, int *);
+    int MPI_Get_count(MPI_Status *, MPI_Datatype, int *);*/
     void descinit_ ( int*, int*, int*, int*, int*, int*, int*, int*, int*, int* );
     void blacs_barrier_ ( int*, char* );
     int blacs_pnum_ ( int *ConTxt, int *prow, int *pcol );
