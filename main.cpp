@@ -28,7 +28,7 @@ char *SNPdata, *phenodata;
 char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
 double gamma_var, phi, epsilon;
 int Bassparse_bool;
-ParDiSO pardiso_var(-2,0);
+ParDiSO pardiso_var(-2,1);
 
 
 extern "C" {
@@ -369,12 +369,17 @@ int main ( int argc, char **argv ) {
 
         X_smat = smat_new_from ( Xsparse.nrows,Xsparse.ncols,Xsparse.pRows,Xsparse.pCols,Xsparse.pData,0,0 );
         Z_smat = smat_new_from ( Zsparse.nrows,Zsparse.ncols,Zsparse.pRows,Zsparse.pCols,Zsparse.pData,0,0 );
+	
+	cout << "smats made" << endl;
 
         smat_t *Xt_smat, *Zt_smat;
         Xt_smat = smat_copy_trans ( X_smat );
+	
+	cout << "X transposed " << endl;
         Zt_smat = smat_copy_trans ( Z_smat );
 
-
+	cout << "Z transposed " << endl;
+	
         smat_t *XtX_smat, *XtZ_smat, *ZtZ_smat, *phi_smat, *ZtZlambda_smat;
 
         XtX_smat = smat_matmul ( Xt_smat, X_smat );
@@ -507,6 +512,10 @@ int main ( int argc, char **argv ) {
                     gettimeofday ( &tz0,NULL );
                     c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                     printf ( "\t elapsed wall time set-up of D, B and Y:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+		    printdense(Drows*blocksize,Dcols*blocksize,Dmat,"Dmat.txt");
+		    Btsparse.transposeIt(1);
+		    Btsparse.writeToFile("Bsparse.csr");
+		    Btsparse.transposeIt(1);
                 }
 
                 // RHS is copied for use afterwards (in ytot we will get the estimates for the effects)
@@ -570,7 +579,10 @@ int main ( int argc, char **argv ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time for creating sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
-		//Asparse.writeToFile("Asparse.csr");
+		/*Asparse.writeToFile("Asparse.csr");
+		double * Adense = new double[Asparse.nrows * Asparse.ncols];
+		CSR2dense(Asparse,Adense);
+		printdense(Asparse.nrows,Asparse.ncols,Adense,"Adense.txt");*/
             }
 
             smat_free(ZtZlambda_smat);
@@ -601,7 +613,7 @@ int main ( int argc, char **argv ) {
 		  solveSystem(Asparse,solution,ytot,2,1);
 		else
 		  solveSystemwoFact(Asparse, solution,ytot, 2, 1);
-                //printdense(m+l,1,solution,"Solution_sparse.txt");
+                printdense(m+l,1,solution,"Solution_sparse.txt");
                 mult_colsA_colsC_denseC(Btsparse,solution,ydim,0,Btsparse.ncols,0,1,solution+m+l,ydim, true,-1.0);
             }
 
@@ -765,6 +777,7 @@ int main ( int argc, char **argv ) {
                 pardiso_var.iparm[11] = 1;
                 pardiso_var.iparm[13]  = 0;
                 pardiso_var.iparm[28]  = 0;
+		pardiso_var.iparm[36]  = 1;
 
                 //This function calculates the factorisation of A once again so this might be optimized.
                 pardiso_var.findInverseOfA ( Asparse );
