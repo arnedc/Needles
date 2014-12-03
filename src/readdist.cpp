@@ -351,7 +351,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             printf("Unable to allocate memory for ZtY in root process.\n");
             return -1;
         }
-        //printf("Ztsparse.nrows = %d \nl = %d\n",Ztsparse.nrows,l);
+	//printf("Ztsparse.nrows = %d \nl = %d\n",Ztsparse.nrows,l);
         mult_colsA_colsC_denseC ( Ztsparse, Y, n, 0, n, 0, 1, ZtY, l, false, 1.0);
         if (Y!= NULL)
             free(Y);

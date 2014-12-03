@@ -733,7 +733,7 @@ void CSRdouble::extendrows ( CSRdouble& B, int startrowB, int nrowsB ) {
     pcols = new int [nonzeroes];
     pdata = new double [nonzeroes];
 
-    memcpy ( prows, & (pRows[0] ), nrows * sizeof(int));
+    memcpy ( prows, & (pRows[0] ), (nrows+1) * sizeof(int));
     memcpy ( pcols, & (pCols[0] ), nonzeros * sizeof(int));
     memcpy ( pdata, & (pData[0] ), nonzeros * sizeof(double));
     for (i=0; i<=nrowsB; ++i) {

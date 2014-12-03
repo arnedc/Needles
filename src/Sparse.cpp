@@ -512,3 +512,4 @@ void calculateSchurComplement(CSRdouble& A, int pardiso_mtype, CSRdouble& S)
     cout << "Elapsed time makeSchurComplement: " << schurTime << " sec" << endl;
 }
 
+
