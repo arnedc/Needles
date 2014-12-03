@@ -16,11 +16,11 @@ void printdense ( int m, int n, double *mat, char *filename ) {
         printf ( "error creating file" );
     int i,j;
     for ( i=0; i<m; ++i ) {
-        fprintf ( fd,"[\t" );
+        //fprintf ( fd,"[\t" );
         for ( j=0; j<n; ++j ) {
             fprintf ( fd,"%12.8g\t",*(mat+i*n +j));
         }
-        fprintf ( fd,"]\n" );
+        fprintf ( fd,"\n" );
     }
     fclose ( fd );
 }
