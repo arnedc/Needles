@@ -29,7 +29,9 @@ public:
     void  transposeIt ( int block_size );
 
     void  addBCSR ( CSRdouble& B );
+    void  adddiag(double lambda);
     void  extendrows ( CSRdouble& B, int startrowB, int nrowsB );
+    void  matmul(const CSRdouble &A, int transA, const CSRdouble &B);
 
     void  residual ( double* r, double* x, double* b );
     void  multiply ( double* x, double* y );

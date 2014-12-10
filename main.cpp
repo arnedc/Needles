@@ -7,7 +7,6 @@
 #include <sys/time.h>
 #include "src/shared_var.h"
 //#include <mkl_types.h>
-#include <smat.h>
 #include "CSRdouble.hpp"
 #include "ParDiSO.hpp"
 #define MPI_SUCCESS          0      /* Successful return code */
@@ -28,7 +27,7 @@ char *SNPdata, *phenodata;
 char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
 double gamma_var, phi, epsilon;
 int Bassparse_bool;
-ParDiSO pardiso_var(-2,1);
+ParDiSO pardiso_var(-2,0);
 
 
 extern "C" {
@@ -364,41 +363,13 @@ int main ( int argc, char **argv ) {
         //Now every matrix has to set up the sparse matrix A, consisting of X'X, X'Z, Z'X and Z'Z + lambda*I
         Xsparse.loadFromFile ( filenameX );
         Zsparse.loadFromFile ( filenameZ );
-
-        smat_t *X_smat, *Z_smat;
-
-        X_smat = smat_new_from ( Xsparse.nrows,Xsparse.ncols,Xsparse.pRows,Xsparse.pCols,Xsparse.pData,0,0 );
-        Z_smat = smat_new_from ( Zsparse.nrows,Zsparse.ncols,Zsparse.pRows,Zsparse.pCols,Zsparse.pData,0,0 );
 	
-	cout << "smats made" << endl;
-
-        smat_t *Xt_smat, *Zt_smat;
-        Xt_smat = smat_copy_trans ( X_smat );
+	XtX_sparse.matmul(Xsparse,1,Xsparse);
+	XtX_sparse.reduceSymmetric();
+	XtZ_sparse.matmul(Xsparse,1,Zsparse);
+	ZtZ_sparse.matmul(Zsparse,1,Zsparse);
+	ZtZ_sparse.reduceSymmetric();
 	
-	cout << "X transposed " << endl;
-        Zt_smat = smat_copy_trans ( Z_smat );
-
-	cout << "Z transposed " << endl;
-	
-        smat_t *XtX_smat, *XtZ_smat, *ZtZ_smat, *phi_smat, *ZtZlambda_smat;
-
-        XtX_smat = smat_matmul ( Xt_smat, X_smat );
-        XtZ_smat = smat_matmul ( Xt_smat, Z_smat );
-        ZtZ_smat = smat_matmul ( Zt_smat,Z_smat );
-
-        Xsparse.clear();
-        Zsparse.clear();
-        smat_free(Xt_smat);
-        smat_free(Zt_smat);
-
-        smat_to_symmetric_structure ( XtX_smat );
-
-        XtX_sparse.make2 ( XtX_smat->m,XtX_smat->n,XtX_smat->nnz,XtX_smat->ia,XtX_smat->ja,XtX_smat->a );
-        XtZ_sparse.make2 ( XtZ_smat->m,XtZ_smat->n,XtZ_smat->nnz,XtZ_smat->ia,XtZ_smat->ja,XtZ_smat->a );
-
-        smat_free(XtX_smat);
-        smat_free(XtZ_smat);
-
 
 // Start of AI-REML iteration cycle, stops when relative update of gamma < epsilon
 
@@ -550,19 +521,8 @@ int main ( int argc, char **argv ) {
             }
 
             //Since lambda changes every iteration we need to construct A every iteration
-            makeIdentity ( l, Imat );
 
-            phi_smat = smat_new_from ( Imat.nrows,Imat.ncols,Imat.pRows,Imat.pCols,Imat.pData,0,0 );
-
-            smat_scale_diag ( phi_smat, -1/phi );
-
-            ZtZlambda_smat = smat_add ( phi_smat, ZtZ_smat );
-
-            smat_to_symmetric_structure ( ZtZlambda_smat );
-
-            ZtZ_sparse.make2 ( ZtZlambda_smat->m,ZtZlambda_smat->n,ZtZlambda_smat->nnz,ZtZlambda_smat->ia,ZtZlambda_smat->ja,ZtZlambda_smat->a );
-
-            Imat.clear();
+            ZtZ_sparse.adddiag(1/phi);
 
             if (iam==0) {
                 cout << "***                                           [  t     t  ] *** " << endl;
@@ -584,9 +544,8 @@ int main ( int argc, char **argv ) {
 		CSR2dense(Asparse,Adense);
 		printdense(Asparse.nrows,Asparse.ncols,Adense,"Adense.txt");*/
             }
-
-            smat_free(ZtZlambda_smat);
-            ZtZ_sparse.clear();
+            
+            ZtZ_sparse.adddiag(-1/phi);
 
             blacs_barrier_ ( &ICTXT2D,"ALL" );
 	    
@@ -966,7 +925,6 @@ int main ( int argc, char **argv ) {
 
         XtX_sparse.clear();
         XtZ_sparse.clear();
-        smat_free(ZtZ_smat);
 
         if(AB_sol != NULL)
             free ( AB_sol );

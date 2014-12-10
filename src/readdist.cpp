@@ -48,16 +48,17 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
     double *Tblock, *temp, *Y, * ZtY, *XtY;
     int nTblocks, nstrips, pTblocks, stripcols, lld_T, pcol, colcur,rowcur;
     int nYblocks, pYblocks, lld_Y, Ystart;
+    timing secs;
+    double totalTime, interTime;
 
     MPI_Status status;
 
     CSRdouble Xtsparse, Ztsparse,XtT_sparse,ZtT_sparse,XtT_temp, ZtT_temp;
 
-    Xtsparse.loadFromFile ( filenameX );
     Ztsparse.loadFromFile ( filenameZ );
-
-    Xtsparse.transposeIt ( 1 );
     Ztsparse.transposeIt ( 1 );
+    Xtsparse.loadFromFile ( filenameX );
+    Xtsparse.transposeIt ( 1 );
 
     /*XtT_sparse.allocate ( m,k,0 );
     ZtT_sparse.allocate ( l,k,0 );*/
@@ -199,6 +200,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
     }
 
     blacs_barrier_(&ICTXT2D,"A");
+    
+    secs.tick(totalTime);
 
     // Set up of matrix D and B per strip of T'
 
@@ -286,8 +289,13 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             }
         }
 
-
         blacs_barrier_ ( &ICTXT2D,"A" );
+	
+	if (ni==0){
+	  secs.tack(totalTime);
+	  cout << "Read-in of Tblock: " << totalTime * 0.001 << " secs" << endl;
+	  secs.tick(totalTime);
+	}
 
         // End of read-in
 
@@ -301,6 +309,12 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         /*if (iam==0)
 	  printf("Ystart= %d\n", Ystart);*/
         pdgemm_ ( "N","N",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Y,&Ystart,&i_one,DESCY,&d_one,ytot,&ml_plus,&i_one,DESCYTOT ); //T'y
+	
+	if (ni==0){
+	  secs.tack(totalTime);
+	  cout << "dense multiplications of Tblock: " << totalTime * 0.001 << " secs" << endl;
+	  secs.tick(totalTime);
+	}
 
         // Matrix B consists of X'T and Z'T, since each process only has some parts of T at its disposal,
         // we need to make sure that the correct columns of Z and X are multiplied with the correct columns of T.
@@ -319,24 +333,55 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
                 }
             }
         }
+        
+        if (ni==0){
+	  secs.tack(totalTime);
+	  cout << "Creation of XtT: " << totalTime * 0.001 << " secs" << endl;
+	  secs.tick(totalTime);
+	}
         //Same as above for calculating Z'T
-        for ( i=0; i<pTblocks; ++i ) {
+        for ( i=0; i<pTblocks; ++i ){
             ZtT_temp.ncols=k;
+	    if(ni==0 && i==1){
+	      secs.tack(totalTime);
+	      secs.tick(totalTime);
+	    }
             mult_colsA_colsC ( Ztsparse, Tblock+i*blocksize, lld_T, ( * ( dims+1 ) * ni + pcol ) *blocksize, blocksize,
                                blocksize * ( *dims * i + *position ), blocksize, ZtT_temp, 0 );
+	    if (ni==0 && i==1){
+	  secs.tack(totalTime);
+	  cout << "Multiplication Zt and Tblock: " << totalTime * 0.001 << " secs" << endl;
+	  secs.tick(totalTime);
+	}
             if ( ZtT_temp.nonzeros>0 ) {
                 if ( ZtT_sparse.nonzeros==0 )
                     ZtT_sparse.make2 ( ZtT_temp.nrows,ZtT_temp.ncols,ZtT_temp.nonzeros,ZtT_temp.pRows,ZtT_temp.pCols,ZtT_temp.pData );
                 else
                     ZtT_sparse.addBCSR ( ZtT_temp );
             }
+             if (ni==0 && i==1){
+	  secs.tack(totalTime);
+	  cout << "Adding new piece of ZtT: " << totalTime * 0.001 << " secs" << endl;
+	  secs.tick(totalTime);
+	}
         }
+        if (ni==0){
+	  secs.tack(totalTime);
+	  cout << "Creation of ZtT: " << totalTime * 0.001 << " secs" << endl;
+	  secs.tick(totalTime);
+	}
         blacs_barrier_ ( &ICTXT2D,"A" );
     }
+    
+    secs.tack(totalTime);
     if(Tblock != NULL)
         free ( Tblock );
     Tblock=NULL;
     if (iam==0) {
+      cout << "Assignments with Tblock finished in: " << totalTime * 0.001 << " secs" << endl;
+      
+       secs.tick(totalTime);
+      
         *respnrm = dnrm2_ (&n,Y,&i_one);
         *respnrm = *respnrm * *respnrm;
         XtY=(double * ) calloc(m,sizeof(double));
@@ -356,6 +401,9 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         if (Y!= NULL)
             free(Y);
         Y=NULL;
+	
+	 secs.tack(totalTime);
+	 cout << "Creation of XtY and ZtY: " << totalTime * 0.001 << " secs" << endl;
     }
     blacs_barrier_(&ICTXT2D,"A");
 
@@ -453,6 +501,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         }
     }
     else {
+      secs.tick(totalTime);
         for ( i=1; i<size; ++i ) {
             // The root process receives parts of X' * T and Z' * T sequentially from all processes and directly adds them together.
             int nonzeroes;
@@ -480,6 +529,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
                 ZtT_sparse.addBCSR ( ZtT_temp );
             }
         }
+        secs.tack(totalTime);
+	cout << "Receiving XtT and ZtT: " << totalTime * 0.001 << " secs" << endl;
         XtT_temp.clear();
         ZtT_temp.clear();
 
@@ -493,6 +544,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         XtT_sparse.clear();
         ZtT_sparse.clear();
 
+	secs.tick(totalTime);
         // For each process row i BT_i is created which is also sent to processes in column i to become B_j.
         for ( int rowproc= *dims - 1; rowproc>= 0; --rowproc ) {
             BT_i.clear();
@@ -531,6 +583,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         }
         B_j.make2 ( BT_i.nrows,BT_i.ncols,BT_i.nonzeros,BT_i.pRows,BT_i.pCols,BT_i.pData );
         B_j.transposeIt ( 1 );
+	secs.tack(totalTime);
+	cout << "Sending Bt_i and B_j: " << totalTime * 0.001 << " secs" << endl;
     }
     if(DESCT!=NULL)
         free ( DESCT );

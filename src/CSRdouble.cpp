@@ -703,6 +703,38 @@ void CSRdouble::addBCSR ( CSRdouble& B ) {
     make ( B.nrows, B.ncols, nonzeroes, ABprows, pcols, pdata );
 }
 
+void CSRdouble::adddiag(double lambda){
+  for (int row=0; row<nrows; ++row){
+    int colindex=pRows[row];
+    while(pCols[colindex] < row)
+      ++colindex;
+    if (pCols[colindex]==row)      
+      pData[colindex] += lambda;
+    else{
+      double * pdata;
+      int * pcols;
+      ++nonzeros;
+      pcols = new int [nonzeros];
+      memcpy(pcols,pCols,colindex * sizeof(int));
+      pcols[colindex]=row;
+      memcpy(&pcols[colindex+1],&pCols[colindex],(nonzeros - colindex - 1) * sizeof(int));
+      delete [] pCols;
+      pCols = pcols;
+      
+      pdata = new double [nonzeros];
+      memcpy(pdata,pData,colindex * sizeof(double));
+      pdata[colindex]=lambda;
+      memcpy(&pdata[colindex+1],&pData[colindex],(nonzeros - colindex - 1) * sizeof(double));
+      delete [] pData;
+      pData = pdata;
+      
+      for (int i=row+1; i<=nrows; ++i)
+	pRows[i] += 1;
+    }
+  }
+}
+
+
 /**
  * @brief Extends the sparse CSRDouble with a certain number of rows from sparse matrix B. The rows are simply added to the end of the original matrix
  *
@@ -752,4 +784,154 @@ void CSRdouble::extendrows ( CSRdouble& B, int startrowB, int nrowsB ) {
     clear();
 
     make ( n, B.ncols, nonzeroes, prows, pcols, pdata );
+}
+
+void CSRdouble::matmul(const CSRdouble &A, int transA, const CSRdouble &B)
+{
+    int i;
+
+    int nnz_cnt = 0;			/* nnz elemente von X */
+
+    /* OPT: bitvec. */
+    int *last_colind_B, *Acolindex;
+
+    if(transA) {
+        assert(A.nrows==B.nrows);
+        nrows=A.ncols;
+        ncols=B.ncols;
+        Acolindex=new int [A.nrows];
+        memcpy(Acolindex,A.pRows,A.nrows * sizeof(int));
+    }
+    else {
+        assert (A.ncols == B.nrows);
+        nrows=A.nrows;
+        ncols=B.ncols;
+    }
+
+    /* Allocate temporary array. */
+    last_colind_B=new int[ncols];
+
+    /* Set up resulting matrix with preallocated nnz. */
+    pRows = new int [nrows+1];
+
+    vector<int> pcols;
+    vector<double> pdata;
+    /*pCols = new int [nonzeros];
+    pData = new double [nonzeros];*/
+
+    /* Clear last column positions. */
+    for (i = 0;  i < B.ncols;  i++)
+        last_colind_B[i] = -1;
+
+    pRows[0] = 0;
+
+    if(transA) {
+        for (i = 0;  i < A.ncols;  i++)
+        {
+            for(int j=0; j<A.nrows; ++j) {
+                if (Acolindex[j] < A.pRows[j+1] && A.pCols[Acolindex[j]]==i) {
+                    int col_A=j;
+                    double val_A=A.pData[Acolindex[j]];
+                    Acolindex[j] +=1;
+
+                    for (int k = B.pRows[col_A]; k < B.pRows[col_A+1];  k++)
+                    {
+                        int col_B = B.pCols[k];
+                        double val_B = B.pData[k];
+
+                        int b_pos = last_colind_B[col_B];
+
+                        if (b_pos == -1)
+                        {
+                            pdata.push_back(val_A * val_B);
+                            pcols.push_back(col_B);
+
+                            last_colind_B[col_B] = nnz_cnt;
+
+                            nnz_cnt++;
+                        }
+                        else
+                        {
+                            pdata[b_pos] += val_A * val_B;
+                        }
+                    }
+                }
+            }
+
+            /* Clear last_colind_B entries for columns used. */
+            for (int j = pRows[i];  j < nnz_cnt;  ++j)
+            {
+                int col = pcols[j];
+                last_colind_B[ col ] = -1;
+            }
+
+            /* Set row index */
+            pRows[i+1] = nnz_cnt;
+
+            /* Sort row (XXX really necessary?) */
+            //sort_row (X, i, 1);
+        }
+    }
+    else {
+
+        /* Über alle Zeilen von A ... */
+        for (i = 0;  i < A.nrows;  ++i)
+        {
+            /* Über alle nicht-null Elemente der i-ten Zeile von A. */
+            for (int j = A.pRows[i]; j < A.pRows[i+1];  ++j)
+            {
+                int col_A = A.pCols[j];
+                double val_A = A.pData[j];
+
+                /* Über Zeile col_A von B (jede Zeile, wenn A_i* vollbesetzt). */
+                for (int k = B.pRows[col_A]; k < B.pRows[col_A+1];  ++k)
+                {
+                    int col_B = B.pCols[k];
+                    double val_B = B.pData[k];
+
+                    int b_pos = last_colind_B[col_B];
+
+                    if (b_pos == -1)
+                    {
+                        pdata.push_back(val_A * val_B);
+                        pcols.push_back(col_B);
+
+                        last_colind_B[col_B] = nnz_cnt;
+
+                        nnz_cnt++;
+                    }
+                    else
+                    {
+                        pdata[b_pos] += val_A * val_B;
+                    }
+                }
+            }
+
+            /* Clear last_colind_B entries for columns used. */
+            for (int j = pRows[i];  j < nnz_cnt;  j++)
+            {
+                int col = pcols[j];
+                last_colind_B[ col ] = -1;
+            }
+
+            /* Set row index */
+            pRows[i+1] = nnz_cnt;
+
+            /* Sort row (XXX really necessary?) */
+            //sort_row (X, i, 1);
+        }
+    }
+    delete [] last_colind_B;
+
+    pCols = new int [nnz_cnt];
+    pData = new double [nnz_cnt];
+    nonzeros=nnz_cnt;
+
+    memcpy ( pCols, &pcols[0], nnz_cnt*sizeof ( int ) );
+    pcols.clear();
+    memcpy ( pData, &pdata[0], nnz_cnt*sizeof ( double ) );
+    pdata.clear();
+
+    sortColumns();
+
 }

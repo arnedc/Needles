@@ -31,7 +31,7 @@ target_link_libraries(pardiso_blup
                       #${LAPACK_LIBRARIES}
                       #${BLAS_LIBRARIES}
 		      #-mt_mpi
-		      -lpardiso500-GNU481-X86-64
+		      -lpardiso500-GNU461-X86-64
                       ${MPI_LIBRARY}
 		      ${HDF5_LIBRARIES}
 		      -lmkl_scalapack_lp64          # dit is de MKL variant van ScaLapack
