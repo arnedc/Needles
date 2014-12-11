@@ -25,15 +25,15 @@ extern "C" {
     void pdgemm_ ( char *transa, char *transb, int *m, int *n, int *k, double *alpha, double *a, int *ia, int *ja, int *desca, double *b, int *ib,
                    int *jb, int *descb, double *beta, double *c, int *ic, int *jc, int *descc );
     void pdpotrs_ ( char *uplo, int *n, int *nrhs, double *a, int *ia, int *ja, int *desca, double *b, int *ib, int *jb, int *descb, int *info );
-    void pddot_( int *n, double *dot, double *x, int *ix, int *jx, int *descx, int *incx, double *y, int *iy, int *jy, int *descy, int *incy );
-    void pdcopy_( int *n, double *x, int *ix, int *jx, int *descx, int *incx, double *y, int *iy, int *jy, int *descy, int *incy );
-    void pdscal_( int *n, double *a, double *x, int *ix, int *jx, int *descx, int *incx );
+    void pddot_ ( int *n, double *dot, double *x, int *ix, int *jx, int *descx, int *incx, double *y, int *iy, int *jy, int *descy, int *incy );
+    void pdcopy_ ( int *n, double *x, int *ix, int *jx, int *descx, int *incx, double *y, int *iy, int *jy, int *descy, int *incy );
+    void pdscal_ ( int *n, double *a, double *x, int *ix, int *jx, int *descx, int *incx );
     void pdnrm2_ ( int *n, double *norm2, double *x, int *ix, int *jx, int *descx, int *incx );
     double dnrm2_ ( int *n, double *x, int *incx );
-    double ddot_ (const int *n, const double *x, const int *incx, const double *y, const int *incy);
+    double ddot_ ( const int *n, const double *x, const int *incx, const double *y, const int *incy );
 }
 
-int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, int * DESCYTOT, double * ytot, double *respnrm, CSRdouble& Btsparse  ) {
+int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, int * DESCYTOT, double * ytot, double *respnrm, CSRdouble& Btsparse ) {
 
     // Read-in of matrices X, Z and T from file (filename[X,Z,T])
     // X and Z are read in entrely by every process
@@ -84,7 +84,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 
     //local leading dimension of the strip of T' (different from process to process)
     lld_T=pTblocks*blocksize;
-    lld_Y= *(dims+1) * nstrips * blocksize;
+    lld_Y= * ( dims+1 ) * nstrips * blocksize;
 
     // Initialisation of descriptor of strips of matrix T'
     DESCT= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
@@ -140,7 +140,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         printf ( "Error in allocating memory for a strip of T in processor (%d,%d)\n",*position,* ( position+1 ) );
         return -1;
     }
-    if(iam==0) {
+    if ( iam==0 ) {
         Y= ( double* ) calloc ( lld_Y, sizeof ( double ) );
         if ( Y==NULL ) {
             printf ( "Error in allocating memory for Y in root process\n" );
@@ -172,24 +172,24 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         }
 
     }
-    if (iam==0) {
+    if ( iam==0 ) {
         fY=fopen ( filenameY,"rb" );
         if ( fY==NULL ) {
             printf ( "Error opening file\n" );
             return -1;
         }
         info=fread ( Y,sizeof ( double ),n,fY );
-        if(info<n) {
-            printf("Only %d values were read from %s",info,filenameY);
+        if ( info<n ) {
+            printf ( "Only %d values were read from %s",info,filenameY );
         }
-        printf("Responses were read in correctly.\n");
+        printf ( "Responses were read in correctly.\n" );
         info=fclose ( fY );
         if ( info!=0 ) {
             printf ( "Error in closing open streams" );
             return -1;
         }
-        for (i=n; i<lld_Y; ++i) {
-            *(Y+i)=0;
+        for ( i=n; i<lld_Y; ++i ) {
+            * ( Y+i ) =0;
         }
     }
 
@@ -199,16 +199,16 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         return -1;
     }
 
-    blacs_barrier_(&ICTXT2D,"A");
-    
-    secs.tick(totalTime);
+    blacs_barrier_ ( &ICTXT2D,"A" );
+
+    secs.tick ( totalTime );
 
     // Set up of matrix D and B per strip of T'
 
     for ( ni=0; ni<nstrips; ++ni ) {
         if ( ni==nstrips-1 ) {
 
-            if(Tblock != NULL)
+            if ( Tblock != NULL )
                 free ( Tblock );
             Tblock=NULL;
 
@@ -290,12 +290,12 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         }
 
         blacs_barrier_ ( &ICTXT2D,"A" );
-	
-	if (ni==0){
-	  secs.tack(totalTime);
-	  cout << "Read-in of Tblock: " << totalTime * 0.001 << " secs" << endl;
-	  secs.tick(totalTime);
-	}
+
+        if ( ni==0 ) {
+            secs.tack ( totalTime );
+            cout << "Read-in of Tblock: " << totalTime * 0.001 << " secs" << endl;
+            secs.tick ( totalTime );
+        }
 
         // End of read-in
 
@@ -305,16 +305,16 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 
         pdgemm_ ( "N","T",&k,&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &i_one, &i_one, DESCD ); //T'T
         //pdsyrk_ ( "U","N",&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &t_plus, &t_plus, DESCD );
-        Ystart=ni * *(dims+1) * blocksize + 1;
+        Ystart=ni * * ( dims+1 ) * blocksize + 1;
         /*if (iam==0)
-	  printf("Ystart= %d\n", Ystart);*/
+        printf("Ystart= %d\n", Ystart);*/
         pdgemm_ ( "N","N",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Y,&Ystart,&i_one,DESCY,&d_one,ytot,&ml_plus,&i_one,DESCYTOT ); //T'y
-	
-	if (ni==0){
-	  secs.tack(totalTime);
-	  cout << "dense multiplications of Tblock: " << totalTime * 0.001 << " secs" << endl;
-	  secs.tick(totalTime);
-	}
+
+        if ( ni==0 ) {
+            secs.tack ( totalTime );
+            cout << "dense multiplications of Tblock: " << totalTime * 0.001 << " secs" << endl;
+            secs.tick ( totalTime );
+        }
 
         // Matrix B consists of X'T and Z'T, since each process only has some parts of T at its disposal,
         // we need to make sure that the correct columns of Z and X are multiplied with the correct columns of T.
@@ -332,93 +332,95 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
                     XtT_sparse.addBCSR ( XtT_temp );
                 }
             }
+            XtT_temp.clear();
         }
-        
-        if (ni==0){
-	  secs.tack(totalTime);
-	  cout << "Creation of XtT: " << totalTime * 0.001 << " secs" << endl;
-	  secs.tick(totalTime);
-	}
+
+        if ( ni==0 ) {
+            secs.tack ( totalTime );
+            cout << "Creation of XtT: " << totalTime * 0.001 << " secs" << endl;
+            secs.tick ( totalTime );
+        }
         //Same as above for calculating Z'T
-        for ( i=0; i<pTblocks; ++i ){
+        for ( i=0; i<pTblocks; ++i ) {
             ZtT_temp.ncols=k;
-	    if(ni==0 && i==1){
-	      secs.tack(totalTime);
-	      secs.tick(totalTime);
-	    }
+            if ( ni==0 && i==1 ) {
+                secs.tack ( totalTime );
+                secs.tick ( totalTime );
+            }
             mult_colsA_colsC ( Ztsparse, Tblock+i*blocksize, lld_T, ( * ( dims+1 ) * ni + pcol ) *blocksize, blocksize,
                                blocksize * ( *dims * i + *position ), blocksize, ZtT_temp, 0 );
-	    if (ni==0 && i==1){
-	  secs.tack(totalTime);
-	  cout << "Multiplication Zt and Tblock: " << totalTime * 0.001 << " secs" << endl;
-	  secs.tick(totalTime);
-	}
+            if ( ni==0 && i==1 ) {
+                secs.tack ( totalTime );
+                cout << "Multiplication Zt and Tblock: " << totalTime * 0.001 << " secs" << endl;
+                secs.tick ( totalTime );
+            }
             if ( ZtT_temp.nonzeros>0 ) {
                 if ( ZtT_sparse.nonzeros==0 )
                     ZtT_sparse.make2 ( ZtT_temp.nrows,ZtT_temp.ncols,ZtT_temp.nonzeros,ZtT_temp.pRows,ZtT_temp.pCols,ZtT_temp.pData );
                 else
                     ZtT_sparse.addBCSR ( ZtT_temp );
             }
-             if (ni==0 && i==1){
-	  secs.tack(totalTime);
-	  cout << "Adding new piece of ZtT: " << totalTime * 0.001 << " secs" << endl;
-	  secs.tick(totalTime);
-	}
+            if ( ni==0 && i==1 ) {
+                secs.tack ( totalTime );
+                cout << "Adding new piece of ZtT: " << totalTime * 0.001 << " secs" << endl;
+                secs.tick ( totalTime );
+            }
+            ZtT_temp.clear();
         }
-        if (ni==0){
-	  secs.tack(totalTime);
-	  cout << "Creation of ZtT: " << totalTime * 0.001 << " secs" << endl;
-	  secs.tick(totalTime);
-	}
+        if ( ni==0 ) {
+            secs.tack ( totalTime );
+            cout << "Creation of ZtT: " << totalTime * 0.001 << " secs" << endl;
+            secs.tick ( totalTime );
+        }
         blacs_barrier_ ( &ICTXT2D,"A" );
     }
-    
-    secs.tack(totalTime);
-    if(Tblock != NULL)
+
+    secs.tack ( totalTime );
+    if ( Tblock != NULL )
         free ( Tblock );
     Tblock=NULL;
-    if (iam==0) {
-      cout << "Assignments with Tblock finished in: " << totalTime * 0.001 << " secs" << endl;
-      
-       secs.tick(totalTime);
-      
-        *respnrm = dnrm2_ (&n,Y,&i_one);
+    if ( iam==0 ) {
+        cout << "Assignments with Tblock finished in: " << totalTime * 0.001 << " secs" << endl;
+
+        secs.tick ( totalTime );
+
+        *respnrm = dnrm2_ ( &n,Y,&i_one );
         *respnrm = *respnrm * *respnrm;
-        XtY=(double * ) calloc(m,sizeof(double));
-        if(XtY==NULL) {
-            printf("Unable to allocate memory for XtY in root process.\n");
+        XtY= ( double * ) calloc ( m,sizeof ( double ) );
+        if ( XtY==NULL ) {
+            printf ( "Unable to allocate memory for XtY in root process.\n" );
             return -1;
         }
         //printf("Xtsparse.nrows = %d \nm = %d\n",Xtsparse.nrows,m);
-        mult_colsA_colsC_denseC ( Xtsparse, Y, n, 0, n, 0, 1, XtY, m, false, 1.0);
-        ZtY=(double * ) calloc(l,sizeof(double));
-        if(ZtY==NULL) {
-            printf("Unable to allocate memory for ZtY in root process.\n");
+        mult_colsA_colsC_denseC ( Xtsparse, Y, n, 0, n, 0, 1, XtY, m, false, 1.0 );
+        ZtY= ( double * ) calloc ( l,sizeof ( double ) );
+        if ( ZtY==NULL ) {
+            printf ( "Unable to allocate memory for ZtY in root process.\n" );
             return -1;
         }
-	//printf("Ztsparse.nrows = %d \nl = %d\n",Ztsparse.nrows,l);
-        mult_colsA_colsC_denseC ( Ztsparse, Y, n, 0, n, 0, 1, ZtY, l, false, 1.0);
-        if (Y!= NULL)
-            free(Y);
+        //printf("Ztsparse.nrows = %d \nl = %d\n",Ztsparse.nrows,l);
+        mult_colsA_colsC_denseC ( Ztsparse, Y, n, 0, n, 0, 1, ZtY, l, false, 1.0 );
+        if ( Y!= NULL )
+            free ( Y );
         Y=NULL;
-	
-	 secs.tack(totalTime);
-	 cout << "Creation of XtY and ZtY: " << totalTime * 0.001 << " secs" << endl;
+
+        secs.tack ( totalTime );
+        cout << "Creation of XtY and ZtY: " << totalTime * 0.001 << " secs" << endl;
     }
-    blacs_barrier_(&ICTXT2D,"A");
+    blacs_barrier_ ( &ICTXT2D,"A" );
 
     Xtsparse.clear();
     Ztsparse.clear();
 
-    pdcopy_(&m,XtY,&i_one,&i_one,DESCXtY,&i_one, ytot,&i_one,&i_one,DESCYTOT,&i_one);
-    pdcopy_(&l,ZtY,&i_one,&i_one,DESCZtY,&i_one, ytot,&m_plus,&i_one,DESCYTOT,&i_one);
+    pdcopy_ ( &m,XtY,&i_one,&i_one,DESCXtY,&i_one, ytot,&i_one,&i_one,DESCYTOT,&i_one );
+    pdcopy_ ( &l,ZtY,&i_one,&i_one,DESCZtY,&i_one, ytot,&m_plus,&i_one,DESCYTOT,&i_one );
 
-    if(iam==0) {
-        if(XtY != NULL)
-            free(XtY);
+    if ( iam==0 ) {
+        if ( XtY != NULL )
+            free ( XtY );
         XtY=NULL;
-        if(ZtY != NULL)
-            free(ZtY);
+        if ( ZtY != NULL )
+            free ( ZtY );
         ZtY = NULL;
     }
 
@@ -447,13 +449,13 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         // And eventually receives the necessary BT_i and B_j
         // Blocking sends are used, which is why the order of the receives is critical depending on the coordinates of the process
         int nonzeroes;
-        if (*position >= pcol) {
+        if ( *position >= pcol ) {
             MPI_Recv ( &nonzeroes,1,MPI_INT,0,iam,MPI_COMM_WORLD,&status );
             BT_i.clear();
             BT_i.allocate ( blocksize*Drows,m+l,nonzeroes );
             MPI_Recv ( & ( BT_i.pRows[0] ),blocksize*Drows + 1, MPI_INT,0,iam + size,MPI_COMM_WORLD,&status );
             int count;
-            MPI_Get_count(&status,MPI_INT,&count);
+            MPI_Get_count ( &status,MPI_INT,&count );
             BT_i.nrows=count-1;
             MPI_Recv ( & ( BT_i.pCols[0] ),nonzeroes, MPI_INT,0,iam+2*size,MPI_COMM_WORLD,&status );
             MPI_Recv ( & ( BT_i.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
@@ -464,15 +466,14 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             B_j.allocate ( blocksize*Dcols,m+l,nonzeroes );
 
             MPI_Recv ( & ( B_j.pRows[0] ),blocksize*Dcols + 1, MPI_INT,0,iam + 5*size,MPI_COMM_WORLD,&status );
-            MPI_Get_count(&status,MPI_INT,&count);
+            MPI_Get_count ( &status,MPI_INT,&count );
             B_j.nrows=count-1;
             MPI_Recv ( & ( B_j.pCols[0] ),nonzeroes, MPI_INT,0,iam+6*size,MPI_COMM_WORLD,&status );
             MPI_Recv ( & ( B_j.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+7*size,MPI_COMM_WORLD,&status );
 
             //Actually BT_j is sent, so it still needs to be transposed
             B_j.transposeIt ( 1 );
-        }
-        else {
+        } else {
             MPI_Recv ( &nonzeroes,1, MPI_INT,0,iam+4*size,MPI_COMM_WORLD,&status );
 
             B_j.clear();
@@ -481,7 +482,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 
             MPI_Recv ( & ( B_j.pRows[0] ),blocksize*Dcols + 1, MPI_INT,0,iam + 5*size,MPI_COMM_WORLD,&status );
             int count;
-            MPI_Get_count(&status,MPI_INT,&count);
+            MPI_Get_count ( &status,MPI_INT,&count );
             B_j.nrows=count-1;
 
             MPI_Recv ( & ( B_j.pCols[0] ),nonzeroes, MPI_INT,0,iam+6*size,MPI_COMM_WORLD,&status );
@@ -494,19 +495,18 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             BT_i.clear();
             BT_i.allocate ( blocksize*Drows,m+l,nonzeroes );
             MPI_Recv ( & ( BT_i.pRows[0] ),blocksize*Drows + 1, MPI_INT,0,iam + size,MPI_COMM_WORLD,&status );
-            MPI_Get_count(&status,MPI_INT,&count);
+            MPI_Get_count ( &status,MPI_INT,&count );
             BT_i.nrows=count-1;
             MPI_Recv ( & ( BT_i.pCols[0] ),nonzeroes, MPI_INT,0,iam+2*size,MPI_COMM_WORLD,&status );
             MPI_Recv ( & ( BT_i.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
         }
-    }
-    else {
-      secs.tick(totalTime);
+    } else {
+        secs.tick ( totalTime );
         for ( i=1; i<size; ++i ) {
             // The root process receives parts of X' * T and Z' * T sequentially from all processes and directly adds them together.
             int nonzeroes;
             MPI_Recv ( &nonzeroes,1,MPI_INT,i,i,MPI_COMM_WORLD,&status );
-            if(nonzeroes>0) {
+            if ( nonzeroes>0 ) {
                 XtT_temp.clear();
                 XtT_temp.allocate ( m,k,nonzeroes );
                 MPI_Recv ( & ( XtT_temp.pRows[0] ),m + 1, MPI_INT,i,i+size,MPI_COMM_WORLD,&status );
@@ -518,7 +518,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 
             MPI_Recv ( &nonzeroes,1, MPI_INT,i,i,MPI_COMM_WORLD,&status );
 
-            if(nonzeroes>0) {
+            if ( nonzeroes>0 ) {
                 ZtT_temp.clear();
                 ZtT_temp.allocate ( l,k,nonzeroes );
 
@@ -529,8 +529,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
                 ZtT_sparse.addBCSR ( ZtT_temp );
             }
         }
-        secs.tack(totalTime);
-	cout << "Receiving XtT and ZtT: " << totalTime * 0.001 << " secs" << endl;
+        secs.tack ( totalTime );
+        cout << "Receiving XtT and ZtT: " << totalTime * 0.001 << " secs" << endl;
         XtT_temp.clear();
         ZtT_temp.clear();
 
@@ -544,17 +544,16 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         XtT_sparse.clear();
         ZtT_sparse.clear();
 
-	secs.tick(totalTime);
+        secs.tick ( totalTime );
         // For each process row i BT_i is created which is also sent to processes in column i to become B_j.
         for ( int rowproc= *dims - 1; rowproc>= 0; --rowproc ) {
             BT_i.clear();
-            BT_i.allocate(0, Btsparse.ncols,0);
+            BT_i.allocate ( 0, Btsparse.ncols,0 );
             int Drows_rowproc;
-            if (rowproc!=0) {
+            if ( rowproc!=0 ) {
                 Drows_rowproc= ( Dblocks - rowproc ) % *dims == 0 ? ( Dblocks- rowproc ) / *dims : ( Dblocks- rowproc ) / *dims +1;
                 Drows_rowproc= Drows_rowproc<1? 1 : Drows_rowproc;
-            }
-            else
+            } else
                 Drows_rowproc=Drows;
             for ( i=0; i<Drows_rowproc; ++i ) {
                 //Each process in row i can hold several blocks of contiguous rows of D for which we need the corresponding rows of B_T
@@ -563,7 +562,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             }
             for ( int colproc= ( rowproc==0 ? 1 : 0 ); colproc < * ( dims+1 ); ++colproc ) {
                 int *curpos, rankproc;
-                rankproc= blacs_pnum_ (&ICTXT2D, &rowproc,&colproc);
+                rankproc= blacs_pnum_ ( &ICTXT2D, &rowproc,&colproc );
 
                 MPI_Ssend ( & ( BT_i.nonzeros ),1, MPI_INT,rankproc,rankproc,MPI_COMM_WORLD );
                 MPI_Ssend ( & ( BT_i.pRows[0] ),BT_i.nrows + 1, MPI_INT,rankproc,rankproc+size,MPI_COMM_WORLD );
@@ -572,7 +571,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 
                 //printf("BT_i's sent to processor %d\n",rankproc);
 
-                rankproc= blacs_pnum_ (&ICTXT2D, &colproc,&rowproc);
+                rankproc= blacs_pnum_ ( &ICTXT2D, &colproc,&rowproc );
                 MPI_Ssend ( & ( BT_i.nonzeros ),1, MPI_INT,rankproc,rankproc+4*size,MPI_COMM_WORLD );
                 MPI_Ssend ( & ( BT_i.pRows[0] ),BT_i.nrows + 1, MPI_INT,rankproc,rankproc+5*size,MPI_COMM_WORLD );
                 MPI_Ssend ( & ( BT_i.pCols[0] ),BT_i.nonzeros, MPI_INT,rankproc,rankproc+6*size,MPI_COMM_WORLD );
@@ -583,19 +582,19 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         }
         B_j.make2 ( BT_i.nrows,BT_i.ncols,BT_i.nonzeros,BT_i.pRows,BT_i.pCols,BT_i.pData );
         B_j.transposeIt ( 1 );
-	secs.tack(totalTime);
-	cout << "Sending Bt_i and B_j: " << totalTime * 0.001 << " secs" << endl;
+        secs.tack ( totalTime );
+        cout << "Sending Bt_i and B_j: " << totalTime * 0.001 << " secs" << endl;
     }
-    if(DESCT!=NULL)
+    if ( DESCT!=NULL )
         free ( DESCT );
     DESCT=NULL;
-    if(DESCXtY!=NULL)
+    if ( DESCXtY!=NULL )
         free ( DESCXtY );
     DESCXtY=NULL;
-    if(DESCY!=NULL)
+    if ( DESCY!=NULL )
         free ( DESCY );
     DESCY=NULL;
-    if(DESCZtY!=NULL)
+    if ( DESCZtY!=NULL )
         free ( DESCZtY );
     DESCZtY=NULL;
 
@@ -793,15 +792,14 @@ int set_up_C ( int * DESCC, double * Cmat, int * DESCB, double * Bmat,int * DESC
         //Creation of matrix Z in every process
 
         if ( ( nZblocks-1 ) % *dims == *position && k%blocksize !=0 ) { //last block of row that needs to be read in will be treated seperately
-            if (ni==0) {
+            if ( ni==0 ) {
                 info=fseek ( fZ, ( long ) ( pcol * blocksize * ( k+1 ) * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
-            }
-            else {
-                info=fseek ( fZ, ( long ) ( blocksize * (*( dims+1 )-1) * ( k+1 ) * sizeof ( double ) ),SEEK_CUR );
+            } else {
+                info=fseek ( fZ, ( long ) ( blocksize * ( * ( dims+1 )-1 ) * ( k+1 ) * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
@@ -827,17 +825,15 @@ int set_up_C ( int * DESCC, double * Cmat, int * DESCB, double * Bmat,int * DESC
                 }
                 fread ( Zblock + i*pZblocks*blocksize + j*blocksize,sizeof ( double ),k%blocksize,fZ );
             }
-        }
-        else {									//Normal read-in of the matrix from a binary file
-            if (ni==0) {
+        } else {									//Normal read-in of the matrix from a binary file
+            if ( ni==0 ) {
                 info=fseek ( fZ, ( long ) ( pcol * blocksize * ( k+1 ) * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
-            }
-            else {
-                info=fseek ( fZ, ( long ) ( blocksize * (*( dims+1 )-1) * ( k+1 ) * sizeof ( double ) ),SEEK_CUR );
+            } else {
+                info=fseek ( fZ, ( long ) ( blocksize * ( * ( dims+1 )-1 ) * ( k+1 ) * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
@@ -862,7 +858,7 @@ int set_up_C ( int * DESCC, double * Cmat, int * DESCB, double * Bmat,int * DESC
                     }
                 }
                 fread ( Zblock + i*pZblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fZ );
-                info=fseek ( fZ, ( long ) ( (k - blocksize * ((pZblocks-1) * *dims + *position +1 )) * sizeof ( double ) ),SEEK_CUR );
+                info=fseek ( fZ, ( long ) ( ( k - blocksize * ( ( pZblocks-1 ) * *dims + *position +1 ) ) * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
@@ -878,15 +874,14 @@ int set_up_C ( int * DESCC, double * Cmat, int * DESCB, double * Bmat,int * DESC
         //Creation of matrix X in every process
 
         if ( ( nXblocks-1 ) % *dims == *position && m%blocksize !=0 ) {									//last block of row that needs to be read in will be treated seperately
-            if (ni==0) {
+            if ( ni==0 ) {
                 info=fseek ( fX, ( long ) ( pcol * blocksize *  m * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
-            }
-            else {
-                info=fseek ( fX, ( long ) ( blocksize * (*( dims+1 )-1) * m * sizeof ( double ) ),SEEK_CUR );
+            } else {
+                info=fseek ( fX, ( long ) ( blocksize * ( * ( dims+1 )-1 ) * m * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
@@ -909,15 +904,14 @@ int set_up_C ( int * DESCC, double * Cmat, int * DESCB, double * Bmat,int * DESC
                 fread ( Xblock + i*pXblocks*blocksize + j*blocksize,sizeof ( double ),m%blocksize,fX );
             }
         } else {													//Normal read-in of the matrix from a binary file
-            if (ni==0) {
+            if ( ni==0 ) {
                 info=fseek ( fX, ( long ) ( pcol * blocksize *  m * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
-            }
-            else {
-                info=fseek ( fX, ( long ) ( blocksize * (*( dims+1 )-1) * m * sizeof ( double ) ),SEEK_CUR );
+            } else {
+                info=fseek ( fX, ( long ) ( blocksize * ( * ( dims+1 )-1 ) * m * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
@@ -937,8 +931,8 @@ int set_up_C ( int * DESCC, double * Cmat, int * DESCB, double * Bmat,int * DESC
                         return -1;
                     }
                 }
-                fread ( Xblock + i*pXblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fX  );
-                info=fseek ( fX, ( long ) ( (m - blocksize * ((pXblocks-1) * *dims + *position +1 )) * sizeof ( double ) ),SEEK_CUR );
+                fread ( Xblock + i*pXblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fX );
+                info=fseek ( fX, ( long ) ( ( m - blocksize * ( ( pXblocks-1 ) * *dims + *position +1 ) ) * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading X file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
@@ -1007,7 +1001,7 @@ int set_up_C ( int * DESCC, double * Cmat, int * DESCB, double * Bmat,int * DESC
  * @param update value with which parameter lambda should be updated
  * @return int (info)
  **/
-int update_C ( int * DESCC, double * Cmat, double update) {
+int update_C ( int * DESCC, double * Cmat, double update ) {
 
     int i,j, rowcur,colcur,nXblocks;
 
@@ -1030,24 +1024,24 @@ int update_C ( int * DESCC, double * Cmat, double update) {
             }
         }
     }
-/*
-    for ( i=0,rowcur=0,colcur=0; i<nXblocks; ++i, ++colcur, ++rowcur ) {
-        if ( rowcur==*dims )
-            rowcur=0;
-        if ( colcur==* ( dims+1 ) )
-            colcur=0;
-        if ( *position==rowcur && * ( position+1 ) == colcur ) {
-            if ( i<nXblocks-1 ) {
-                for ( j=0; j<blocksize; ++j ) {
-                    * ( Cmat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ) -=update;
-                }
-            } else {
-                for ( j=0; j< m%blocksize; ++j ) {
-                    * ( Cmat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ) -=update;
+    /*
+        for ( i=0,rowcur=0,colcur=0; i<nXblocks; ++i, ++colcur, ++rowcur ) {
+            if ( rowcur==*dims )
+                rowcur=0;
+            if ( colcur==* ( dims+1 ) )
+                colcur=0;
+            if ( *position==rowcur && * ( position+1 ) == colcur ) {
+                if ( i<nXblocks-1 ) {
+                    for ( j=0; j<blocksize; ++j ) {
+                        * ( Cmat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ) -=update;
+                    }
+                } else {
+                    for ( j=0; j< m%blocksize; ++j ) {
+                        * ( Cmat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ) -=update;
+                    }
                 }
             }
-        }
-    }*/
+        }*/
     return 0;
 }
 
@@ -1114,7 +1108,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     pTblocks= pTblocks <1? 1:pTblocks;
     lld_T=pTblocks*blocksize;													//local leading dimension of the strip of Z (different from processor to processor)														//local leading dimension of the strip of Z (different from processor to processor)
 
-    lld_Y= *(dims+1) * nstrips * blocksize;
+    lld_Y= * ( dims+1 ) * nstrips * blocksize;
     sigma_rec=1/sigma;
     phi_rec=1/phi;
     gamma_rec=1/gamma_var;
@@ -1176,24 +1170,24 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     }
 
 
-    if (iam==0) {
-        Zu=(double *) calloc(lld_Y,sizeof(double));
+    if ( iam==0 ) {
+        Zu= ( double * ) calloc ( lld_Y,sizeof ( double ) );
         if ( Zu==NULL ) {
-            printf ( "Error in allocating memory for Zu in root process\n");
+            printf ( "Error in allocating memory for Zu in root process\n" );
             return -1;
         }
-        yblock=(double *) calloc(lld_Y, sizeof(double));
+        yblock= ( double * ) calloc ( lld_Y, sizeof ( double ) );
         if ( yblock==NULL ) {
-            printf ( "Error in allocating memory for yblock in root process\n");
+            printf ( "Error in allocating memory for yblock in root process\n" );
             return -1;
         }
-        Xtsparse.loadFromFile(filenameX);
-        Ztsparse.loadFromFile(filenameZ);
-        mult_colsA_colsC_denseC(Ztsparse,solution+m,ydim,0,Ztsparse.ncols,0,1,Zu,n,false,1.0); //Zu
+        Xtsparse.loadFromFile ( filenameX );
+        Ztsparse.loadFromFile ( filenameZ );
+        mult_colsA_colsC_denseC ( Ztsparse,solution+m,ydim,0,Ztsparse.ncols,0,1,Zu,n,false,1.0 ); //Zu
         //printdense(nstrips * stripcols, 1, Zu, "Zu.txt");
         Xtsparse.transposeIt ( 1 );
         Ztsparse.transposeIt ( 1 );
-        fY=fopen(filenameY,"rb");
+        fY=fopen ( filenameY,"rb" );
         if ( fY==NULL ) {
             printf ( "Error opening file\n" );
             return -1;
@@ -1206,12 +1200,12 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         }
         QRHS= ( double * ) calloc ( ydim * 3,sizeof ( double ) );
         if ( QRHS==NULL ) {
-            printf ( "Error in allocating memory for QRHS in root process\n");
+            printf ( "Error in allocating memory for QRHS in root process\n" );
             return -1;
         }
         Qsol= ( double * ) calloc ( ydim * 3,sizeof ( double ) );
         if ( Qsol==NULL ) {
-            printf ( "Error in allocating memory for Qsol in root process\n");
+            printf ( "Error in allocating memory for Qsol in root process\n" );
             return -1;
         }
         Tdblock = ( double* ) calloc ( stripcols,sizeof ( double ) );
@@ -1219,20 +1213,20 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
             printf ( "unable to allocate memory for Matrix Td\n" );
             return EXIT_FAILURE;
         }
-        mult_colsA_colsC_denseC(Xtsparse,yblock,lld_Y,0,n,0,1,QRHS,ydim,false,sigma_rec);		//X'y/sigma
-        mult_colsA_colsC_denseC(Ztsparse,yblock,n,0,n,0,1,QRHS+m,ydim,false,sigma_rec);		//Z'y/sigma
-	mult_colsA_colsC_denseC(Xtsparse,Zu,lld_Y,0,n,0,1,QRHS+ydim,ydim,false,phi_rec);		//X'Zu/phi
-        mult_colsA_colsC_denseC(Ztsparse,Zu,n,0,n,0,1,QRHS+ydim+m,ydim,false,phi_rec);		//Z'Zu/phi
-        *nrmblock = dnrm2_ ( &n,yblock,&i_one);
+        mult_colsA_colsC_denseC ( Xtsparse,yblock,lld_Y,0,n,0,1,QRHS,ydim,false,sigma_rec );		//X'y/sigma
+        mult_colsA_colsC_denseC ( Ztsparse,yblock,n,0,n,0,1,QRHS+m,ydim,false,sigma_rec );		//Z'y/sigma
+        mult_colsA_colsC_denseC ( Xtsparse,Zu,lld_Y,0,n,0,1,QRHS+ydim,ydim,false,phi_rec );		//X'Zu/phi
+        mult_colsA_colsC_denseC ( Ztsparse,Zu,n,0,n,0,1,QRHS+ydim+m,ydim,false,phi_rec );		//Z'Zu/phi
+        *nrmblock = dnrm2_ ( &n,yblock,&i_one );
         *AImat = *nrmblock * *nrmblock/sigma/sigma; 								//y'y/sigma²
-        *(AImat+1)= ddot_(&n,yblock,&i_one,Zu,&i_one)/sigma/phi;
-	*(AImat+3)= ddot_(&n,yblock,&i_one,Zu,&i_one)/sigma/phi;
-	*(AImat+4)= dnrm2_(&n,Zu,&i_one)/phi/phi * dnrm2_(&n,Zu,&i_one);
-	  //printdense(n,1,Zu,"Zu.txt");
+        * ( AImat+1 ) = ddot_ ( &n,yblock,&i_one,Zu,&i_one ) /sigma/phi;
+        * ( AImat+3 ) = ddot_ ( &n,yblock,&i_one,Zu,&i_one ) /sigma/phi;
+        * ( AImat+4 ) = dnrm2_ ( &n,Zu,&i_one ) /phi/phi * dnrm2_ ( &n,Zu,&i_one );
+        //printdense(n,1,Zu,"Zu.txt");
         //printf("Fourth element of AImat is: %g\n", *(AImat+4));
     }
-    
-    blacs_barrier_(&ICTXT2D,"A");
+
+    blacs_barrier_ ( &ICTXT2D,"A" );
 
     fT=fopen ( filenameT,"rb" );
     if ( fT==NULL ) {
@@ -1247,7 +1241,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     for ( ni=0; ni<nstrips; ++ni ) {
         if ( ni==nstrips-1 ) {
             // The last strip may consist of less rows than $blocksize so previous values should be erased
-            if(Tblock!=NULL)
+            if ( Tblock!=NULL )
                 free ( Tblock );
             Tblock=NULL;
 
@@ -1257,9 +1251,9 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
                 return -1;
             }
 
-            if(iam==0) {
-                if(Tdblock != NULL)
-                    free(Tdblock);
+            if ( iam==0 ) {
+                if ( Tdblock != NULL )
+                    free ( Tdblock );
                 Tdblock=NULL;
                 Tdblock = ( double* ) calloc ( stripcols,sizeof ( double ) );
                 if ( Tdblock==NULL ) {
@@ -1361,7 +1355,7 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
         // Creation of matrix needed for calculation of AI matrix distributed over every process per block of Z, X and y
 
-        int ystart=ni * *(dims+1) * blocksize + 1;
+        int ystart=ni * * ( dims+1 ) * blocksize + 1;
 
         pdgemm_ ( "T","N", &i_one, &stripcols,&k,&gamma_rec, solution, &ml_plus,&i_one,DESCSOL,Tblock,&i_one,&i_one,DESCT,&d_zero,Tdblock,&i_one,&i_one,DESCTD ); //Td/gamma (in blocks)
 
@@ -1382,45 +1376,45 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         //pdgemm_ ( "N","T",&m,&i_one,&stripcols,&sigma_rec,Xblock,&i_one, &i_one, DESCX,yblock,&i_one,&i_one,DESCY,&d_one,QRHS,&i_one,&i_one,DESCQRHS ); //X'y/sigma
 
         pdgemm_ ( "N","T",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Tdblock,&i_one,&i_one,DESCTD,&d_one,Qdense,&i_one,&i_one,DESCQDENSE ); //T'Td/gamma
-	pdgemm_ ( "N","N",&k,&i_one,&stripcols,&phi_rec,Tblock,&i_one, &i_one, DESCT,Zu,&ystart,&i_one,DESCZU,&d_one,QRHS,&ml_plus,&i_two,DESCQRHS ); //T'Zu/phi
+        pdgemm_ ( "N","N",&k,&i_one,&stripcols,&phi_rec,Tblock,&i_one, &i_one, DESCT,Zu,&ystart,&i_one,DESCZU,&d_one,QRHS,&ml_plus,&i_two,DESCQRHS ); //T'Zu/phi
 
         //pdgemm_ ( "N","T",&m,&i_one,&stripcols,&d_one,Xblock,&i_one, &i_one, DESCX,Tdblock,&i_one,&i_one,DESCTD,&d_one,QRHS,&i_one,&i_two,DESCQRHS ); //X'Zu/gamma
 
-        blacs_barrier_(&ICTXT2D,"A");
-        if(iam==0) {
-	  //printf("Dense multiplications with strip %d of T done\n",ni);
+        blacs_barrier_ ( &ICTXT2D,"A" );
+        if ( iam==0 ) {
+            //printf("Dense multiplications with strip %d of T done\n",ni);
             mult_colsA_colsC_denseC ( Xtsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+2*ydim, ydim, true, 1.0 ); 	//X'Td/gamma
 
             mult_colsA_colsC_denseC ( Ztsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+2*ydim+m, ydim, true, 1.0 );	//Z'Td/gamma
 
             *nrmblock = dnrm2_ ( &stripcols,Tdblock,&i_one );							// norm (Td/gamma)
             * ( AImat + 8 ) += *nrmblock * *nrmblock;										//(Td)'(Td)/gamma^2
-	    //printf("Sparse multiplications with strip %d of T done\n",ni);
+            //printf("Sparse multiplications with strip %d of T done\n",ni);
         }
 
-        blacs_barrier_(&ICTXT2D,"A");
+        blacs_barrier_ ( &ICTXT2D,"A" );
 
 
         // Q'Q is calculated and stored directly in AI matrix (complete in every process)
         pddot_ ( &stripcols,nrmblock,Tdblock,&i_one,&i_one,DESCTD,&i_one,yblock,&ystart,&i_one,DESCY,&i_one );
         * ( AImat + 6 ) += *nrmblock /sigma;							//y'Td/gamma/sigma
         * ( AImat + 2 ) += *nrmblock /sigma;							//y'Td/gamma/sigma
-	pddot_ ( &stripcols,nrmblock,Tdblock,&i_one,&i_one,DESCTD,&i_one,Zu,&ystart,&i_one,DESCZU,&i_one );
+        pddot_ ( &stripcols,nrmblock,Tdblock,&i_one,&i_one,DESCTD,&i_one,Zu,&ystart,&i_one,DESCZU,&i_one );
         * ( AImat + 5 ) += *nrmblock /phi;							//y'Td/gamma/sigma
         * ( AImat + 7 ) += *nrmblock /phi;							//y'Td/gamma/sigma
         blacs_barrier_ ( &ICTXT2D,"A" );
     }
 
-    if(Tblock != NULL)
+    if ( Tblock != NULL )
         free ( Tblock );
     Tblock=NULL;
 
-    if(iam==0) {
-      //printf("All strips of T processed\n");
-      if(Zu != NULL)
+    if ( iam==0 ) {
+        //printf("All strips of T processed\n");
+        if ( Zu != NULL )
             free ( Zu );
         Zu=NULL;
-        if(yblock != NULL)
+        if ( yblock != NULL )
             free ( yblock );
         yblock=NULL;
         /*if(Tdblock != NULL)
@@ -1442,27 +1436,27 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     printdense(1,Drows*blocksize, Qdense,TdZufile);*/
 
     //T'(Td)/gamma is in Qdense and is copied to QRHS
-    pdcopy_(&k,Qdense,&i_one, &i_one, DESCQDENSE, &i_one, QRHS,&ml_plus,&i_three,DESCQRHS, &i_one);
+    pdcopy_ ( &k,Qdense,&i_one, &i_one, DESCQDENSE, &i_one, QRHS,&ml_plus,&i_three,DESCQRHS, &i_one );
 
     /*if(iam==0)
         printdense(3,ydim,QRHS,"QRHS.txt");*/
 
     // In Qsol we calculate the solution of M * Qsol = QRHS, but we still need QRHS a bit further
-	
+
 
     pdcopy_ ( &k,QRHS,&ml_plus,&i_two,DESCQRHS,&i_one,Qsol,&ml_plus,&i_two,DESCQSOL, &i_one );
     pdcopy_ ( &k,QRHS,&ml_plus,&i_three,DESCQRHS,&i_one,Qsol,&ml_plus,&i_three,DESCQSOL, &i_one );
-    blacs_barrier_(&ICTXT2D,"A");
-    if (iam==0) {
-	printf("Solving system AQsol_1,2 = Q_1,2 on process 0\n");
-        solveSystemwoFact(Asparse, Qsol,QRHS+ydim, 2, 1);
-	printf("Solving system AQsol_1,3 = Q_1,3 on process 0\n");
-	solveSystemwoFact(Asparse, Qsol+ydim,QRHS+2*ydim, 2, 1);
+    blacs_barrier_ ( &ICTXT2D,"A" );
+    if ( iam==0 ) {
+        printf ( "Solving system AQsol_1,2 = Q_1,2 on process 0\n" );
+        solveSystemwoFact ( Asparse, Qsol,QRHS+ydim, 2, 1 );
+        printf ( "Solving system AQsol_1,3 = Q_1,3 on process 0\n" );
+        solveSystemwoFact ( Asparse, Qsol+ydim,QRHS+2*ydim, 2, 1 );
         //printf("AQsol=QRHS_2 is solved\n");
-        mult_colsA_colsC_denseC(Btsparse,Qsol,ydim,0,Btsparse.ncols,0,2,Qsol+ydim+m+l,ydim, true,-1.0);
+        mult_colsA_colsC_denseC ( Btsparse,Qsol,ydim,0,Btsparse.ncols,0,2,Qsol+ydim+m+l,ydim, true,-1.0 );
         //printf("B^T * Qsol is calculated\n");
     }
-    blacs_barrier_(&ICTXT2D,"A");
+    blacs_barrier_ ( &ICTXT2D,"A" );
     pdcopy_ ( &k,Qsol,&ml_plus,&i_two,DESCQSOL,&i_one,Qdense,&i_one,&i_one,DESCQDENSE,&i_one );
     pdcopy_ ( &k,Qsol,&ml_plus,&i_three,DESCQSOL,&i_one,Qdense,&i_one,&i_two,DESCQDENSE,&i_one );
 
@@ -1471,43 +1465,43 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
         printf ( "Parallel Cholesky solution for Q was unsuccesful, error returned: %d\n",info );
         return -1;
     }
-    blacs_barrier_(&ICTXT2D,"A");
+    blacs_barrier_ ( &ICTXT2D,"A" );
 
     pdcopy_ ( &k,Qdense,&i_one,&i_one,DESCQDENSE,&i_one,Qsol,&ml_plus,&i_two,DESCQSOL,&i_one );
     pdcopy_ ( &k,Qdense,&i_one,&i_two,DESCQDENSE,&i_one,Qsol,&ml_plus,&i_three,DESCQSOL,&i_one );
-    
-    if(Qdense != NULL)
-      free(Qdense);
+
+    if ( Qdense != NULL )
+        free ( Qdense );
     Qdense=NULL;
 
-    blacs_barrier_(&ICTXT2D,"A");
-    
-    
+    blacs_barrier_ ( &ICTXT2D,"A" );
+
+
 
     pdcopy_ ( &Adim,QRHS,&i_one,&i_two,DESCQRHS,&i_one,Qsol,&i_one,&i_two,DESCQSOL, &i_one );
     pdcopy_ ( &Adim,QRHS,&i_one,&i_three,DESCQRHS,&i_one,Qsol,&i_one,&i_three,DESCQSOL, &i_one );
 
-    if (iam==0) {
+    if ( iam==0 ) {
         //printf("Solution of DX=Q OK\n");
-        Btsparse.transposeIt(1);
-        mult_colsA_colsC_denseC(Btsparse,Qsol+ydim+m+l,ydim,0,Btsparse.ncols,0,2,Qsol+ydim,ydim, true,-1.0);
-        double * sparse_sol=(double *) calloc(Asparse.nrows, sizeof(double));
-	printf("Solving system AQsol_1,2 = Q_1,2 - B Qsol_2,2 on process 0\n");
-        solveSystemwoFact(Asparse, sparse_sol,Qsol+ydim, 2, 1);
-	memcpy(Qsol+ydim,sparse_sol,(m+l) * sizeof(double));
-        printf("Solving system AQsol_1,3 = Q_1,3 - B Qsol_2,3 on process 0\n");
-	solveSystemwoFact(Asparse, sparse_sol,Qsol+2*ydim, 2, 1);
-        memcpy(Qsol+2*ydim,sparse_sol,(m+l) * sizeof(double));
+        Btsparse.transposeIt ( 1 );
+        mult_colsA_colsC_denseC ( Btsparse,Qsol+ydim+m+l,ydim,0,Btsparse.ncols,0,2,Qsol+ydim,ydim, true,-1.0 );
+        double * sparse_sol= ( double * ) calloc ( Asparse.nrows, sizeof ( double ) );
+        printf ( "Solving system AQsol_1,2 = Q_1,2 - B Qsol_2,2 on process 0\n" );
+        solveSystemwoFact ( Asparse, sparse_sol,Qsol+ydim, 2, 1 );
+        memcpy ( Qsol+ydim,sparse_sol, ( m+l ) * sizeof ( double ) );
+        printf ( "Solving system AQsol_1,3 = Q_1,3 - B Qsol_2,3 on process 0\n" );
+        solveSystemwoFact ( Asparse, sparse_sol,Qsol+2*ydim, 2, 1 );
+        memcpy ( Qsol+2*ydim,sparse_sol, ( m+l ) * sizeof ( double ) );
         //printf("sparse_sol copied to Qsol\n");
     }
-    blacs_barrier_(&ICTXT2D,"A");
+    blacs_barrier_ ( &ICTXT2D,"A" );
 
     pdcopy_ ( &ydim,solution,&i_one,&i_one,DESCSOL,&i_one,Qsol,&i_one,&i_one,DESCQSOL,&i_one );
-    blacs_barrier_(&ICTXT2D,"A");
+    blacs_barrier_ ( &ICTXT2D,"A" );
     /*if(iam==0)
         printf("solution copied to Qsol\n");*/
     pdscal_ ( &ydim,&sigma_rec,Qsol,&i_one,&i_one,DESCQSOL,&i_one );
-    blacs_barrier_(&ICTXT2D,"A");
+    blacs_barrier_ ( &ICTXT2D,"A" );
     /*if(iam==0)
         printf("Qsol scaled with sigma_rec\n");*/
 
@@ -1534,27 +1528,27 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
     for ( i=0; i<9; ++i )
         * ( AImat + i ) = * ( AImat + i ) / 2 / sigma;
 
-    blacs_barrier_(&ICTXT2D,"A");
+    blacs_barrier_ ( &ICTXT2D,"A" );
 
-    if(DESCQRHS != NULL)
+    if ( DESCQRHS != NULL )
         free ( DESCQRHS );
     DESCQRHS=NULL;
-    if(DESCQSOL != NULL)
+    if ( DESCQSOL != NULL )
         free ( DESCQSOL );
     DESCQSOL=NULL;
-    if(DESCQDENSE != NULL)
+    if ( DESCQDENSE != NULL )
         free ( DESCQDENSE );
     DESCQDENSE=NULL;
-    if(DESCY != NULL)
+    if ( DESCY != NULL )
         free ( DESCY );
     DESCY=NULL;
-    if(DESCT != NULL)
+    if ( DESCT != NULL )
         free ( DESCT );
     DESCT=NULL;
-    if(DESCTD != NULL)
+    if ( DESCTD != NULL )
         free ( DESCTD );
     DESCTD=NULL;
-    if(nrmblock != NULL)
+    if ( nrmblock != NULL )
         free ( nrmblock );
     nrmblock=NULL;
     //free ( QRHS );
@@ -1604,7 +1598,7 @@ double trace_CZZ ( double *mat, int * DESCMAT ) {
                     trace_proc -= * ( mat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j );
                 }
             } else {
-                for ( j=0; j<= (m-1)%blocksize; ++j ) {
+                for ( j=0; j<= ( m-1 ) %blocksize; ++j ) {
                     trace_proc -= * ( mat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j );
                 }
             }
@@ -1628,14 +1622,13 @@ double log_determinant_C ( double *mat, int * DESCMAT ) {
         if ( colcur==* ( dims+1 ) )
             colcur=0;
         if ( *position==rowcur && * ( position+1 ) == colcur ) {
-            if(i==Dblocks-1 && Ddim%blocksize !=0) {
+            if ( i==Dblocks-1 && Ddim%blocksize !=0 ) {
                 for ( j=0; j< Ddim % blocksize; ++j ) {
-                    logdet_proc += log(* ( mat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ));
+                    logdet_proc += log ( * ( mat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ) );
                 }
-            }
-            else {
+            } else {
                 for ( j=0; j<blocksize; ++j ) {
-                    logdet_proc += log( * ( mat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ));
+                    logdet_proc += log ( * ( mat+ ( j + i / * ( dims+1 ) * blocksize ) * lld_D + i / *dims *blocksize +j ) );
                 }
             }
         }

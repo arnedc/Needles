@@ -120,11 +120,12 @@ void mult_colsA_colsC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int A
         }
         prows[row+1]=C_nnz;
     }
-    double* pdata = new double[C_nnz];
     int*    pcols = new int[C_nnz];
-
     memcpy ( pcols, &Ccols[0], C_nnz*sizeof ( int ) );
+    Ccols.clear();
+    double* pdata = new double[C_nnz];
     memcpy ( pdata, &Cdata[0], C_nnz*sizeof ( double ) );
+    Cdata.clear();
 
     C.clear();
     C.make ( A.nrows,C_ncols,C_nnz,prows,pcols,pdata );

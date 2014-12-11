@@ -159,7 +159,7 @@ void CSRdouble::transposeIt(int block_size)
 
     transpose_prows[i+1] = transpose_prows[i] + entries;
   }
-  //clear();
+  clear();
   
   //make2(transpose_nrows,transpose_ncols,transpose_nonzeros,transpose_prows,transpose_pcols,transpose_pdata);
 
@@ -544,6 +544,8 @@ void CSRdouble::fillSymmetric()
     if (entries > 1)
       heapsort(entries, &ja[index], &a[index]);
   }
+  vA.clear();
+  vcols.clear();
 
   delete[] pRows;
   delete[] pCols;
@@ -685,15 +687,15 @@ void CSRdouble::addBCSR ( CSRdouble& B ) {
         }
         ABprows[i+1]=nonzeroes;
     }
-    double* pdata = new double[nonzeroes];
     int*    pcols = new int[nonzeroes];
 
     if ( ABprows[nrows]!=nonzeroes )
         printf ( "last element of prows (%d) not equal to number of nonzeroes (%d)\n",ABprows[nrows],nonzeroes );
 
     memcpy ( pcols, &ABcols[0], nonzeroes*sizeof ( int ) );
-    memcpy ( pdata, &ABdata[0], nonzeroes*sizeof ( double ) );
     ABcols.clear();
+    double* pdata = new double[nonzeroes];
+    memcpy ( pdata, &ABdata[0], nonzeroes*sizeof ( double ) );
     ABdata.clear();
 
     delete[] pRows;
@@ -761,13 +763,21 @@ void CSRdouble::extendrows ( CSRdouble& B, int startrowB, int nrowsB ) {
     nonzeroes=nonzeroesB + nonzeros;
     colindex=B.pRows[startrowB];
 
-    prows = new int [n+1];
-    pcols = new int [nonzeroes];
-    pdata = new double [nonzeroes];
-
+    prows = new int [n+1];    
     memcpy ( prows, & (pRows[0] ), (nrows+1) * sizeof(int));
+    if(pRows != NULL)
+      delete [] pRows;
+    pRows=NULL;
+    pcols = new int [nonzeroes];
     memcpy ( pcols, & (pCols[0] ), nonzeros * sizeof(int));
+    if(pCols != NULL)
+      delete [] pCols;
+    pCols=NULL;
+    pdata = new double [nonzeroes];
     memcpy ( pdata, & (pData[0] ), nonzeros * sizeof(double));
+    if(pData != NULL)
+      delete [] pData;
+    pData = NULL;
     for (i=0; i<=nrowsB; ++i) {
         if(startrowB+i <= B.nrows)
             prows[nrows+i]= nonzeros + B.pRows[startrowB+i]-B.pRows[startrowB];
