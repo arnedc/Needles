@@ -167,6 +167,7 @@ void mult_colsA_colsC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int A
 void mult_colsA_colsC_denseC ( CSRdouble& A,  double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, 
 			       double *C, int lld_C,  bool sum, double alpha ) ;
 int set_up_BDY ( int* DESCD, double* Dmat, CSRdouble& BT_i, CSRdouble& B_j, int* DESCYTOT, double* ytot, double* respnrm, CSRdouble& Btsparse ) ;
+int set_up_D ( int * DESCD, double * Dmat ) ;
 void CSR2dense ( CSRdouble& matrix,double *dense ) ;
 
 void create1x2BlockMatrix(CSRdouble& A, CSRdouble& B, // input
@@ -181,6 +182,8 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
 double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
 void solveSystemwoFact(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
 void calculateSchurComplement(CSRdouble& A, int pardiso_mtype, CSRdouble& S);
+
+void dense2CSR ( double *mat, int m, int n, CSRdouble& A ) ;
 
 extern double d_one, d_zero, d_negone;
 extern int DLEN_, i_negone, i_zero, i_one, i_two, i_three; // some many used constants

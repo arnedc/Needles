@@ -148,11 +148,45 @@ void mult_colsA_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart,
             for ( index=A.pRows[row]; index<A.pRows[row+1]; ++index ) {
                 j = A.pCols[index];
                 if ( j>=Acolstart && j<Acolstart+Ancols )
-                    *(C + row + col * lld_C) = *(C + row + col * lld_C) + alpha * A.pData[index] * * ( B + lld_B * (col-Ccolstart) + j-Acolstart  ) ;
+                    *(C + row + col * lld_C) += alpha * A.pData[index] * * ( B + lld_B * ( col-Ccolstart ) + j-Acolstart ) ;
             }
         }
     }
 }
 
+void dense2CSR ( double *mat, int m, int n, CSRdouble& A ) {
+    int i,j, nnz;
+    double *pdata;
+    int  *prows,*pcols;
+
+    nnz=0;
+
+    for ( i=0; i<m; ++i ) {
+        for ( j=0; j<n; ++j ) {
+            if ( fabs ( * ( mat+i*n+j ) ) >1e-10 ) {
+                nnz++;
+            }
+        }
+    }
+
+    prows= ( int * ) calloc ( m+1,sizeof ( int ) );
+    pcols= ( int * ) calloc ( nnz,sizeof ( int ) );
+    pdata= ( double * ) calloc ( nnz,sizeof ( double ) );
+
+    *prows=0;
+    nnz=0;
+    for ( i=0; i<m; ++i ) {
+        for ( j=0; j<n; ++j ) {
+            if ( fabs ( * ( mat+j*m+i ) ) >1e-10 ) { //If stored column-wise (BLAS), then moving through a row is going up by m (number of rows).
+                * ( pdata+nnz ) =* ( mat+j*m+i );
+                * ( pcols+nnz ) =j;
+                nnz++;
+            }
+        }
+        * ( prows+i+1 ) =nnz;
+    }
+
+    A.make ( m,n,nnz,prows,pcols,pdata );
+}
 
 

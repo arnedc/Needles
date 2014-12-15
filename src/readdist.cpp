@@ -325,6 +325,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             // The result is also stored immediately at the correct positions of X'T. (see src/tools.cpp)
             mult_colsA_colsC ( Xtsparse, Tblock+i*blocksize, lld_T, ( * ( dims+1 ) * ni + pcol ) *blocksize, blocksize,
                                ( *dims * i + *position ) *blocksize, blocksize, XtT_temp, 0 );
+	    /*mult_colsA_colsC_denseC ( Xtsparse, Tblock+i*blocksize, lld_T, ( * ( dims+1 ) * ni + pcol ) *blocksize, blocksize,
+                               ( *dims * i + *position ) *blocksize, blocksize, XtT_temp, 0 );*/
             if ( XtT_temp.nonzeros>0 ) {
                 if ( XtT_sparse.nonzeros==0 )
                     XtT_sparse.make2 ( XtT_temp.nrows,XtT_temp.ncols,XtT_temp.nonzeros,XtT_temp.pRows,XtT_temp.pCols,XtT_temp.pData );
@@ -341,6 +343,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             secs.tick ( totalTime );
         }
         //Same as above for calculating Z'T
+        
         for ( i=0; i<pTblocks; ++i ) {
             ZtT_temp.ncols=k;
             if ( ni==0 && i==1 ) {
@@ -349,11 +352,15 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             }
             mult_colsA_colsC ( Ztsparse, Tblock+i*blocksize, lld_T, ( * ( dims+1 ) * ni + pcol ) *blocksize, blocksize,
                                blocksize * ( *dims * i + *position ), blocksize, ZtT_temp, 0 );
+	    /*mult_colsA_colsC_denseC ( Ztsparse, Tblock+i*blocksize, lld_T, ( * ( dims+1 ) * ni + pcol ) *blocksize, blocksize,
+                               blocksize * ( *dims * i + *position ), blocksize, ZtT_dense,l, 1, 1 );
+	    dense2CSR(ZtT_dense,Ztsparse.nrows,Dblocks * blocksize,ZtT_temp);*/
             if ( ni==0 && i==1 ) {
                 secs.tack ( totalTime );
                 cout << "Multiplication Zt and Tblock: " << totalTime * 0.001 << " secs" << endl;
                 secs.tick ( totalTime );
             }
+            //free(ZtT_dense);
             if ( ZtT_temp.nonzeros>0 ) {
                 if ( ZtT_sparse.nonzeros==0 )
                     ZtT_sparse.make2 ( ZtT_temp.nrows,ZtT_temp.ncols,ZtT_temp.nonzeros,ZtT_temp.pRows,ZtT_temp.pCols,ZtT_temp.pData );
@@ -600,6 +607,238 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 
     return 0;
 }
+
+int set_up_D ( int * DESCD, double * Dmat ) {
+
+    // Read-in of matrices X, Z and T from file (filename[X,Z,T])
+    // X and Z are read in entrely by every process
+    // T is read in strip by strip (number of rows in each process is at maximum = blocksize)
+    // D is constructed directly in a distributed way
+    // B is first assembled sparse in root process and afterwards the necessary parts
+    // for constructing the distributed Schur complement are sent to each process
+
+    FILE *fT, *fY;
+    int ni, i,j, info;
+    int *DESCT;
+    double *Tblock, *temp;
+    int nTblocks, nstrips, pTblocks, stripcols, lld_T, pcol, colcur,rowcur;
+    timing secs;
+    double totalTime, interTime;
+
+    MPI_Status status;
+
+    /*XtT_sparse.allocate ( m,k,0 );
+    ZtT_sparse.allocate ( l,k,0 );*/
+
+    pcol= * ( position+1 );
+
+    // Matrix T is read in by strips of size (blocksize * *(dims+1), k)
+    // Strips of T are read in row-wise and thus it is as if we store strips of T' (transpose) column-wise with dimensions (k, blocksize * *(dims+1))
+    // However we must then also transpose the process grid to distribute T' correctly
+
+    // number of strips in which we divide matrix T'
+    nstrips= n % ( blocksize * * ( dims+1 ) ) ==0 ?  n / ( blocksize * * ( dims+1 ) ) : ( n / ( blocksize * * ( dims+1 ) ) ) +1;
+
+    //the number of columns of T' included in each strip
+    stripcols= blocksize * * ( dims+1 );
+
+    //number of blocks necessary to store complete column of T'
+    nTblocks= k%blocksize==0 ? k/blocksize : k/blocksize +1;
+
+    //number of blocks necessary in this process to store complete column of T'
+    pTblocks= ( nTblocks - *position ) % *dims == 0 ? ( nTblocks- *position ) / *dims : ( nTblocks- *position ) / *dims +1;
+    pTblocks= pTblocks <1? 1:pTblocks;
+
+    //local leading dimension of the strip of T' (different from process to process)
+    lld_T=pTblocks*blocksize;
+
+    // Initialisation of descriptor of strips of matrix T'
+    DESCT= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
+    if ( DESCT==NULL ) {
+        printf ( "unable to allocate memory for descriptor for Z\n" );
+        return -1;
+    }
+
+
+    // strip of T (k,stripcols) is distributed across ICTXT2D starting in process (0,0) in blocks of size (blocksize,blocksize)
+    // the local leading dimension in this process is lld_T
+    descinit_ ( DESCT, &k, &stripcols, &blocksize, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_T, &info );
+    if ( info!=0 ) {
+        printf ( "Descriptor of matrix T returns info: %d\n",info );
+        return info;
+    }
+
+    // Allocation of memory for the strip of T' in all processes
+
+    Tblock= ( double* ) calloc ( pTblocks*blocksize*blocksize, sizeof ( double ) );
+    if ( Tblock==NULL ) {
+        printf ( "Error in allocating memory for a strip of T in processor (%d,%d)\n",*position,* ( position+1 ) );
+        return -1;
+    }
+
+    // Initialisation of matrix D (all diagonal elements of D equal to lambda)
+    temp=Dmat;
+    for ( i=0,rowcur=0,colcur=0; i<Dblocks; ++i, ++colcur, ++rowcur ) {
+        if ( rowcur==*dims ) {
+            rowcur=0;
+            temp += blocksize;
+        }
+        if ( colcur==* ( dims+1 ) ) {
+            colcur=0;
+            temp += blocksize*lld_D;
+        }
+        if ( *position==rowcur && * ( position+1 ) == colcur ) {
+            for ( j=0; j<blocksize; ++j ) {
+                * ( temp + j  * lld_D +j ) = 1/gamma_var;
+            }
+            if ( i==Dblocks-1 && Ddim % blocksize != 0 ) {
+                for ( j=blocksize-1; j>= Ddim % blocksize; --j ) {
+                    * ( temp + j * lld_D + j ) =0.0;
+                }
+            }
+        }
+
+    }
+
+    fT=fopen ( filenameT,"rb" );
+    if ( fT==NULL ) {
+        printf ( "Error opening file\n" );
+        return -1;
+    }
+
+    blacs_barrier_ ( &ICTXT2D,"A" );
+
+    secs.tick ( totalTime );
+
+    // Set up of matrix D and B per strip of T'
+
+    for ( ni=0; ni<nstrips; ++ni ) {
+        if ( ni==nstrips-1 ) {
+
+            if ( Tblock != NULL )
+                free ( Tblock );
+            Tblock=NULL;
+
+            Tblock= ( double* ) calloc ( pTblocks*blocksize*blocksize, sizeof ( double ) );
+            if ( Tblock==NULL ) {
+                printf ( "Error in allocating memory for a strip of Z in processor (%d,%d)\n",*position,* ( position+1 ) );
+                return -1;
+            }
+        }
+
+        //Each process only reads in a part of the strip of T'
+        //When k is not a multiple of blocksize, read-in of the last elements of the rows of T is tricky
+        if ( ( nTblocks-1 ) % *dims == *position && k%blocksize !=0 ) {
+            if ( ni==0 ) {
+                info=fseek ( fT, ( long ) ( pcol * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
+                if ( info!=0 ) {
+                    printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
+                    return -1;
+                }
+            } else {
+                info=fseek ( fT, ( long ) ( blocksize * ( * ( dims+1 )-1 ) * ( k ) * sizeof ( double ) ),SEEK_CUR );
+                if ( info!=0 ) {
+                    printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
+                    return -1;
+                }
+            }
+            for ( i=0; i<blocksize; ++i ) {
+                info=fseek ( fT, ( long ) ( blocksize * *position * sizeof ( double ) ),SEEK_CUR );
+                if ( info!=0 ) {
+                    printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
+                    return -1;
+                }
+                for ( j=0; j < pTblocks-1; ++j ) {
+                    fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fT );
+                    info=fseek ( fT, ( long ) ( ( ( *dims ) -1 ) * blocksize * sizeof ( double ) ),SEEK_CUR );
+                    if ( info!=0 ) {
+                        printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
+                        return -1;
+                    }
+                }
+                fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),k%blocksize,fT );
+            }
+            //Normal read-in of the strips of T from a binary file (each time blocksize elements are read in)
+        } else {
+            if ( ni==0 ) {
+                info=fseek ( fT, ( long ) ( pcol * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
+                if ( info!=0 ) {
+                    printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
+                    return -1;
+                }
+            } else {
+                info=fseek ( fT, ( long ) ( blocksize * ( * ( dims+1 )-1 ) * ( k ) * sizeof ( double ) ),SEEK_CUR );
+                if ( info!=0 ) {
+                    printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
+                    return -1;
+                }
+            }
+            for ( i=0; i<blocksize; ++i ) {
+                info=fseek ( fT, ( long ) ( blocksize * *position * sizeof ( double ) ),SEEK_CUR );
+                if ( info!=0 ) {
+                    printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
+                    return -1;
+                }
+                for ( j=0; j < pTblocks-1; ++j ) {
+                    fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fT );
+                    info=fseek ( fT, ( long ) ( ( * ( dims )-1 ) * blocksize * sizeof ( double ) ),SEEK_CUR );
+                    if ( info!=0 ) {
+                        printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
+                        return -1;
+                    }
+                }
+                fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fT );
+                info=fseek ( fT, ( long ) ( ( k - blocksize * ( ( pTblocks-1 ) * *dims + *position +1 ) ) * sizeof ( double ) ),SEEK_CUR );
+                if ( info!=0 ) {
+                    printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
+                    return -1;
+                }
+            }
+        }
+
+        blacs_barrier_ ( &ICTXT2D,"A" );
+
+        if ( ni==0 ) {
+            secs.tack ( totalTime );
+            cout << "Read-in of Tblock: " << totalTime * 0.001 << " secs" << endl;
+            secs.tick ( totalTime );
+        }
+
+        // End of read-in
+
+        // Matrix D is the sum of the multiplications of all strips of T' by their transpose
+        // Up unitl now, the entire matrix is stored, not only upper/lower triangular, which is possible since D is symmetric
+        // Be aware, that you akways have to allocate memory for the enitre matrix, even when only dealing with the upper/lower triangular part
+
+        pdgemm_ ( "N","T",&k,&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &i_one, &i_one, DESCD ); //T'T
+        //pdsyrk_ ( "U","N",&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &t_plus, &t_plus, DESCD );
+        
+        if ( ni==0 ) {
+            secs.tack ( totalTime );
+            cout << "dense multiplications of Tblock: " << totalTime * 0.001 << " secs" << endl;
+            secs.tick ( totalTime );
+        }
+        blacs_barrier_ ( &ICTXT2D,"A" );
+    }
+
+    secs.tack ( totalTime );
+    if ( Tblock != NULL )
+        free ( Tblock );
+    Tblock=NULL;
+    blacs_barrier_ ( &ICTXT2D,"A" );
+
+    info=fclose ( fT );
+    if ( info!=0 ) {
+        printf ( "Error in closing open streams" );
+        return -1;
+    }
+
+    if ( DESCT!=NULL )
+        free ( DESCT );
+    DESCT=NULL;
+    return 0;
+}
+
 
 int set_up_C ( int * DESCC, double * Cmat, int * DESCB, double * Bmat,int * DESCS, double * Smat, int * DESCYTOT, double * ytot, double *respnrm ) {
 

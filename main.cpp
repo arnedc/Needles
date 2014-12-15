@@ -406,16 +406,7 @@ int main ( int argc, char **argv ) {
                     printf ( "unable to allocate memory for Matrix C (required: %lld bytes)\n", D_elements*sizeof ( double ) );
                     return EXIT_FAILURE;
                 }
-                if (iam==0) {
-                    if(ytot != NULL)
-                        free ( ytot );
-                    ytot=NULL;
-                    ytot = ( double* ) calloc ( ydim,sizeof ( double ) );
-                    if ( ytot==NULL ) {
-                        printf ( "unable to allocate memory for Matrix Y\n" );
-                        return EXIT_FAILURE;
-                    }
-                }
+                
                 AImat = ( double* ) calloc ( 3*3,sizeof ( double ) );
                 if ( AImat==NULL ) {
                     printf ( "unable to allocate memory for AI matrix\n" );
@@ -440,20 +431,12 @@ int main ( int argc, char **argv ) {
                     }
                     gamma_var=gamma_var * ( 1+ *(convergence_criterium+1) ); // Update for gamma
                 } else {
-                    if(respnrm != NULL)
-                        free ( respnrm );
-                    respnrm=NULL;
-                    respnrm= ( double * ) calloc ( 1,sizeof ( double ) );
-                    if ( respnrm==NULL ) {
-                        printf ( "unable to allocate memory for norm\n" );
-                        return EXIT_FAILURE;
-                    }
                     gamma_var=gamma_var * ( 1 + *(convergence_criterium+1) ); // Update for lambda (which is 1/gamma)
                     phi=phi*(1 + *convergence_criterium);
                     if ( datahdf5 )
                         info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
                     else
-                        info = set_up_BDY ( DESCD, Dmat, BT_i, B_j, DESCYTOT, ytot, respnrm , Btsparse);
+                        info = set_up_D ( DESCD, Dmat);
                     if ( info!=0 ) {
                         printf ( "Something went wrong with set-up of matrix D, error nr: %d\n",info );
                         return info;
@@ -484,9 +467,9 @@ int main ( int argc, char **argv ) {
                     c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                     printf ( "\t elapsed wall time set-up of D, B and Y:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
 		    printdense(Drows*blocksize,Dcols*blocksize,Dmat,"Dmat.txt");
-		    Btsparse.transposeIt(1);
+		    /*Btsparse.transposeIt(1);
 		    Btsparse.writeToFile("Bsparse.csr");
-		    Btsparse.transposeIt(1);
+		    Btsparse.transposeIt(1);*/
                 }
 
                 // RHS is copied for use afterwards (in ytot we will get the estimates for the effects)
@@ -560,8 +543,8 @@ int main ( int argc, char **argv ) {
                 printf ( "\t elapsed wall time for creating Schur complement of D:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
 		//printdense(Drows*blocksize, Drows*blocksize,Dmat,"Dmat.txt");
             }
-            BT_i.clear();
-            B_j.clear();
+            //BT_i.clear();
+            //B_j.clear();
 
             //From here on the Schur complement S of D is stored in D
             pdcopy_(&k,ytot,&ml_plus,&i_one,DESCYTOT,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
@@ -670,7 +653,7 @@ int main ( int argc, char **argv ) {
 
             blacs_barrier_(&ICTXT2D,"A");
 
-            Btsparse.clear();
+            //Btsparse.clear();
             if(iam != 0)
                 Asparse.clear();
 
@@ -925,6 +908,10 @@ int main ( int argc, char **argv ) {
 
         XtX_sparse.clear();
         XtZ_sparse.clear();
+	ZtZ_sparse.clear();
+	Btsparse.clear();
+	BT_i.clear();
+	B_j.clear();
 
         if(AB_sol != NULL)
             free ( AB_sol );
