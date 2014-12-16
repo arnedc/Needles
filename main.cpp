@@ -550,13 +550,15 @@ int main ( int argc, char **argv ) {
             pdcopy_(&k,ytot,&ml_plus,&i_one,DESCYTOT,&i_one,solution,&ml_plus,&i_one, DESCSOL, &i_one);
 
             if (iam==0) {
+	      //printdense(k+l+m,1,ytot,"ytot.txt");
                 printf("Solving system Ax_u = y_u on process 0\n");
 		if (Bassparse_bool)
 		  solveSystem(Asparse,solution,ytot,2,1);
 		else
 		  solveSystemwoFact(Asparse, solution,ytot, 2, 1);
-                printdense(m+l,1,solution,"Solution_sparse.txt");
+                //Btsparse.writeToFile("Btsparse.csr");
                 mult_colsA_colsC_denseC(Btsparse,solution,ydim,0,Btsparse.ncols,0,1,solution+m+l,ydim, true,-1.0);
+		//printdense(k+m+l,1,solution,"Solution_sparse.txt");
             }
 
             blacs_barrier_ ( &ICTXT2D,"ALL" );

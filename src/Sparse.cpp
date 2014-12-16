@@ -268,7 +268,7 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
     pardiso_var.iparm[3]  = number_of_processors;
     pardiso_var.iparm[8]  = 0;
     pardiso_var.iparm[33] = 1; //determinant should be calculated later on
-    //pardiso_var.iparm[6]  = 1;  //Option to overwrite the RHS by solution, however you always have to provide a solution vector, so it practically is useless
+    //pardiso_var.iparm[6]  = 0;  //Option to overwrite the RHS by solution, however you always have to provide a solution vector, so it practically is useless
 
 
     timing secs;
