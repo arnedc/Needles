@@ -513,4 +513,21 @@ void calculateSchurComplement(CSRdouble& A, int pardiso_mtype, CSRdouble& S)
     cout << "Elapsed time makeSchurComplement: " << schurTime << " sec" << endl;
 }
 
+void makeDiag(int n, double lambda, CSRdouble& I)
+{
+    int*    prows = new int[n+1];
+    int*    pcols = new int[n];
+    double* pdata = new double[n];
+
+    prows[0]      = 0;
+    for (int i = 0; i < n; i++)
+    {
+        prows[i+1]  = prows[i] + 1;
+        pcols[i]    = i;
+        pdata[i]    = lambda;
+    }
+
+    I.make(n, n, n, prows, pcols, pdata);
+}
+
 

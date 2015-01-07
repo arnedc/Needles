@@ -177,6 +177,7 @@ void create2x2SymBlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& T, // input
 void create2x2BlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& C, CSRdouble& D, // input
                              CSRdouble& W);  // output
 void makeIdentity(int n, CSRdouble& I);
+void makeDiag(int n, double lambda, CSRdouble& I);
 void errorReport(int number_of_rhs, CSRdouble& A, double* x, double* b);
 void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);
 double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype, int number_of_rhs);

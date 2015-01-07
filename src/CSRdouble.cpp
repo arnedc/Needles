@@ -587,8 +587,9 @@ void CSRdouble::reduceSymmetric()
         prows[i+1]=nnz_count;
     }
 
-    if (nnz_count != nonzeroes)
+    if (nnz_count != nonzeroes){
         cout << "Nonzeroes do not match, nonzero_counter= " << nnz_count << "; nonzeroes= " << nonzeroes <<endl;
+    }
 
     delete[] pRows;
     delete[] pCols;
@@ -706,14 +707,20 @@ void CSRdouble::addBCSR ( CSRdouble& B ) {
 }
 
 void CSRdouble::adddiag(double lambda){
+  int colindex;
+  vector<int> ABcols;
+  vector<double> ABdata;
   for (int row=0; row<nrows; ++row){
-    int colindex=pRows[row];
-    while(pCols[colindex] < row)
+    colindex=pRows[row];
+    while(pCols[colindex] < row && colindex < pRows[row+1])
       ++colindex;
-    if (pCols[colindex]==row)      
+    if(colindex==pRows[row+1])
+      printf("Empty row %d found", row);
+    else if (pCols[colindex]==row)      
       pData[colindex] += lambda;
     else{
-      double * pdata;
+      printf("no diagonal element on row %d", row);
+      /*double * pdata;
       int * pcols;
       ++nonzeros;
       pcols = new int [nonzeros];
@@ -731,7 +738,7 @@ void CSRdouble::adddiag(double lambda){
       pData = pdata;
       
       for (int i=row+1; i<=nrows; ++i)
-	pRows[i] += 1;
+	pRows[i] += 1;*/
     }
   }
 }

@@ -798,12 +798,6 @@ int set_up_D ( int * DESCD, double * Dmat ) {
 
         blacs_barrier_ ( &ICTXT2D,"A" );
 
-        if ( ni==0 ) {
-            secs.tack ( totalTime );
-            cout << "Read-in of Tblock: " << totalTime * 0.001 << " secs" << endl;
-            secs.tick ( totalTime );
-        }
-
         // End of read-in
 
         // Matrix D is the sum of the multiplications of all strips of T' by their transpose
@@ -813,11 +807,6 @@ int set_up_D ( int * DESCD, double * Dmat ) {
         pdgemm_ ( "N","T",&k,&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &i_one, &i_one, DESCD ); //T'T
         //pdsyrk_ ( "U","N",&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &t_plus, &t_plus, DESCD );
         
-        if ( ni==0 ) {
-            secs.tack ( totalTime );
-            cout << "dense multiplications of Tblock: " << totalTime * 0.001 << " secs" << endl;
-            secs.tick ( totalTime );
-        }
         blacs_barrier_ ( &ICTXT2D,"A" );
     }
 

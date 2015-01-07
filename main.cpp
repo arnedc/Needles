@@ -81,7 +81,7 @@ int main ( int argc, char **argv ) {
     struct timeval tz0,tz1, tz2,tz3;
     double *work, normC,norm1C, norminv, norm1inv, Cmax, colmax;
     CSRdouble BT_i, B_j, Xsparse, Zsparse, Btsparse, Asparse;
-    CSRdouble XtX_sparse, XtZ_sparse, ZtZ_sparse, Imat;
+    CSRdouble XtX_sparse, XtZ_sparse, ZtZ_sparse, Diagmat;
     timing secs;
     double totalTime, interTime;
 
@@ -444,7 +444,7 @@ int main ( int argc, char **argv ) {
                     if ( * ( position+1 ) ==0 && *position==0 ) {
                         gettimeofday ( &tz0,NULL );
                         c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-                        printf ( "\t elapsed wall time set-up of C, B, S and Y:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+                        printf ( "\t elapsed wall time set-up of D:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
                     }
 
                 }
@@ -504,8 +504,12 @@ int main ( int argc, char **argv ) {
             }
 
             //Since lambda changes every iteration we need to construct A every iteration
+            
+            makeDiag(ZtZ_sparse.nrows,1/phi,Diagmat);
 
-            ZtZ_sparse.adddiag(1/phi);
+            ZtZ_sparse.addBCSR(Diagmat);
+	    
+	    Diagmat.clear();
 
             if (iam==0) {
                 cout << "***                                           [  t     t  ] *** " << endl;
@@ -522,13 +526,17 @@ int main ( int argc, char **argv ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time for creating sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
-		/*Asparse.writeToFile("Asparse.csr");
+		Asparse.writeToFile("Asparse.csr");
 		double * Adense = new double[Asparse.nrows * Asparse.ncols];
 		CSR2dense(Asparse,Adense);
-		printdense(Asparse.nrows,Asparse.ncols,Adense,"Adense.txt");*/
+		printdense(Asparse.nrows,Asparse.ncols,Adense,"Adense.txt");
             }
             
-            ZtZ_sparse.adddiag(-1/phi);
+            makeDiag(ZtZ_sparse.nrows,-1/phi,Diagmat);
+            
+            ZtZ_sparse.addBCSR(Diagmat);
+	    
+	    Diagmat.clear();
 
             blacs_barrier_ ( &ICTXT2D,"ALL" );
 	    
