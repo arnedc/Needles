@@ -134,21 +134,38 @@ void mult_colsA_colsC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int A
         C.transposeIt ( 1 );
 }
 
-void mult_colsA_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, 
-			       double *C, int lld_C, bool sum, double alpha ) {
+void mult_colsA_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols,
+                               double *C, int lld_C, bool sum, double alpha ) {
     int index, j,row, col;
 
     /*assert(Cncols < lld_B);
     assert(Ccolstart+Cncols <= C.ncols);*/
-    
+
     for ( row=0; row<A.nrows; ++row ) {
         for ( col=Ccolstart; col<Ccolstart+Cncols; ++col ) {
             if (!sum)
-	      *(C + row + col * lld_C) = 0;
+                *(C + row + col * lld_C) = 0;
             for ( index=A.pRows[row]; index<A.pRows[row+1]; ++index ) {
                 j = A.pCols[index];
                 if ( j>=Acolstart && j<Acolstart+Ancols )
                     *(C + row + col * lld_C) += alpha * A.pData[index] * * ( B + lld_B * ( col-Ccolstart ) + j-Acolstart ) ;
+            }
+        }
+    }
+}
+
+void mult_colsAtrans_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, double *C, int lld_C, double alpha ) {
+    int index, Atcol,row, col;
+
+    /*assert(Cncols < lld_B);
+    assert(Ccolstart+Cncols <= C.ncols);*/
+
+
+    for ( col=Ccolstart; col<Ccolstart+Cncols; ++col ) {
+        for ( Atcol=Acolstart; Atcol<Acolstart+Ancols; ++Atcol ) {
+            for ( index=A.pRows[Atcol]; index<A.pRows[Atcol+1]; ++index ) {
+                row = A.pCols[index];
+                *(C + row + col * lld_C) += alpha * A.pData[index] * * ( B + lld_B * ( col-Ccolstart ) + Atcol-Acolstart ) ;
             }
         }
     }

@@ -26,11 +26,11 @@ using std::vector;
 
 enum MatrixStorage
 {
-  NOT_SET   = 0,
-  NORMAL    = 1,
-  TRANSPOSE = 2,
-  SYMMETRIC = 3,  
-  HERMITIAN = 4,  
+    NOT_SET   = 0,
+    NORMAL    = 1,
+    TRANSPOSE = 2,
+    SYMMETRIC = 3,
+    HERMITIAN = 4,
 };
 
 #endif
@@ -64,7 +64,7 @@ typedef struct MPI_Status {
     int MPI_SOURCE;
     int MPI_TAG;
     int MPI_ERROR;
-    
+
 } MPI_Status;
 */
 
@@ -164,8 +164,10 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
 
 void mult_colsA_colsC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, //input
                         CSRdouble& C, bool trans ) ;
-void mult_colsA_colsC_denseC ( CSRdouble& A,  double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, 
-			       double *C, int lld_C,  bool sum, double alpha ) ;
+void mult_colsA_colsC_denseC ( CSRdouble& A,  double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols,
+                               double *C, int lld_C,  bool sum, double alpha );
+void mult_colsAtrans_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols,
+                                    double *C, int lld_C, double alpha ) ;
 int set_up_BDY ( int* DESCD, double* Dmat, CSRdouble& BT_i, CSRdouble& B_j, int* DESCYTOT, double* ytot, double* respnrm, CSRdouble& Btsparse ) ;
 int set_up_D ( int * DESCD, double * Dmat ) ;
 void CSR2dense ( CSRdouble& matrix,double *dense ) ;
@@ -175,7 +177,7 @@ void create1x2BlockMatrix(CSRdouble& A, CSRdouble& B, // input
 void create2x2SymBlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& T, // input
                              CSRdouble& C);  // output
 void create2x2BlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& C, CSRdouble& D, // input
-                             CSRdouble& W);  // output
+                          CSRdouble& W);  // output
 void makeIdentity(int n, CSRdouble& I);
 void makeDiag(int n, double lambda, CSRdouble& I);
 void errorReport(int number_of_rhs, CSRdouble& A, double* x, double* b);

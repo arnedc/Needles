@@ -166,6 +166,11 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
         //printf("Processor %d finished solving system AX=B\n",iam);
 
     }
+    int Arows = A.nrows;
+    if(iam !=0 ){
+      A.clear();
+      pardiso_var.clear();
+    }
 
     BT_i_dense=(double *) calloc(BT_i.nrows * BT_i.ncols,sizeof(double));
 
@@ -173,7 +178,7 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
     
     secs.tick(MultTime);
     dgemm_("N","N",&(BT_i.nrows),&(B_j.ncols),&(BT_i.ncols),&d_negone,BT_i_dense,&(BT_i.nrows),
-           AB_sol_out,&(A.nrows),&d_one,T_ij,&lld_T);
+           AB_sol_out,&(Arows),&d_one,T_ij,&lld_T);
     secs.tack(MultTime);
     
     /*if(iam==0)

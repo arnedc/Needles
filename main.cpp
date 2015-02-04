@@ -526,10 +526,10 @@ int main ( int argc, char **argv ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time for creating sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
-		Asparse.writeToFile("Asparse.csr");
+		/*Asparse.writeToFile("Asparse.csr");
 		double * Adense = new double[Asparse.nrows * Asparse.ncols];
 		CSR2dense(Asparse,Adense);
-		printdense(Asparse.nrows,Asparse.ncols,Adense,"Adense.txt");
+		printdense(Asparse.nrows,Asparse.ncols,Adense,"Adense.txt");*/
             }
             
             makeDiag(ZtZ_sparse.nrows,-1/phi,Diagmat);
@@ -599,8 +599,8 @@ int main ( int argc, char **argv ) {
             pdcopy_(&Adim,ytot,&i_one,&i_one,DESCYTOT,&i_one,solution,&i_one,&i_one, DESCSOL, &i_one);
             if (iam==0) {
                 //printdense(ydim,1,ytot,"ytot_dense.txt");
-                Btsparse.transposeIt(1);
-                mult_colsA_colsC_denseC(Btsparse,solution+m+l,ydim,0,Btsparse.ncols,0,1,solution,ydim,true,-1.0);
+                //Btsparse.transposeIt(1);
+                mult_colsAtrans_colsC_denseC(Btsparse,solution+m+l,ydim,0,Btsparse.nrows,0,1,solution,ydim,-1.0);
                 //printdense(ydim,1,solution,"RHS_sparse.txt");
                 double * sparse_sol=(double *) calloc(Asparse.ncols, sizeof(double));
 		printf("Solving system Au=y_u - Bd on process 0\n");
@@ -611,7 +611,7 @@ int main ( int argc, char **argv ) {
                 sparse_sol=NULL;
                 //printdense(ydim,1,solution,"solution.txt");
                 printf("Half of the log of determinant of A is: %g\n",loglikelihood);
-                Btsparse.transposeIt(1);
+                //Btsparse.transposeIt(1);
             }
             else
                 loglikelihood=0;
@@ -664,8 +664,6 @@ int main ( int argc, char **argv ) {
             blacs_barrier_(&ICTXT2D,"A");
 
             //Btsparse.clear();
-            if(iam != 0)
-                Asparse.clear();
 
             blacs_barrier_(&ICTXT2D,"A");
 
@@ -729,10 +727,13 @@ int main ( int argc, char **argv ) {
                 pardiso_var.iparm[11] = 1;
                 pardiso_var.iparm[13]  = 0;
                 pardiso_var.iparm[28]  = 0;
-		pardiso_var.iparm[36]  = 1;
+		pardiso_var.iparm[36]  = 0;
 
                 //This function calculates the factorisation of A once again so this might be optimized.
                 pardiso_var.findInverseOfA ( Asparse );
+		cout << "memory allocated by PARDISO: " << pardiso_var.memoryAllocated() << endl;
+		
+		pardiso_var.clear();
 
                 printf("Processor %d inverted matrix A\n",iam);
             }

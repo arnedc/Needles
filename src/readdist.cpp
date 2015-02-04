@@ -1711,9 +1711,9 @@ int set_up_AI ( double * AImat, int * DESCAI,int * DESCSOL, double * solution, i
 
     if ( iam==0 ) {
         //printf("Solution of DX=Q OK\n");
-        Btsparse.transposeIt ( 1 );
-        mult_colsA_colsC_denseC ( Btsparse,Qsol+ydim+m+l,ydim,0,Btsparse.ncols,0,2,Qsol+ydim,ydim, true,-1.0 );
-	Btsparse.transposeIt(1);
+        //Btsparse.transposeIt ( 1 );
+        mult_colsAtrans_colsC_denseC ( Btsparse,Qsol+ydim+m+l,ydim,0,Btsparse.nrows,0,2,Qsol+ydim,ydim, -1.0 );
+	//Btsparse.transposeIt(1);
         double * sparse_sol= ( double * ) calloc ( Asparse.nrows, sizeof ( double ) );
         printf ( "Solving system AQsol_1,2 = Q_1,2 - B Qsol_2,2 on process 0\n" );
         solveSystemwoFact ( Asparse, sparse_sol,Qsol+ydim, 2, 1 );
