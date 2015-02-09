@@ -107,6 +107,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         printf ( "unable to allocate memory for descriptor for ZtY\n" );
         return -1;
     }
+    if(*(position+1)==0)
+      cout << "Descriptors declared" << endl;
 
     // strip of T (k,stripcols) is distributed across ICTXT2D starting in process (0,0) in blocks of size (blocksize,blocksize)
     // the local leading dimension in this process is lld_T
@@ -131,6 +133,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         return info;
     }
 
+    if(*(position+1)==0)
+      cout << "Descriptors initialised" << endl;
 
 
     // Allocation of memory for the strip of T' in all processes
@@ -140,7 +144,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         printf ( "Error in allocating memory for a strip of T in processor (%d,%d)\n",*position,* ( position+1 ) );
         return -1;
     }
-    if ( iam==0 ) {
+    if ( *(position + 1) == 0 ) {
         Y= ( double* ) calloc ( lld_Y, sizeof ( double ) );
         if ( Y==NULL ) {
             printf ( "Error in allocating memory for Y in root process\n" );
@@ -148,6 +152,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         }
     }
 
+    if(*(position+1)==0)
+      cout << "Tblock and Y initialised" << endl;
 
     // Initialisation of matrix D (all diagonal elements of D equal to lambda)
     temp=Dmat;
@@ -172,7 +178,10 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         }
 
     }
-    if ( iam==0 ) {
+    if(*(position+1)==0)
+      cout << "Diagonal of Dmat initialised" << endl;
+    
+    if ( *(position + 1)==0 ) {
         fY=fopen ( filenameY,"rb" );
         if ( fY==NULL ) {
             printf ( "Error opening file\n" );
@@ -306,8 +315,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         pdgemm_ ( "N","T",&k,&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &i_one, &i_one, DESCD ); //T'T
         //pdsyrk_ ( "U","N",&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &t_plus, &t_plus, DESCD );
         Ystart=ni * * ( dims+1 ) * blocksize + 1;
-        /*if (iam==0)
-        printf("Ystart= %d\n", Ystart);*/
+        if (*(position +1)==0)
+	  printf("Ystart= %d\n", Ystart);
         pdgemm_ ( "N","N",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Y,&Ystart,&i_one,DESCY,&d_one,ytot,&ml_plus,&i_one,DESCYTOT ); //T'y
 
         if ( ni==0 ) {
@@ -386,7 +395,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
     if ( Tblock != NULL )
         free ( Tblock );
     Tblock=NULL;
-    if ( iam==0 ) {
+    if ( * (position +1) == 0 ) {
         cout << "Assignments with Tblock finished in: " << totalTime * 0.001 << " secs" << endl;
 
         secs.tick ( totalTime );
@@ -415,6 +424,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
         cout << "Creation of XtY and ZtY: " << totalTime * 0.001 << " secs" << endl;
     }
     blacs_barrier_ ( &ICTXT2D,"A" );
+    
+    cout << "process " << iam << " got here" << endl;
 
     Xtsparse.clear();
     Ztsparse.clear();
@@ -422,7 +433,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
     pdcopy_ ( &m,XtY,&i_one,&i_one,DESCXtY,&i_one, ytot,&i_one,&i_one,DESCYTOT,&i_one );
     pdcopy_ ( &l,ZtY,&i_one,&i_one,DESCZtY,&i_one, ytot,&m_plus,&i_one,DESCYTOT,&i_one );
 
-    if ( iam==0 ) {
+    if ( *(position + 1)==0 ) {
         if ( XtY != NULL )
             free ( XtY );
         XtY=NULL;
@@ -440,78 +451,82 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
     //Each process only has calculated some parts of B
     //All parts are collected by the root process (iam==0), which assembles B
     //Each process then receives BT_i and B_j corresponding to the D_ij available to the process
-    if ( iam!=0 ) {
+    if ( *(position+1)!=0 ) {
         //Each process other than root sends its X' * T and Z' * T to the root process.
-        MPI_Ssend ( & ( XtT_sparse.nonzeros ),1, MPI_INT,0,iam,MPI_COMM_WORLD );
-        MPI_Ssend ( & ( XtT_sparse.pRows[0] ),XtT_sparse.nrows + 1, MPI_INT,0,iam+size,MPI_COMM_WORLD );
-        MPI_Ssend ( & ( XtT_sparse.pCols[0] ),XtT_sparse.nonzeros, MPI_INT,0,iam+2*size,MPI_COMM_WORLD );
-        MPI_Ssend ( & ( XtT_sparse.pData[0] ),XtT_sparse.nonzeros, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD );
+	cout << "process " << iam << " sends to process 1" <<endl;
+        MPI_Ssend ( & ( XtT_sparse.nonzeros ),1, MPI_INT,1,iam,MPI_COMM_WORLD );
+        MPI_Ssend ( & ( XtT_sparse.pRows[0] ),XtT_sparse.nrows + 1, MPI_INT,1,iam+size,MPI_COMM_WORLD );
+        MPI_Ssend ( & ( XtT_sparse.pCols[0] ),XtT_sparse.nonzeros, MPI_INT,1,iam+2*size,MPI_COMM_WORLD );
+        MPI_Ssend ( & ( XtT_sparse.pData[0] ),XtT_sparse.nonzeros, MPI_DOUBLE,1,iam+3*size,MPI_COMM_WORLD );
+	cout << "process " << iam << " sent XtT to process 1" <<endl;
         XtT_sparse.clear();
-        MPI_Ssend ( & ( ZtT_sparse.nonzeros ),1, MPI_INT,0,iam,MPI_COMM_WORLD );
-        MPI_Ssend ( & ( ZtT_sparse.pRows[0] ),ZtT_sparse.nrows + 1, MPI_INT,0,4*size + iam,MPI_COMM_WORLD );
-        MPI_Ssend ( & ( ZtT_sparse.pCols[0] ),ZtT_sparse.nonzeros, MPI_INT,0,iam+ 5*size,MPI_COMM_WORLD );
-        MPI_Ssend ( & ( ZtT_sparse.pData[0] ),ZtT_sparse.nonzeros, MPI_DOUBLE,0,iam+6*size,MPI_COMM_WORLD );
+        MPI_Ssend ( & ( ZtT_sparse.nonzeros ),1, MPI_INT,1,iam,MPI_COMM_WORLD );
+        MPI_Ssend ( & ( ZtT_sparse.pRows[0] ),ZtT_sparse.nrows + 1, MPI_INT,1,4*size + iam,MPI_COMM_WORLD );
+        MPI_Ssend ( & ( ZtT_sparse.pCols[0] ),ZtT_sparse.nonzeros, MPI_INT,1,iam+ 5*size,MPI_COMM_WORLD );
+        MPI_Ssend ( & ( ZtT_sparse.pData[0] ),ZtT_sparse.nonzeros, MPI_DOUBLE,1,iam+6*size,MPI_COMM_WORLD );
         ZtT_sparse.clear();
+	cout << "process " << iam << " sent ZtT to process 1" <<endl;
 
         // And eventually receives the necessary BT_i and B_j
         // Blocking sends are used, which is why the order of the receives is critical depending on the coordinates of the process
         int nonzeroes;
         if ( *position >= pcol ) {
-            MPI_Recv ( &nonzeroes,1,MPI_INT,0,iam,MPI_COMM_WORLD,&status );
+            MPI_Recv ( &nonzeroes,1,MPI_INT,1,iam,MPI_COMM_WORLD,&status );
             BT_i.clear();
             BT_i.allocate ( blocksize*Drows,m+l,nonzeroes );
-            MPI_Recv ( & ( BT_i.pRows[0] ),blocksize*Drows + 1, MPI_INT,0,iam + size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( BT_i.pRows[0] ),blocksize*Drows + 1, MPI_INT,1,iam + size,MPI_COMM_WORLD,&status );
             int count;
             MPI_Get_count ( &status,MPI_INT,&count );
             BT_i.nrows=count-1;
-            MPI_Recv ( & ( BT_i.pCols[0] ),nonzeroes, MPI_INT,0,iam+2*size,MPI_COMM_WORLD,&status );
-            MPI_Recv ( & ( BT_i.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( BT_i.pCols[0] ),nonzeroes, MPI_INT,1,iam+2*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( BT_i.pData[0] ),nonzeroes, MPI_DOUBLE,1,iam+3*size,MPI_COMM_WORLD,&status );
 
-            MPI_Recv ( &nonzeroes,1, MPI_INT,0,iam+4*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( &nonzeroes,1, MPI_INT,1,iam+4*size,MPI_COMM_WORLD,&status );
 
             B_j.clear();
             B_j.allocate ( blocksize*Dcols,m+l,nonzeroes );
 
-            MPI_Recv ( & ( B_j.pRows[0] ),blocksize*Dcols + 1, MPI_INT,0,iam + 5*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( B_j.pRows[0] ),blocksize*Dcols + 1, MPI_INT,1,iam + 5*size,MPI_COMM_WORLD,&status );
             MPI_Get_count ( &status,MPI_INT,&count );
             B_j.nrows=count-1;
-            MPI_Recv ( & ( B_j.pCols[0] ),nonzeroes, MPI_INT,0,iam+6*size,MPI_COMM_WORLD,&status );
-            MPI_Recv ( & ( B_j.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+7*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( B_j.pCols[0] ),nonzeroes, MPI_INT,1,iam+6*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( B_j.pData[0] ),nonzeroes, MPI_DOUBLE,1,iam+7*size,MPI_COMM_WORLD,&status );
 
             //Actually BT_j is sent, so it still needs to be transposed
             B_j.transposeIt ( 1 );
         } else {
-            MPI_Recv ( &nonzeroes,1, MPI_INT,0,iam+4*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( &nonzeroes,1, MPI_INT,1,iam+4*size,MPI_COMM_WORLD,&status );
 
             B_j.clear();
 
             B_j.allocate ( blocksize*Dcols,m+l,nonzeroes );
 
-            MPI_Recv ( & ( B_j.pRows[0] ),blocksize*Dcols + 1, MPI_INT,0,iam + 5*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( B_j.pRows[0] ),blocksize*Dcols + 1, MPI_INT,1,iam + 5*size,MPI_COMM_WORLD,&status );
             int count;
             MPI_Get_count ( &status,MPI_INT,&count );
             B_j.nrows=count-1;
 
-            MPI_Recv ( & ( B_j.pCols[0] ),nonzeroes, MPI_INT,0,iam+6*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( B_j.pCols[0] ),nonzeroes, MPI_INT,1,iam+6*size,MPI_COMM_WORLD,&status );
 
-            MPI_Recv ( & ( B_j.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+7*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( B_j.pData[0] ),nonzeroes, MPI_DOUBLE,1,iam+7*size,MPI_COMM_WORLD,&status );
 
             B_j.transposeIt ( 1 );
 
-            MPI_Recv ( &nonzeroes,1,MPI_INT,0,iam,MPI_COMM_WORLD,&status );
+            MPI_Recv ( &nonzeroes,1,MPI_INT,1,iam,MPI_COMM_WORLD,&status );
             BT_i.clear();
             BT_i.allocate ( blocksize*Drows,m+l,nonzeroes );
-            MPI_Recv ( & ( BT_i.pRows[0] ),blocksize*Drows + 1, MPI_INT,0,iam + size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( BT_i.pRows[0] ),blocksize*Drows + 1, MPI_INT,1,iam + size,MPI_COMM_WORLD,&status );
             MPI_Get_count ( &status,MPI_INT,&count );
             BT_i.nrows=count-1;
-            MPI_Recv ( & ( BT_i.pCols[0] ),nonzeroes, MPI_INT,0,iam+2*size,MPI_COMM_WORLD,&status );
-            MPI_Recv ( & ( BT_i.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( BT_i.pCols[0] ),nonzeroes, MPI_INT,1,iam+2*size,MPI_COMM_WORLD,&status );
+            MPI_Recv ( & ( BT_i.pData[0] ),nonzeroes, MPI_DOUBLE,1,iam+3*size,MPI_COMM_WORLD,&status );
         }
     } else {
         secs.tick ( totalTime );
-        for ( i=1; i<size; ++i ) {
+        for ( i=2; i<size; ++i ) {
             // The root process receives parts of X' * T and Z' * T sequentially from all processes and directly adds them together.
             int nonzeroes;
+	    cout << "process " << iam << " receives from process " << i <<endl;
             MPI_Recv ( &nonzeroes,1,MPI_INT,i,i,MPI_COMM_WORLD,&status );
             if ( nonzeroes>0 ) {
                 XtT_temp.clear();
@@ -522,6 +537,8 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 
                 XtT_sparse.addBCSR ( XtT_temp );
             }
+            
+            cout << "process " << iam << " received XtT from process " << i <<endl;
 
             MPI_Recv ( &nonzeroes,1, MPI_INT,i,i,MPI_COMM_WORLD,&status );
 
@@ -535,6 +552,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
 
                 ZtT_sparse.addBCSR ( ZtT_temp );
             }
+            cout << "process " << iam << " received ZtT from process " << i <<endl;
         }
         secs.tack ( totalTime );
         cout << "Receiving XtT and ZtT: " << totalTime * 0.001 << " secs" << endl;
@@ -569,7 +587,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, CSRdouble& BT_i, CSRdouble& B_j, in
             }
             for ( int colproc= ( rowproc==0 ? 1 : 0 ); colproc < * ( dims+1 ); ++colproc ) {
                 int *curpos, rankproc;
-                rankproc= blacs_pnum_ ( &ICTXT2D, &rowproc,&colproc );
+                rankproc= blacs_pnum_ ( &ICTXT2D, &rowproc,&colproc ) +1 ;
 
                 MPI_Ssend ( & ( BT_i.nonzeros ),1, MPI_INT,rankproc,rankproc,MPI_COMM_WORLD );
                 MPI_Ssend ( & ( BT_i.pRows[0] ),BT_i.nrows + 1, MPI_INT,rankproc,rankproc+size,MPI_COMM_WORLD );
