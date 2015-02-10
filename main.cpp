@@ -75,9 +75,9 @@ int main ( int argc, char **argv ) {
     }
 
     int i,j,pcol, counter, breakvar;
-    double *Dmat, *ytot, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol, *AB_sol, *YSrow;
+    double *Dmat, *ytot, *respnrm, *randnrm, *AImat, *solution, *Cmatcopy, *densesol, *AB_sol, *YSrow, *Bmat;
     double sigma, dot, trace_ZZ, trace_TT, *convergence_criterium, loglikelihood,prevloglike,update_loglikelihood;
-    int *DESCD, *DESCYTOT, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL, *DESCAB_sol, *DESCYSROW;
+    int *DESCD, *DESCYTOT, *DESCAI, *DESCCCOPY, *DESCSOL, *DESCDENSESOL, *DESCAB_sol, *DESCYSROW, *DESCB;
     double vm_usage, resident_set, cpu_sys, cpu_user;
     double c0, c1, c2, c3, c4;
     struct timeval tz0,tz1, tz2,tz3;
@@ -92,6 +92,11 @@ int main ( int argc, char **argv ) {
     // declaration of descriptors of different matrices
     secs.tick(totalTime);
     DESCD= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
+    if ( DESCD==NULL ) {
+        printf ( "unable to allocate memory for descriptor for C\n" );
+        return -1;
+    }
+    DESCB= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
     if ( DESCD==NULL ) {
         printf ( "unable to allocate memory for descriptor for C\n" );
         return -1;
@@ -174,7 +179,7 @@ int main ( int argc, char **argv ) {
         gridmap[i-1]=i;
     }
     *dims=1;
-    *(dims+1)=size-1;
+    *(dims+1)=size -1;
     blacs_gridmap_ (&ICTXT2D,gridmap,&i_one,dims,dims+1);
 
     if(iam==0) {
@@ -265,6 +270,11 @@ int main ( int argc, char **argv ) {
                 printf ( "Descriptor of matrix C returns info: %d\n",info );
                 return info;
             }
+            descinit_ ( DESCB, &Adim, &Ddim, &Adim, &blocksize, &i_zero, &i_zero, &ICTXT2D, &Adim, &info );
+            if ( info!=0 ) {
+                printf ( "Descriptor of matrix C returns info: %d\n",info );
+                return info;
+            }
             descinit_ ( DESCDENSESOL, &k, &i_one, &Ddim, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_D, &info );
             if ( info!=0 ) {
                 printf ( "Descriptor of Dense solution returns info: %d\n",info );
@@ -322,6 +332,13 @@ int main ( int argc, char **argv ) {
             Dmat= ( double* ) calloc ( D_elements,sizeof ( double ) );
             if ( Dmat==NULL ) {
                 printf ( "unable to allocate memory for Matrix D  (required: %lld bytes)\n",D_elements * sizeof ( double ) );
+                return EXIT_FAILURE;
+            }
+            size_t B_elements=(size_t)Adim *  (size_t)Dcols * (size_t)blocksize;
+
+            Bmat= ( double* ) calloc ( B_elements,sizeof ( double ) );
+            if ( Dmat==NULL ) {
+                printf ( "unable to allocate memory for Matrix B  (required: %lld bytes)\n",B_elements * sizeof ( double ) );
                 return EXIT_FAILURE;
             }
             size_t densesol_elements=(size_t)Drows ;
@@ -383,7 +400,7 @@ int main ( int argc, char **argv ) {
             if ( datahdf5 )
                 info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
             else
-                info = set_up_BDY ( DESCD, Dmat, BT_i, B_j, DESCYTOT, ytot, respnrm, Btsparse );
+                info = set_up_BDY ( DESCD, Dmat, DESCB, Bmat, DESCYTOT, ytot, respnrm );
             if ( info!=0 ) {
                 printf ( "Something went wrong with set-up of matrix D, error nr: %d\n",info );
                 return info;
@@ -397,11 +414,11 @@ int main ( int argc, char **argv ) {
                 Btsparse.writeToFile("Bsparse.csr");
                 Btsparse.transposeIt(1);*/
             }
-            /*char *Dfile;
+            char *Dfile;
             Dfile=(char *) calloc(100,sizeof(char));
             *Dfile='\0';
             sprintf(Dfile,"Dmat_(%d,%d).txt",*position,pcol);
-            printdense(Drows * blocksize,Dcols * blocksize,Dmat,Dfile);*/
+            printdense(Dcols * blocksize,Drows,Dmat,Dfile);
         }
 
         else {

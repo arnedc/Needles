@@ -754,7 +754,7 @@ void CSRdouble::adddiag(double lambda) {
  **/
 void CSRdouble::extendrows ( CSRdouble& B, int startrowB, int nrowsB ) {
     assert ( ncols==B.ncols );
-    assert (startrowB < B.nrows);
+    assert (startrowB <= B.nrows);
     int  nonzeroes, nonzeroesB, i, colindex;
     int  n        = nrows + nrowsB;
     int* prows;

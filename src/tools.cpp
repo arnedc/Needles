@@ -154,6 +154,7 @@ void mult_colsA_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart,
     }
 }
 
+
 void mult_colsAtrans_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, double *C, int lld_C, double alpha ) {
     int index, Atcol,row, col;
 
