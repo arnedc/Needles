@@ -161,6 +161,7 @@ int crossvalidate(double* estimates, int* DESCEST);
 int crossvalidate_hdf5(double * estimates, int *DESCEST) ;
 int make_Sij(int i, int j, int Adim, int Tdim, double * A, double * B_i, double * B_j, double * T_ij);
 int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, double * T_ij, int lld_T, double * AB_sol_out) ;
+int make_Si_distributed_denseB(CSRdouble& A, double * B, int * DESCB, double * S, int *DESCS, double * AB_sol_out, int *DESCABSOL) ;
 
 void mult_colsA_colsC ( CSRdouble& A, double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols, //input
                         CSRdouble& C, bool trans ) ;
@@ -187,6 +188,9 @@ void solveSystemwoFact(CSRdouble& A, double* X, double* B, int pardiso_mtype, in
 void calculateSchurComplement(CSRdouble& A, int pardiso_mtype, CSRdouble& S);
 
 void dense2CSR ( double *mat, int m, int n, CSRdouble& A ) ;
+
+extern "C" void pdgemm_ ( char *transa, char *transb, int *m, int *n, int *k, double *alpha, double *a, int *ia, int *ja, int *desca, double *b, int *ib,
+                   int *jb, int *descb, double *beta, double *c, int *ic, int *jc, int *descc );
 
 extern double d_one, d_zero, d_negone;
 extern int DLEN_, i_negone, i_zero, i_one, i_two, i_three; // some many used constants

@@ -139,7 +139,7 @@ void create2x2SymBlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& T, // input
 
 
 void create2x2BlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& C, CSRdouble& D, // input
-                             CSRdouble& W)  // output
+                          CSRdouble& W)  // output
 {
     assert(A.nrows==B.nrows);
     assert(A.ncols==C.ncols);
@@ -164,10 +164,10 @@ void create2x2BlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& C, CSRdouble& D
             int& j              = A.pCols[index];
             double& a_ij        = A.pData[index];
 
-                c[nonzero_counter] = a_ij;
-                jc[nonzero_counter] = j;
+            c[nonzero_counter] = a_ij;
+            jc[nonzero_counter] = j;
 
-                nonzero_counter++;
+            nonzero_counter++;
         }
 
         // push ith row of B
@@ -187,7 +187,7 @@ void create2x2BlockMatrix(CSRdouble& A, CSRdouble& B, CSRdouble& C, CSRdouble& D
 
     for (int i = 0; i < D.nrows; i++)
     {
-      // push ith row of C
+        // push ith row of C
         for (int index = C.pRows[i]; index < C.pRows[i+1]; index++)
         {
             int& j              = C.pCols[index];
@@ -304,15 +304,15 @@ void solveSystem(CSRdouble& A, double* X, double* B, int pardiso_mtype, int numb
     //errorReport(number_of_rhs, A, B, X);
     // writeSolution(number_of_rhs, A.nrows, X);
 
-    if (iam==0){
-    cout << "-------------------------------" << endl;
-    cout << "T I M I N G         R E P O R T" << endl;
-    cout << "-------------------------------" << endl;
-    cout.setf(ios::floatfield, ios::scientific);
-    cout.precision(2);
-    cout << "Initialization phase: " << initializationTime*0.001 << " sec" << endl;
-    cout << "Factorization  phase: " << factorizationTime*0.001 << " sec" << endl;
-    cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;
+    if (iam==0) {
+        cout << "-------------------------------" << endl;
+        cout << "T I M I N G         R E P O R T" << endl;
+        cout << "-------------------------------" << endl;
+        cout.setf(ios::floatfield, ios::scientific);
+        cout.precision(2);
+        cout << "Initialization phase: " << initializationTime*0.001 << " sec" << endl;
+        cout << "Factorization  phase: " << factorizationTime*0.001 << " sec" << endl;
+        cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;
     }
 }
 
@@ -350,7 +350,7 @@ void solveSystemwoFact(CSRdouble& A, double* X, double* B, int pardiso_mtype, in
 
 
 
-    
+
     //cout << "L U                 B A C K - S U B S T I T U T I O N" << endl;
 
     secs.tick(solutionTime);
@@ -361,13 +361,13 @@ void solveSystemwoFact(CSRdouble& A, double* X, double* B, int pardiso_mtype, in
     //errorReport(number_of_rhs, A, B, X);
     // writeSolution(number_of_rhs, A.nrows, X);
 
-    if (iam==0){
-    cout << "-------------------------------" << endl;
-    cout << "T I M I N G         R E P O R T" << endl;
-    cout << "-------------------------------" << endl;
-    cout.setf(ios::floatfield, ios::scientific);
-    cout.precision(2);
-    cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;
+    if (iam==0) {
+        cout << "-------------------------------" << endl;
+        cout << "T I M I N G         R E P O R T" << endl;
+        cout << "-------------------------------" << endl;
+        cout.setf(ios::floatfield, ios::scientific);
+        cout.precision(2);
+        cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;
     }
 }
 
@@ -403,7 +403,7 @@ double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype,
 
     timing secs;
     double solutionTime       = 0.0;
-    
+
     //cout << "L U                 B A C K - S U B S T I T U T I O N" << endl;
 
     secs.tick(solutionTime);
@@ -413,14 +413,15 @@ double solveSystemWithDet(CSRdouble& A, double* X, double* B, int pardiso_mtype,
     //errorReport(number_of_rhs, A, B, X);
     // writeSolution(number_of_rhs, A.nrows, X);
 
-  if (iam==0){
-    cout << "-------------------------------" << endl;
-    cout << "T I M I N G         R E P O R T" << endl;
-    cout << "-------------------------------" << endl;
-    cout.setf(ios::floatfield, ios::scientific);
-    cout.precision(2);
-    cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;}
-    
+    if (iam==0) {
+        cout << "-------------------------------" << endl;
+        cout << "T I M I N G         R E P O R T" << endl;
+        cout << "-------------------------------" << endl;
+        cout.setf(ios::floatfield, ios::scientific);
+        cout.precision(2);
+        cout << "Solution       phase: " << solutionTime*0.001 << " sec" << endl;
+    }
+
     return pardiso_var.dparm[33];
 }
 

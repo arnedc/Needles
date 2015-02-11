@@ -60,7 +60,7 @@ extern "C" {
 int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, double * T_ij, int lld_T, double * AB_sol_out) {
 
     double *BT_i_dense;
-    
+
     timing secs;
     double MultTime       = 0.0;
 
@@ -99,48 +99,48 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
         }
         zero.pData[0]=0;
         zero.pCols[0]=0;
-	
-	A.fillSymmetric();
+
+        A.fillSymmetric();
 
         create2x2BlockMatrix(A, B_j, unit, zero, W);
-	
-	A.reduceSymmetric();
-	
-	//W.writeToFile("W.csr");
+
+        A.reduceSymmetric();
+
+        //W.writeToFile("W.csr");
 
         unit.clear();
         zero.clear();
 
         AB_sol.nrows=B_j.ncols;
         AB_sol.ncols=B_j.ncols;
-	
-	assert(A.nrows==A.ncols);
-	assert(W.nrows==W.ncols);
-	
-	//printf("Dimension of W: %d \nDimension of A: %d \n Dimension of AB_sol: %d \n", W.nrows, A.nrows, AB_sol.nrows );
+
+        assert(A.nrows==A.ncols);
+        assert(W.nrows==W.ncols);
+
+        //printf("Dimension of W: %d \nDimension of A: %d \n Dimension of AB_sol: %d \n", W.nrows, A.nrows, AB_sol.nrows );
 
         calculateSchurComplement( W, 11, AB_sol);
-	
-	//AB_sol.writeToFile("AB_sol.csr");
-	AB_sol.transposeIt(1);
+
+        //AB_sol.writeToFile("AB_sol.csr");
+        AB_sol.transposeIt(1);
 
         W.clear();
 
         AB_sol.nrows=ori_cols;
-	AB_sol.nonzeros=AB_sol.pRows[ori_cols];
+        AB_sol.nonzeros=AB_sol.pRows[ori_cols];
         AB_sol.pRows= (int *) realloc(AB_sol.pRows, (ori_cols +1) * sizeof(int) );
 
         B_j.ncols=ori_cols;
 
-	//AB_sol.writeToFile("AB_sol_trans.csr");
-	
-	AB_sol.transposeIt(1);
-	
-	//AB_sol.writeToFile("AB_sol_trans2.csr");
+        //AB_sol.writeToFile("AB_sol_trans.csr");
+
+        AB_sol.transposeIt(1);
+
+        //AB_sol.writeToFile("AB_sol_trans2.csr");
         CSR2dense(AB_sol,AB_sol_out);
-	
-	/*if(iam==0)
-	  printdense(B_j.ncols,A.nrows,AB_sol_out,"AB_sol_sparse.txt");*/
+
+        /*if(iam==0)
+          printdense(B_j.ncols,A.nrows,AB_sol_out,"AB_sol_sparse.txt");*/
 
         AB_sol.clear();
 
@@ -151,12 +151,12 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
         B_j_dense=(double *) calloc(B_j.nrows * B_j.ncols,sizeof(double));
 
         CSR2dense(B_j,B_j_dense);
-	if(iam==0)
-	  printf("Solving systems AX_j = B_j on all processes\n");
+        if(iam==0)
+            printf("Solving systems AX_j = B_j on all processes\n");
         solveSystem(A, AB_sol_out,B_j_dense, -2, B_j.ncols);
-	
-	/*if(iam==0)
-	  printdense(B_j.ncols,A.nrows,AB_sol_out,"AB_sol_dense.txt");*/
+
+        /*if(iam==0)
+          printdense(B_j.ncols,A.nrows,AB_sol_out,"AB_sol_dense.txt");*/
 
         if(B_j_dense!=NULL) {
             free(B_j_dense);
@@ -167,20 +167,20 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
 
     }
     int Arows = A.nrows;
-    if(iam !=0 ){
-      A.clear();
-      pardiso_var.clear();
+    if(iam !=0 ) {
+        A.clear();
+        pardiso_var.clear();
     }
 
     BT_i_dense=(double *) calloc(BT_i.nrows * BT_i.ncols,sizeof(double));
 
     CSR2dense(BT_i,BT_i_dense);
-    
+
     secs.tick(MultTime);
     dgemm_("N","N",&(BT_i.nrows),&(B_j.ncols),&(BT_i.ncols),&d_negone,BT_i_dense,&(BT_i.nrows),
            AB_sol_out,&(Arows),&d_one,T_ij,&lld_T);
     secs.tack(MultTime);
-    
+
     /*if(iam==0)
       cout << "Time for multiplying BT_i and Y_j: " << MultTime * 0.001 << " sec" << endl;*/
 
@@ -188,6 +188,31 @@ int make_Sij_parallel_denseB(CSRdouble& A, CSRdouble& BT_i, CSRdouble& B_j, doub
         free(BT_i_dense);
         BT_i_dense=NULL;
     }
+
+    return 0;
+}
+
+int make_Si_distributed_denseB(CSRdouble& A, double * B, int * DESCB, double * S, int *DESCS, double * AB_sol_out, int *DESCABSOL) {
+
+
+    timing secs;
+    double MultTime       = 0.0;
+
+    if(*(position+1)==0)
+        printf("Solving systems AX_j = B_j on all processes\n");
+    solveSystem(A, AB_sol_out,B, -2, Dcols * blocksize);
+
+
+    int Arows = A.nrows;
+    if(iam !=0 ) {
+        A.clear();
+        pardiso_var.clear();
+    }
+
+    secs.tick(MultTime);
+    pdgemm_("T","N",&Ddim, &Ddim, &Adim, &d_negone,B, &i_one, &i_one, DESCB, AB_sol_out, &i_one, &i_one, DESCABSOL, &d_one, S, &i_one, &i_one, DESCS);
+    secs.tack(MultTime);
+
 
     return 0;
 }
