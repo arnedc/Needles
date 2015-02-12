@@ -61,6 +61,7 @@ extern "C" {
     void dpotrf_ ( const char* uplo, const int* n, double* a, const int* lda, int* info );
     void dpotrs_ ( const char* uplo, const int* n, const int* nrhs, const double* a, const int* lda, double* b, const int* ldb, int* info );
     double  ddot_ (const int *n, const double *x, const int *incx, const double *y, const int *incy);
+    double dnrm2_ ( int *n, double *x, int *incx );
     int MPI_Init ( int *, char *** );
     int MPI_Dims_create ( int, int, int * );
     int MPI_Finalize ( void );
@@ -621,7 +622,7 @@ int main ( int argc, char **argv ) {
             MPI_Ssend ( solution,Adim, MPI_DOUBLE,1,1,MPI_COMM_WORLD );
             MPI_Recv ( solution+Adim,k, MPI_DOUBLE,1,k,MPI_COMM_WORLD,&status );
             MPI_Recv ( solution,Adim, MPI_DOUBLE,1,Adim,MPI_COMM_WORLD,&status );
-	    MPI_Recv ( respnrm,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
+            MPI_Recv ( respnrm,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
 
             double * sparse_sol = new double[Adim];
 
@@ -640,6 +641,161 @@ int main ( int argc, char **argv ) {
             sigma= ( *respnrm - dot ) / ( n-m );
             MPI_Bcast(&sigma, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
             printf("dot product : %g \n sigma: %g\n", dot,sigma);
+
+            info = set_up_AI ( AImat,NULL, solution, NULL, NULL, Asparse, NULL, NULL,sigma ) ;
+
+            if ( info!=0 ) {
+                printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
+                return EXIT_FAILURE;
+            }
+
+            gettimeofday ( &tz0,NULL );
+            c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+            printf ( "\t elapsed wall time set up of AI matrix:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+
+
+            int number_of_processors = 1;
+            char* var = getenv("OMP_NUM_THREADS");
+            if(var != NULL)
+                sscanf( var, "%d", &number_of_processors );
+            else {
+                printf("Set environment OMP_NUM_THREADS to 1");
+                exit(1);
+            }
+
+            pardiso_var.iparm[2]  = 2;
+            pardiso_var.iparm[3]  = number_of_processors;
+            pardiso_var.iparm[8]  = 0;
+            pardiso_var.iparm[11] = 1;
+            pardiso_var.iparm[13]  = 0;
+            pardiso_var.iparm[28]  = 0;
+            pardiso_var.iparm[36]  = 0;
+
+            //This function calculates the factorisation of A once again so this might be optimized.
+            pardiso_var.findInverseOfA ( Asparse );
+            cout << "memory allocated by PARDISO: " << pardiso_var.memoryAllocated() << endl;
+
+            pardiso_var.clear();
+
+            printf("Processor %d inverted matrix A\n",iam);
+
+            double* Diag_inv_rand_block = ( double* ) calloc ( Dblocks * blocksize + Adim ,sizeof ( double ) );
+
+            MPI_Recv ( Diag_inv_rand_block,Dblocks * blocksize + Adim, MPI_DOUBLE,1,Adim,MPI_COMM_WORLD,&status );
+
+            for(i=0; i<Adim; ++i) {
+                j=Asparse.pRows[i];
+                *(Diag_inv_rand_block+i) += Asparse.pData[j];
+            }
+            Asparse.clear();
+            trace_ZZ=0;
+            for (i=m; i<m+l; ++i) {
+                trace_ZZ +=*(Diag_inv_rand_block+i);
+            }
+            trace_TT=0;
+            for (i=m+l; i<ydim; ++i) {
+                trace_TT +=*(Diag_inv_rand_block+i);
+            }
+            //printdense ( Adim+k,1,Diag_inv_rand_block,"diag_inverse_C_parallel.txt" );
+            if(Diag_inv_rand_block != NULL)
+                free(Diag_inv_rand_block);
+            Diag_inv_rand_block=NULL;
+
+            // The norm of the estimation of the random effects is calculated for use in the score function
+
+            *randnrm = dnrm2_ ( &l,solution+m,&i_one);
+            *(randnrm+1) = dnrm2_ ( &k,solution+m+l,&i_one);
+
+            // The score function (first derivative of log likelihood) and the update for lambda are only calculated in proces (0,0)
+            // Afterwards the update is sent to every proces.
+
+            gettimeofday ( &tz0,NULL );
+            c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+            printf ( "\t elapsed wall time set norm of estimation of u:		%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+            double *score;
+            printf ( "dot product = %15.10g \n",dot );
+            printf ( "parallel sigma = %15.10g\n",sigma );
+            printf ( "The trace of the (1,1) block of the inverse of M is: %15.10g \n",trace_ZZ );
+            printf ( "The trace of the (2,2) block of the inverse of M is: %15.10g \n",trace_TT );
+            printf ( "The norm of the estimation of u and d is: %g and %g \n",*randnrm, *(randnrm+1) );
+            loglikelihood += ( k * log ( gamma_var ) + l * log(phi) + ( n-m ) * log ( sigma ) + n - m) /2;
+            loglikelihood *= -1.0;
+
+
+            score= ( double * ) calloc ( 3,sizeof ( double ) );
+            if ( score==NULL ) {
+                printf ( "unable to allocate memory for score function\n" );
+                return EXIT_FAILURE;
+            }
+            * ( score+1 ) = - ( l - trace_ZZ / phi - *randnrm * *randnrm / phi / sigma ) / phi / 2;
+            * ( score+2 ) = - ( k - trace_TT / gamma_var - *(randnrm+1) * *(randnrm+1) / gamma_var / sigma ) / gamma_var / 2;
+            printf ( "The score function is: [%g, %g, %g]\n",*score,* ( score+1 ), *(score+2) );
+            //printdense ( 2,2, AImat, "AI_par.txt" );
+            breakvar=0;
+            if ( fabs ( * ( score+1 ) ) < epsilon * epsilon ) {
+                printf ( "Score function too close to zero to go further, solution may not have converged\n " );
+                breakvar=1;
+                MPI_Bcast(&breakvar,1,MPI_INT,0,MPI_COMM_WORLD);
+                break;
+            }
+            MPI_Bcast(&breakvar,1,MPI_INT,0,MPI_COMM_WORLD);
+
+            //Use of damping factor
+
+            if ( counter==1 ) {
+                //trace_proc= *AImat + * ( AImat+3 );
+                //damping=trace_proc/m;
+                prevloglike=loglikelihood;
+                printf ( "The loglikelihood is: %g\n",loglikelihood );
+
+            } else {
+                /*if (loglikelihood<prevloglike)
+                    damping /=2;
+                else
+                    damping *=10;*/
+                update_loglikelihood=loglikelihood-prevloglike;
+                prevloglike=loglikelihood;
+                printf ( "The update for the loglikelihood is: %g\n",update_loglikelihood );
+                printf ( "The new loglikelihood is: %g\n",loglikelihood );
+            }
+            MPI_Bcast(&update_loglikelihood,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
+            /*
+                        *AImat += damping;
+                        *(AImat+1) += damping;
+
+                        printf("Used damping factor is %g\n",damping);
+            */
+            printdense(3,3,AImat,"AImat.txt");
+            dpotrf_ ( "U", &i_three, AImat, &i_three, &info );
+            if ( info!=0 ) {
+                printf ( "Cholesky decomposition of AI matrix was unsuccesful, error returned: %d\n",info );
+                return -1;
+            }
+            //printdense(3,3,AImat,"AImat_chol.txt");
+            dpotrs_ ( "U",&i_three,&i_one,AImat,&i_three,score,&i_three,&info );
+            if ( info!=0 ) {
+                printf ( "Parallel solution for AI matrix was unsuccesful, error returned: %d\n",info );
+                return -1;
+            }
+            gettimeofday ( &tz1,NULL );
+            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
+            printf ( "\t elapsed wall time update for lambda:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
+            printf ( "The update for sigma is: %g \n", *score  );
+            printf ( "The update for phi is: %g \n", * ( score+1 ) );
+            printf ( "The update for gamma is: %g \n", * ( score+2 ) );
+            while ( * ( score+2 ) + gamma_var <0 || *(score+1) + phi < 0 ) {
+                * ( score+1 ) =* ( score+1 ) /2;
+                * (score+2)= *(score+2)/2;
+                printf ( "Half a step is used to avoid negative gamma or phi\n" );
+            }
+            *convergence_criterium= *(score+1)/phi;
+            *(convergence_criterium+1)= * ( score+2 )/gamma_var;
+            MPI_Bcast(&convergence_criterium,2,MPI_DOUBLE,0,MPI_COMM_WORLD);
+            if(score != NULL)
+                free ( score );
+            score=NULL;
+            printf ( "The relative update for phi is: %g \n", *convergence_criterium );
+            printf ( "The relative update for gamma is: %g \n", *(convergence_criterium+1) );
 
         }
         else {
@@ -710,12 +866,12 @@ int main ( int argc, char **argv ) {
             }
 
             pdcopy_(&ml_plus,ytot,&i_one,&i_one,DESCYTOT,&i_one,solution,&i_one,&i_one, DESCSOL, &i_one);
-            pdgemm_ ( "N","N",&Adim,&i_one,&Ddim,&d_negone, Bmat,&i_one, &i_one,DESCB, densesol,&i_one, &i_one,DESCDENSESOL, &d_one, solution, &i_one, &i_one, DESCSOL ); //T'T
+            pdgemm_ ( "N","N",&Adim,&i_one,&Ddim,&d_negone, Bmat,&i_one, &i_one,DESCB, densesol,&i_one, &i_one,DESCDENSESOL, &d_one, solution, &i_one, &i_one, DESCSOL );
 
             if(*(position+1) == 0) {
                 MPI_Ssend ( densesol,k, MPI_DOUBLE,0,k,MPI_COMM_WORLD );
                 MPI_Ssend ( solution,Adim, MPI_DOUBLE,0,Adim,MPI_COMM_WORLD );
-		MPI_Ssend ( respnrm,1, MPI_DOUBLE,0,1,MPI_COMM_WORLD );
+                MPI_Ssend ( respnrm,1, MPI_DOUBLE,0,1,MPI_COMM_WORLD );
             }
             loglikelihood=0;
             MPI_Bcast(&sigma, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -728,285 +884,111 @@ int main ( int argc, char **argv ) {
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                 printf ( "\t elapsed wall time calculation and sending of sigma and log(det(M)):	%10.3f s\n", ( c1 - c0 ) /1000000.0 );
             }
-        }
 
-        // Each process calculates the Schur complement of the part of D at its disposal. (see src/schur.cpp)
-        // The solution of A * Y = B_j is stored in AB_sol (= A^-1 * B_j)
+            info = set_up_AI ( AImat,DESCDENSESOL, densesol, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
-
-        MPI_Barrier(MPI_COMM_WORLD);
-	if(iam==0)
-	  cout << "Before AI calculation" << endl;
-
-        // Average information matrix is set up using sigma, lambda and estimation of variable effects
-
-        if ( datahdf5 )
-            info = set_up_AI_hdf5 ( AImat, DESCAI,DESCYTOT, ytot, DESCD, Dmat, sigma ) ;
-        else
-            info = set_up_AI ( AImat, DESCAI,DESCSOL, solution, DESCD, Dmat, Asparse, Btsparse,sigma ) ;
-
-        if ( info!=0 ) {
-            printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
-            return EXIT_FAILURE;
-        }
-
-        if ( * ( position+1 ) ==0 && *position==0 ) {
-            gettimeofday ( &tz0,NULL );
-            c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-            printf ( "\t elapsed wall time set up of AI matrix:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
-        }
-
-        blacs_barrier_(&ICTXT2D,"A");
-
-        //Btsparse.clear();
-
-        blacs_barrier_(&ICTXT2D,"A");
-
-        // Inverse of C is calculated for use in scoring function
-
-        pdpotri_ ( "U",&Ddim,Dmat,&i_one,&i_one,DESCD,&info );
-        if ( info!=0 )
-            printf ( "Parallel Cholesky inverse was unsuccesful, error returned: %d\n",info );
-        if ( * ( position+1 ) ==0 && *position==0 ) {
-            gettimeofday ( &tz1,NULL );
-            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
-            printf ( "\t elapsed wall time inverse of C:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
-        }
-
-        //From here on the inverse of the Schur complement S is stored in D
-
-        blacs_barrier_(&ICTXT2D,"A");
-
-        double* Diag_inv_rand_block = ( double* ) calloc ( Dblocks * blocksize + Adim ,sizeof ( double ) );
-
-        //Diagonal elements of the (1,1) block of C^-1 are still distributed and here they are gathered in InvD_T_Block in the root process.
-        if(*position == pcol) {
-            for (i=0; i<Ddim; ++i) {
-                if (pcol == (i/blocksize) % *dims) {
-                    int Dpos = i%blocksize + ((i/blocksize) / *dims) * blocksize ;
-                    *(Diag_inv_rand_block + Adim +i) = *( Dmat + Dpos + lld_D * Dpos);
-                }
-            }
-            for ( i=0,j=0; i<Dblocks; ++i,++j ) {
-                if ( j==*dims )
-                    j=0;
-                if ( *position==j ) {
-                    dgesd2d_ ( &ICTXT2D,&blocksize,&i_one,Diag_inv_rand_block + Adim + i * blocksize,&blocksize,&i_zero,&i_zero );
-                }
-                if ( *position==0 ) {
-                    dgerv2d_ ( &ICTXT2D,&blocksize,&i_one,Diag_inv_rand_block + Adim + blocksize*i,&blocksize,&j,&j );
-                }
-            }
-        }
-
-        //Only the root process performs a selected inversion of A.
-        if (iam==0) {
-
-            /*int pardiso_message_level = 1;
-
-            int pardiso_mtype=-2;
-
-            ParDiSO pardiso ( pardiso_mtype, pardiso_message_level );*/
-            int number_of_processors = 1;
-            char* var = getenv("OMP_NUM_THREADS");
-            if(var != NULL)
-                sscanf( var, "%d", &number_of_processors );
-            else {
-                printf("Set environment OMP_NUM_THREADS to 1");
-                exit(1);
-            }
-
-            pardiso_var.iparm[2]  = 2;
-            pardiso_var.iparm[3]  = number_of_processors;
-            pardiso_var.iparm[8]  = 0;
-            pardiso_var.iparm[11] = 1;
-            pardiso_var.iparm[13]  = 0;
-            pardiso_var.iparm[28]  = 0;
-            pardiso_var.iparm[36]  = 0;
-
-            //This function calculates the factorisation of A once again so this might be optimized.
-            pardiso_var.findInverseOfA ( Asparse );
-            cout << "memory allocated by PARDISO: " << pardiso_var.memoryAllocated() << endl;
-
-            pardiso_var.clear();
-
-            printf("Processor %d inverted matrix A\n",iam);
-        }
-        blacs_barrier_(&ICTXT2D,"A");
-
-
-        blacs_barrier_(&ICTXT2D,"A");
-
-        //Calculating diagonal elements 1 by 1 of the (0,0)-block of C^-1.
-        for (i=1; i<=Adim; ++i) {
-            pdsymm_ ("R","U",&i_one,&Ddim,&d_one,Dmat,&i_one,&i_one,DESCD,AB_sol,&i,&i_one,DESCAB_sol,&d_zero,YSrow,&i_one,&i_one,DESCYSROW);
-            pddot_(&Ddim,Diag_inv_rand_block+i-1,AB_sol,&i,&i_one,DESCAB_sol,&Adim,YSrow,&i_one,&i_one,DESCYSROW,&i_one);
-        }
-        blacs_barrier_(&ICTXT2D,"A");
-
-
-        //Only in the root process we add the diagonal elements of A^-1
-        if (iam ==0) {
-            for(i=0; i<Adim; ++i) {
-                j=Asparse.pRows[i];
-                *(Diag_inv_rand_block+i) += Asparse.pData[j];
-            }
-            Asparse.clear();
-            trace_ZZ=0;
-            for (i=m; i<m+l; ++i) {
-                trace_ZZ +=*(Diag_inv_rand_block+i);
-            }
-            trace_TT=0;
-            for (i=m+l; i<ydim; ++i) {
-                trace_TT +=*(Diag_inv_rand_block+i);
-            }
-            //printdense ( Adim+k,1,Diag_inv_rand_block,"diag_inverse_C_parallel.txt" );
-            if(Diag_inv_rand_block != NULL)
-                free(Diag_inv_rand_block);
-            Diag_inv_rand_block=NULL;
-        }
-
-
-        norminv=pdlansy_ ( "F","U",&Ddim,Dmat,&i_one,&i_one,DESCD,work );
-        norm1inv=pdlansy_ ( "1","U",&Ddim,Dmat,&i_one,&i_one,DESCD,work );
-        if ( * ( position+1 ) ==0 && *position==0 ) {
-            gettimeofday ( &tz0,NULL );
-            c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-            printf ( "\t elapsed wall time set norm of inverse of C:		%10.3f s\n", ( c0 - c1 ) /1000000.0 );
-            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
-        }
-
-        if(work != NULL)
-            free ( work );
-        work=NULL;
-
-        // The trace of the inverse of C is calculated per diagonal block and then summed over all processes and stored in proces (0,0)
-
-        if(Dmat != NULL)
-            free ( Dmat );
-        Dmat=NULL;
-
-        if ( * ( position+1 ) ==0 && *position==0 ) {
-            gettimeofday ( &tz1,NULL );
-            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
-            printf ( "\t elapsed wall time trace of inverse of C:		%10.3f s\n", ( c1 - c0 ) /1000000.0 );
-        }
-
-        // The norm of the estimation of the random effects is calculated for use in the score function
-
-        pdnrm2_ ( &l,randnrm,solution,&m_plus,&i_one,DESCSOL,&i_one );
-        pdnrm2_ ( &k,randnrm+1,solution,&ml_plus,&i_one,DESCSOL,&i_one );
-
-        // The score function (first derivative of log likelihood) and the update for lambda are only calculated in proces (0,0)
-        // Afterwards the update is sent to every proces.
-
-        if ( * ( position+1 ) ==0 && *position==0 ) {
-            gettimeofday ( &tz0,NULL );
-            c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-            printf ( "\t elapsed wall time set norm of estimation of u:		%10.3f s\n", ( c0 - c1 ) /1000000.0 );
-            double *score;
-            printf ( "dot product = %15.10g \n",dot );
-            printf ( "parallel sigma = %15.10g\n",sigma );
-            printf ( "The trace of the (1,1) block of the inverse of M is: %15.10g \n",trace_ZZ );
-            printf ( "The trace of the (2,2) block of the inverse of M is: %15.10g \n",trace_TT );
-            printf ( "The norm of the estimation of u and d is: %g and %g \n",*randnrm, *(randnrm+1) );
-            loglikelihood += ( k * log ( gamma_var ) + l * log(phi) + ( n-m ) * log ( sigma ) + n - m) /2;
-            loglikelihood *= -1.0;
-
-
-            score= ( double * ) calloc ( 3,sizeof ( double ) );
-            if ( score==NULL ) {
-                printf ( "unable to allocate memory for score function\n" );
+            if ( info!=0 ) {
+                printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
                 return EXIT_FAILURE;
             }
-            * ( score+1 ) = - ( l - trace_ZZ / phi - *randnrm * *randnrm / phi / sigma ) / phi / 2;
-            * ( score+2 ) = - ( k - trace_TT / gamma_var - *(randnrm+1) * *(randnrm+1) / gamma_var / sigma ) / gamma_var / 2;
-            printf ( "The score function is: [%g, %g, %g]\n",*score,* ( score+1 ), *(score+2) );
-            //printdense ( 2,2, AImat, "AI_par.txt" );
-            breakvar=0;
-            if ( fabs ( * ( score+1 ) ) < epsilon * epsilon ) {
-                printf ( "Score function too close to zero to go further, solution may not have converged\n " );
-                breakvar=1;
-                igebs2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&breakvar,&i_one );
-                break;
-            }
-            igebs2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&breakvar,&i_one );
 
-            //Use of damping factor
+            // Inverse of C is calculated for use in scoring function
 
-            if ( counter==1 ) {
-                //trace_proc= *AImat + * ( AImat+3 );
-                //damping=trace_proc/m;
-                prevloglike=loglikelihood;
-                printf ( "The loglikelihood is: %g\n",loglikelihood );
+            pdpotri_ ( "U",&Ddim,Dmat,&i_one,&i_one,DESCD,&info );
+            if ( info!=0 )
+                printf ( "Parallel Cholesky inverse was unsuccesful, error returned: %d\n",info );
+            if ( * ( position+1 ) ==0 && *position==0 ) {
+                gettimeofday ( &tz1,NULL );
+                c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
+                printf ( "\t elapsed wall time inverse of C:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
+            }
 
-            } else {
-                /*if (loglikelihood<prevloglike)
-                    damping /=2;
-                else
-                    damping *=10;*/
-                update_loglikelihood=loglikelihood-prevloglike;
-                prevloglike=loglikelihood;
-                printf ( "The update for the loglikelihood is: %g\n",update_loglikelihood );
-                printf ( "The new loglikelihood is: %g\n",loglikelihood );
-            }
-            dgebs2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&update_loglikelihood,&i_one );
-            /*
-                        *AImat += damping;
-                        *(AImat+1) += damping;
+            //From here on the inverse of the Schur complement S is stored in D
 
-                        printf("Used damping factor is %g\n",damping);
-            */
-            printdense(3,3,AImat,"AImat.txt");
-            dpotrf_ ( "U", &i_three, AImat, &i_three, &info );
-            if ( info!=0 ) {
-                printf ( "Cholesky decomposition of AI matrix was unsuccesful, error returned: %d\n",info );
-                return -1;
-            }
-            //printdense(3,3,AImat,"AImat_chol.txt");
-            dpotrs_ ( "U",&i_three,&i_one,AImat,&i_three,score,&i_three,&info );
-            if ( info!=0 ) {
-                printf ( "Parallel solution for AI matrix was unsuccesful, error returned: %d\n",info );
-                return -1;
-            }
-            gettimeofday ( &tz1,NULL );
-            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
-            printf ( "\t elapsed wall time update for lambda:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
-            printf ( "The update for sigma is: %g \n", *score  );
-            printf ( "The update for phi is: %g \n", * ( score+1 ) );
-            printf ( "The update for gamma is: %g \n", * ( score+2 ) );
-            while ( * ( score+2 ) + gamma_var <0 || *(score+1) + phi < 0 ) {
-                * ( score+1 ) =* ( score+1 ) /2;
-                * (score+2)= *(score+2)/2;
-                printf ( "Half a step is used to avoid negative gamma or phi\n" );
-            }
-            *convergence_criterium= *(score+1)/phi;
-            *(convergence_criterium+1)= * ( score+2 )/gamma_var;
-            dgebs2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_two,convergence_criterium,&i_one );
-            if(score != NULL)
-                free ( score );
-            score=NULL;
-            printf ( "The relative update for phi is: %g \n", *convergence_criterium );
-            printf ( "The relative update for gamma is: %g \n", *(convergence_criterium+1) );
+            blacs_barrier_(&ICTXT2D,"A");
 
-        } else {
-            igebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one, &breakvar,&i_one,&i_zero,&i_zero );
+            double* Diag_inv_rand_block = ( double* ) calloc ( Dblocks * blocksize + Adim ,sizeof ( double ) );
+
+            //Diagonal elements of the (1,1) block of C^-1 are still distributed and here they are gathered in InvD_T_Block in the root process.
+            if(*position == pcol) {
+                for (i=0; i<Ddim; ++i) {
+                    if (pcol == (i/blocksize) % *dims) {
+                        int Dpos = i%blocksize + ((i/blocksize) / *dims) * blocksize ;
+                        *(Diag_inv_rand_block + Adim +i) = *( Dmat + Dpos + lld_D * Dpos);
+                    }
+                }
+                for ( i=0,j=0; i<Dblocks; ++i,++j ) {
+                    if ( j==*dims )
+                        j=0;
+                    if ( *position==j ) {
+                        dgesd2d_ ( &ICTXT2D,&blocksize,&i_one,Diag_inv_rand_block + Adim + i * blocksize,&blocksize,&i_zero,&i_zero );
+                    }
+                    if ( *position==0 ) {
+                        dgerv2d_ ( &ICTXT2D,&blocksize,&i_one,Diag_inv_rand_block + Adim + blocksize*i,&blocksize,&j,&j );
+                    }
+                }
+            }
+
+            //Calculating diagonal elements 1 by 1 of the (0,0)-block of C^-1.
+            for (i=1; i<=Adim; ++i) {
+                pdsymm_ ("R","U",&i_one,&Ddim,&d_one,Dmat,&i_one,&i_one,DESCD,AB_sol,&i,&i_one,DESCAB_sol,&d_zero,YSrow,&i_one,&i_one,DESCYSROW);
+                pddot_(&Ddim,Diag_inv_rand_block+i-1,AB_sol,&i,&i_one,DESCAB_sol,&Adim,YSrow,&i_one,&i_one,DESCYSROW,&i_one);
+            }
+            blacs_barrier_(&ICTXT2D,"A");
+
+            MPI_Ssend ( Diag_inv_rand_block,Dblocks * blocksize + Adim, MPI_DOUBLE,0,Adim,MPI_COMM_WORLD );
+
+            norminv=pdlansy_ ( "F","U",&Ddim,Dmat,&i_one,&i_one,DESCD,work );
+            norm1inv=pdlansy_ ( "1","U",&Ddim,Dmat,&i_one,&i_one,DESCD,work );
+            if ( * ( position+1 ) ==0 && *position==0 ) {
+                gettimeofday ( &tz0,NULL );
+                c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+                printf ( "\t elapsed wall time set norm of inverse of C:		%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+                process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            }
+            if(work != NULL)
+                free ( work );
+            work=NULL;
+            if(Dmat != NULL)
+                free ( Dmat );
+            Dmat=NULL;
+
+            MPI_Bcast(&breakvar,1,MPI_INT,0,MPI_COMM_WORLD);
             if ( breakvar >0 ) {
                 break;
             }
-            dgebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one, &update_loglikelihood,&i_one,&i_zero,&i_zero );
-            dgebr2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_two, convergence_criterium,&i_one,&i_zero,&i_zero );
-        }
-        if ( * ( position+1 ) ==0 && *position==0 ) {
-            gettimeofday ( &tz0,NULL );
-            c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-            printf ( "\t elapsed wall time sending and receiving update lambda:	%10.3f s\n", ( c0 - c1 ) /1000000.0 );
-            printf ( "\t elapsed wall time iteration loop %d:			%10.3f s\n", counter, ( c0 - c3 ) /1000000.0 );
+            MPI_Bcast(&update_loglikelihood,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
+            MPI_Bcast(&convergence_criterium,2,MPI_DOUBLE,0,MPI_COMM_WORLD);
+            blacs_barrier_ ( &ICTXT2D,"A" );
         }
 
+        MPI_Barrier(MPI_COMM_WORLD);
     }
-    blacs_barrier_ ( &ICTXT2D,"A" );
 
+
+
+
+    // The trace of the inverse of C is calculated per diagonal block and then summed over all processes and stored in proces (0,0)
+
+
+    /*
+            if ( * ( position+1 ) ==0 && *position==0 ) {
+                gettimeofday ( &tz1,NULL );
+                c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
+                printf ( "\t elapsed wall time trace of inverse of C:		%10.3f s\n", ( c1 - c0 ) /1000000.0 );
+            }
+
+
+
+            if ( * ( position+1 ) ==0 && *position==0 ) {
+                gettimeofday ( &tz0,NULL );
+                c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+                printf ( "\t elapsed wall time sending and receiving update lambda:	%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+                printf ( "\t elapsed wall time iteration loop %d:			%10.3f s\n", counter, ( c0 - c3 ) /1000000.0 );
+            }
+
+        }
+    */
 
     if(densesol != NULL)
         free(densesol);

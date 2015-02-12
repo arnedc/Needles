@@ -152,7 +152,7 @@ void printdense ( int m, int n, double *mat, char *filename );
 int set_up_T (int* DESCC, double* Cmat, int* DESCYTOT, double* ytot, double* respnrm) ;
 int set_up_C_hdf5 ( int* DESCC, double* Cmat, int* DESCYTOT, double* ytot, double* respnrm ) ;
 int update_C ( int * DESCC, double * Cmat, double update) ;
-int set_up_AI (double* AImat, int* DESCAI, int* DESCSOL, double* solution, int* DESCD, double* Dmat, CSRdouble& Asparse, CSRdouble& Btsparse, double sigma);
+int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DESCD, double * Dmat, CSRdouble &Asparse, int *DESCB, double *Bmat, double sigma ) ;
 int set_up_AI_hdf5 ( double* AImat, int* DESCAI, int* DESCYTOT, double* ytot, int* DESCC, double* Cmat, double sigma );
 double trace_CZZ(double *mat, int * DESCMAT);
 double log_determinant_C ( double *mat, int * DESCMAT ) ;
