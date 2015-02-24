@@ -2241,6 +2241,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
     phi_rec=1/phi;
     gamma_rec=1/gamma_var;
 
+
     if(iam !=0 ) {
 
         // Initialisation of descriptors of different matrices
@@ -2334,13 +2335,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         if ( Tblock==NULL ) {
             printf ( "Error in allocating memory for a strip of Z in processor (%d,%d)",*position,* ( position+1 ) );
             return -1;
-        }
-
-        nrmblock = ( double* ) calloc ( 1,sizeof ( double ) );
-        if ( nrmblock==NULL ) {
-            printf ( "unable to allocate memory for norm\n" );
-            return EXIT_FAILURE;
-        }
+        } 
         Qdense= ( double* ) calloc ( Drows*blocksize * 2, sizeof ( double ) );
         if ( Tblock==NULL ) {
             printf ( "Error in allocating memory for a strip of T in processor (%d,%d)\n",*position,* ( position+1 ) );
@@ -2362,6 +2357,11 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
             if ( Zu==NULL ) {
                 printf ( "Error in allocating memory for Zu in root process\n" );
                 return -1;
+            }
+            Tdblock = ( double* ) calloc ( stripcols,sizeof ( double ) );
+            if ( Tdblock==NULL ) {
+                printf ( "unable to allocate memory for Matrix Td\n" );
+                return EXIT_FAILURE;
             }
             QRHS= ( double * ) calloc ( ydim * 3,sizeof ( double ) );
             if ( QRHS==NULL ) {
@@ -2385,9 +2385,8 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
                 return -1;
             }
             MPI_Recv(Zu,n, MPI_DOUBLE,0,n,MPI_COMM_WORLD,&status);
+	    cout << "Zu received" << endl;
         }
-
-        *nrmblock=0.0;
 
         // Set up of matrices used for Average information matrix calculation per strip of Z and X (one strip consists of $blocksize complete rows)
 
@@ -2404,7 +2403,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
                     return -1;
                 }
 
-                if ( iam==0 ) {
+                if ( *(position + 1)==0 ) {
                     if ( Tdblock != NULL )
                         free ( Tdblock );
                     Tdblock=NULL;
@@ -2414,22 +2413,6 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
                         return EXIT_FAILURE;
                     }
                 }
-
-                /*Other possibility:
-                Zcols=n%blocksize==0 ? blocksize * * ( dims+1 ) : blocksize * ( * ( dims+1 )-1 ) + ( n%blocksize );
-                descinit_ ( DESCZ, &m, &Zcols, &blocksize, &blocksize, &RSRC, &CSRC, &ICTXT, &lld_Z, &INFO );
-                if ( INFO!=0 )
-                {
-                   printf ( "Descriptor of matrix Z returns info: %d\n",INFO );
-                   return INFO;
-                }
-                descinit_ ( DESCY, &i_one, &Zcols, &i_one, &blocksize, &RSRC, &CSRC, &ICTXT, &i_one, &INFO );
-                if ( INFO!=0 )
-                {
-                   printf ( "Descriptor of matrix Y returns info: %d\n",INFO );
-                   return INFO;
-                }
-                */
             }
 
             //Creation of matrix T in every process
@@ -2502,15 +2485,19 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
                 }
             }
 
-            blacs_barrier_ ( &ICTXT2D,"A" );
+            blacs_barrier_ ( &ICTXT2D,"A");
 
             // End of read-in
 
             // Creation of matrix needed for calculation of AI matrix distributed over every process per block of Z, X and y
 
             int ystart=ni * * ( dims+1 ) * blocksize + 1;
+	    
+	    if(*(position +1)==0)
+	      cout << "ystart = " << ystart << endl;
 
             pdgemm_ ( "T","N", &i_one, &stripcols,&k,&gamma_rec, densesol, &i_one,&i_one,DESCDENSESOL,Tblock,&i_one,&i_one,DESCT,&d_zero,Tdblock,&i_one,&i_one,DESCTD ); //Td/gamma (in blocks)
+            //pdgemm_ ( "T","N", &i_one, &stripcols,&k,&gamma_rec, solution, &ml_plus,&i_one,DESCSOL,Tblock,&i_one,&i_one,DESCT,&d_zero,Tdblock,&i_one,&i_one,DESCTD ); //Td/gamma (in blocks)
 
 
             /*if(iam==0) {
@@ -2518,8 +2505,10 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
                 for (i=0; i<stripcols; ++i) {
                     *(Tdblock+i) += *(Zu+ ni*stripcols+i) * lambda;  //(Td + Zu)/gamma (in blocks)
                 }*/
-            if(*(position +1)=0) {
+            if(*(position +1)==0) {
+	      cout << "Td calculated" << endl;
                 MPI_Send(Tdblock,stripcols, MPI_DOUBLE,0,ni, MPI_COMM_WORLD);
+		cout << "Td sent" << endl;
                 char *Tdfile;
                 Tdfile=(char *) calloc(100,sizeof(char));
                 *Tdfile='\0';
@@ -2529,13 +2518,14 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
 
             pdgemm_ ( "N","N",&k,&i_one,&stripcols,&sigma_rec,Tblock,&i_one, &i_one, DESCT,yblock,&ystart,&i_one,DESCY,&d_one,QRHS,&ml_plus,&i_one,DESCQRHS ); //T'y/sigma
 
-            pdgemm_ ( "N","T",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Tdblock,&i_one,&i_one,DESCTD,&d_one,Qdense,&i_one,&i_one,DESCQDENSE ); //T'Td/gamma
+            pdgemm_ ( "N","T",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Tdblock,&i_one,&i_one,DESCTD,&d_one,Qdense,&i_one,&i_two,DESCQDENSE ); //T'Td/gamma
             pdgemm_ ( "N","N",&k,&i_one,&stripcols,&phi_rec,Tblock,&i_one, &i_one, DESCT,Zu,&ystart,&i_one,DESCZU,&d_one,QRHS,&ml_plus,&i_two,DESCQRHS ); //T'Zu/phi
 
             blacs_barrier_ ( &ICTXT2D,"A" );
 
         }
-        pdcopy_ ( &k,Qdense,&i_one, &i_one, DESCQDENSE, &i_one, QRHS,&ml_plus,&i_three,DESCQRHS, &i_one );
+        pdcopy_ ( &k,Qdense,&i_one, &i_two, DESCQDENSE, &i_one, QRHS,&ml_plus,&i_three,DESCQRHS, &i_one );
+	pdcopy_ ( &k,QRHS,&ml_plus, &i_two, DESCQRHS, &i_one, Qdense,&i_one,&i_one,DESCQDENSE, &i_one );
         if ( Tblock != NULL )
             free ( Tblock );
         Tblock=NULL;
@@ -2565,23 +2555,26 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
             return -1;
         }
 
-        pdgemm_ ( "T","N",&k,&i_two,&Adim,&d_negone,Bmat,&i_one, &i_one, DESCB,QRHS,&i_one,&i_two,DESCQRHS,&d_one,Qdense,&i_one,&i_one,DESCQDENSE ); //T'Td/gamma - B'A^{-1} [X'Q, Z'Q]
+        pdgemm_ ( "T","N",&k,&i_two,&Adim,&d_negone,Bmat,&i_one, &i_one, DESCB,QRHS,&i_one,&i_two,DESCQRHS,&d_one,Qdense,&i_one,&i_one,DESCQDENSE ); //[T'Zu/phi T'Td/gamma] - B'A^{-1} [X'Q, Z'Q]
 
         pdpotrs_ ( "U",&Ddim,&i_two,Dmat,&i_one,&i_one,DESCD,Qdense,&i_one,&i_one,DESCQDENSE,&info );
         if ( info!=0 ) {
             printf ( "Parallel Cholesky solution for Q was unsuccesful, error returned: %d\n",info );
             return -1;
         }
-        pdgemm_ ( "N","N",&Adim,&i_two,&Ddim,&d_one,Bmat,&i_one, &i_one, DESCB,Qdense,&i_one,&i_one,DESCQDENSE,&d_zero,QRHS,&i_one,&i_one,DESCQRHS ); //T'Td/gamma - B'A^{-1} [X'Q, Z'Q]
+        pdgemm_ ( "N","N",&Adim,&i_two,&Ddim,&d_one,Bmat,&i_one, &i_one, DESCB,Qdense,&i_one,&i_one,DESCQDENSE,&d_zero,QRHS,&i_one,&i_one,DESCQRHS ); //B multiplied with dense part of Qsol
+	
+	pdcopy_ ( &k,Qdense,&i_one, &i_one, DESCQDENSE, &i_one, QRHS,&ml_plus,&i_one,DESCQRHS, &i_one );
+	pdcopy_ ( &k,Qdense,&i_one, &i_two, DESCQDENSE, &i_one, QRHS,&ml_plus,&i_two,DESCQRHS, &i_one );
 
         if(*(position+1)==0) {
-            MPI_Send(QRHS,Adim, MPI_DOUBLE,0, Adim, MPI_COMM_WORLD);
-            MPI_Send(QRHS + ydim,Adim, MPI_DOUBLE, 0, 2 * Adim, MPI_COMM_WORLD);
-	    if ( QRHS!=NULL ) {
+            MPI_Send(QRHS,ydim, MPI_DOUBLE,0, ydim, MPI_COMM_WORLD);
+            MPI_Send(QRHS + ydim,ydim, MPI_DOUBLE, 0, 2 * ydim, MPI_COMM_WORLD);
+            if ( QRHS!=NULL ) {
                 free(QRHS);
             }
             QRHS==NULL;
-	    if ( Qsol!=NULL ) {
+            if ( Qsol!=NULL ) {
                 free(Qsol);
             }
             Qsol==NULL;
@@ -2610,7 +2603,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         if ( DESCTD != NULL )
             free ( DESCTD );
         DESCTD=NULL;
-	if ( DESCZU != NULL )
+        if ( DESCZU != NULL )
             free ( DESCZU );
         DESCZU=NULL;
         if ( nrmblock != NULL )
@@ -2628,14 +2621,27 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
             printf ( "Error in allocating memory for yblock in root process\n" );
             return -1;
         }
+        Tdblock = ( double* ) calloc ( stripcols,sizeof ( double ) );
+        if ( Tdblock==NULL ) {
+            printf ( "unable to allocate memory for Matrix Td\n" );
+            return EXIT_FAILURE;
+        }
+        nrmblock = ( double* ) calloc ( 1,sizeof ( double ) );
+        if ( nrmblock==NULL ) {
+            printf ( "unable to allocate memory for norm\n" );
+            return EXIT_FAILURE;
+        }
+        *nrmblock=0.0;
         Xtsparse.loadFromFile ( filenameX );
         Ztsparse.loadFromFile ( filenameZ );
         mult_colsA_colsC_denseC ( Ztsparse,densesol+m,ydim,0,Ztsparse.ncols,0,1,Zu,n,false,1.0 ); //Zu
         printdense(n, 1, Zu, "Zu.txt");
         Xtsparse.transposeIt ( 1 );
         Ztsparse.transposeIt ( 1 );
-        MPI_Send(Zu,n, MPI_DOUBLE,0,n, MPI_COMM_WORLD);
+        cout << "X and Z transposed" << endl;
+        MPI_Send(Zu,n, MPI_DOUBLE,1,n, MPI_COMM_WORLD);
 
+        cout << "Zu sent" << endl;
         fY=fopen ( filenameY,"rb" );
         if ( fY==NULL ) {
             printf ( "Error opening file\n" );
@@ -2647,6 +2653,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
             printf ( "Error in closing open streams\n" );
             return -1;
         }
+        cout << "Y read from file" << endl;
         QRHS= ( double * ) calloc ( ydim * 3,sizeof ( double ) );
         if ( QRHS==NULL ) {
             printf ( "Error in allocating memory for QRHS in root process\n" );
@@ -2657,26 +2664,27 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
             printf ( "Error in allocating memory for Qsol in root process\n" );
             return -1;
         }
-        Tdblock = ( double* ) calloc ( stripcols,sizeof ( double ) );
-        if ( Tdblock==NULL ) {
-            printf ( "unable to allocate memory for Matrix Td\n" );
-            return EXIT_FAILURE;
-        }
+
+        cout << "Memory allocated" << endl;
         mult_colsA_colsC_denseC ( Xtsparse,yblock,n,0,n,0,1,QRHS,ydim,false,sigma_rec );		//X'y/sigma
         mult_colsA_colsC_denseC ( Ztsparse,yblock,n,0,n,0,1,QRHS+m,ydim,false,sigma_rec );		//Z'y/sigma
         mult_colsA_colsC_denseC ( Xtsparse,Zu,n,0,n,0,1,QRHS+ydim,ydim,false,phi_rec );		//X'Zu/phi
         mult_colsA_colsC_denseC ( Ztsparse,Zu,n,0,n,0,1,QRHS+ydim+m,ydim,false,phi_rec );		//Z'Zu/phi
+        cout << "Multiplications performed" << endl;
         *nrmblock = dnrm2_ ( &n,yblock,&i_one );
+        cout << "Norm of Y calculated: " << *nrmblock << endl;
         *AImat = *nrmblock * *nrmblock/sigma/sigma; 								//y'y/sigma²
         * ( AImat+1 ) = ddot_ ( &n,yblock,&i_one,Zu,&i_one ) /sigma/phi;
         * ( AImat+3 ) = ddot_ ( &n,yblock,&i_one,Zu,&i_one ) /sigma/phi;
         * ( AImat+4 ) = dnrm2_ ( &n,Zu,&i_one ) /phi/phi * dnrm2_ ( &n,Zu,&i_one );
         //printdense(n,1,Zu,"Zu.txt");
-        //printf("Fourth element of AImat is: %g\n", *(AImat+4));
+        printf("Fourth element of AImat is: %g\n", *(AImat+4));
+
 
         for ( ni=0; ni<nstrips; ++ni ) {
 
             MPI_Recv(Tdblock,stripcols, MPI_DOUBLE,1,ni,MPI_COMM_WORLD,&status);
+            cout << "Received Tdblock " << ni +1 << endl;
             //printf("Dense multiplications with strip %d of T done\n",ni);
             mult_colsA_colsC_denseC ( Xtsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+2*ydim, ydim, true, 1.0 ); 	//X'Td/gamma
 
@@ -2694,13 +2702,14 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
             * ( AImat + 5 ) += *nrmblock /phi;							//(Zu)'Td/gamma/phi
             * ( AImat + 7 ) += *nrmblock /phi;							//(Zu)'Td/gamma/phi
         }
+	  printdense(3,3,AImat,"QQ.txt");
         if ( Zu != NULL )
             free ( Zu );
         Zu=NULL;
         if ( yblock != NULL )
             free ( yblock );
         yblock=NULL;
-	if ( Tdblock != NULL )
+        if ( Tdblock != NULL )
             free ( Tdblock );
         Tdblock=NULL;
         Xtsparse.clear();
@@ -2722,31 +2731,34 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
 
         double * Qtemp = new double [2 * Adim];
 
-        MPI_Recv(Qtemp,Adim, MPI_DOUBLE,1,Adim,MPI_COMM_WORLD,&status);
-        MPI_Recv(Qtemp + Adim,Adim, MPI_DOUBLE,1,2*Adim,MPI_COMM_WORLD,&status);
+        MPI_Recv(Qsol+ydim,ydim, MPI_DOUBLE,1,ydim,MPI_COMM_WORLD,&status);
+        MPI_Recv(Qsol + 2*ydim,ydim, MPI_DOUBLE,1,2*ydim,MPI_COMM_WORLD,&status);
 
         for (i=0; i<Adim; ++i) {
-            Qtemp[i] = * (QRHS + ydim + i) - Qtemp[i];
-            Qtemp[i + Adim] = * (QRHS + 2*ydim + i) - Qtemp[i + Adim];
+            Qtemp[i] = * (QRHS + ydim + i) - *(Qsol + ydim + i);
+            Qtemp[i + Adim] = * (QRHS + 2*ydim + i) - *(Qsol + 2*ydim + i);
         }
 
         printf ( "Solving system AQsol_1,2 = Q_1,2 - B Qsol_2,2 on process 0\n" );
         solveSystemwoFact ( Asparse, Qsol+ydim,Qtemp, 2, 1 );
         printf ( "Solving system AQsol_1,3 = Q_1,3 - B Qsol_2,3 on process 0\n" );
         solveSystemwoFact ( Asparse, Qsol+2*ydim,Qtemp+Adim, 2, 1 );
-	
-	if ( Qtemp != NULL )
+
+        if ( Qtemp != NULL )
             free ( Qtemp );
         Qtemp=NULL;
 
         for (i=0; i<ydim; ++i) {
-            *(Qsol+i)= *densesol / sigma;
+            *(Qsol+i)= *(densesol+i) / sigma;
         }
+        
+        printdense(3,ydim,QRHS,"QRHS.txt");
+	printdense(3,ydim,Qsol,"Qsol.txt");
 
         // AImat = (Q'Q - QRHS' * Qsol) / 2 / sigma
         dgemm_ ( "T","N",&i_three,&i_three,&ydim,&d_negone,QRHS,&ydim,Qsol,&ydim,&d_one, AImat,&i_three );
-	
-	if ( QRHS != NULL )
+
+        if ( QRHS != NULL )
             free ( QRHS );
         QRHS=NULL;
         if ( Qsol != NULL )
@@ -2759,6 +2771,8 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         //printf("B^T * Qsol is calculated\n");
 
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
     return 0;
 }

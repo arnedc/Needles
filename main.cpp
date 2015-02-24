@@ -365,11 +365,7 @@ int main ( int argc, char **argv ) {
                 return EXIT_FAILURE;
             }
         }
-        AImat = ( double* ) calloc ( 3*3,sizeof ( double ) );
-        if ( AImat==NULL ) {
-            printf ( "unable to allocate memory for AI matrix (required: %d bytes)\n",3*3*sizeof ( double ) );
-            return EXIT_FAILURE;
-        }
+
         respnrm= ( double * ) calloc ( 1,sizeof ( double ) );
         if ( respnrm==NULL ) {
             printf ( "unable to allocate memory for norm\n" );
@@ -442,6 +438,11 @@ int main ( int argc, char **argv ) {
             printf ( "unable to allocate memory for norm\n" );
             return EXIT_FAILURE;
         }
+        AImat = ( double* ) calloc ( 3*3,sizeof ( double ) );
+        if ( AImat==NULL ) {
+            printf ( "unable to allocate memory for AI matrix (required: %d bytes)\n",3*3*sizeof ( double ) );
+            return EXIT_FAILURE;
+        }
 
         Xsparse.loadFromFile ( filenameX );
         Zsparse.loadFromFile ( filenameZ );
@@ -486,18 +487,9 @@ int main ( int argc, char **argv ) {
 
         if(iam !=0) {
             if ( counter > 1 ) {
-                if(AImat != NULL)
-                    free ( AImat );
-                AImat=NULL;
                 Dmat= ( double* ) calloc (D_elements,sizeof ( double ) );
                 if ( Dmat==NULL ) {
                     printf ( "unable to allocate memory for Matrix C (required: %lld bytes)\n", D_elements*sizeof ( double ) );
-                    return EXIT_FAILURE;
-                }
-
-                AImat = ( double* ) calloc ( 3*3,sizeof ( double ) );
-                if ( AImat==NULL ) {
-                    printf ( "unable to allocate memory for AI matrix\n" );
                     return EXIT_FAILURE;
                 }
                 blacs_barrier_ ( &ICTXT2D,"A" );
@@ -573,6 +565,16 @@ int main ( int argc, char **argv ) {
 
         //Since lambda changes every iteration we need to construct A every iteration
         else {
+            if(counter >1) {
+                if(AImat != NULL)
+                    free ( AImat );
+                AImat=NULL;
+                AImat = ( double* ) calloc ( 3*3,sizeof ( double ) );
+                if ( AImat==NULL ) {
+                    printf ( "unable to allocate memory for AI matrix\n" );
+                    return EXIT_FAILURE;
+                }
+            }
             makeDiag(ZtZ_sparse.nrows,1/phi,Diagmat);
 
             ZtZ_sparse.addBCSR(Diagmat);
@@ -642,7 +644,7 @@ int main ( int argc, char **argv ) {
             MPI_Bcast(&sigma, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
             printf("dot product : %g \n sigma: %g\n", dot,sigma);
 
-            info = set_up_AI ( AImat,NULL, solution, NULL, NULL, Asparse, NULL, NULL,sigma ) ;
+            info = set_up_AI ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
             if ( info!=0 ) {
                 printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
@@ -696,7 +698,7 @@ int main ( int argc, char **argv ) {
             for (i=m+l; i<ydim; ++i) {
                 trace_TT +=*(Diag_inv_rand_block+i);
             }
-            //printdense ( Adim+k,1,Diag_inv_rand_block,"diag_inverse_C_parallel.txt" );
+            printdense ( Adim+k,1,Diag_inv_rand_block,"diag_inverse_C_parallel.txt" );
             if(Diag_inv_rand_block != NULL)
                 free(Diag_inv_rand_block);
             Diag_inv_rand_block=NULL;
@@ -908,26 +910,24 @@ int main ( int argc, char **argv ) {
             blacs_barrier_(&ICTXT2D,"A");
 
             double* Diag_inv_rand_block = ( double* ) calloc ( Dblocks * blocksize + Adim ,sizeof ( double ) );
-
-            //Diagonal elements of the (1,1) block of C^-1 are still distributed and here they are gathered in InvD_T_Block in the root process.
-            if(*position == pcol) {
-                for (i=0; i<Ddim; ++i) {
-                    if (pcol == (i/blocksize) % *dims) {
+	    
+	    //Diagonal elements of the (1,1) block of C^-1 are still distributed and here they are gathered in InvD_T_Block in the root process.
+	    for(i=0;i<Ddim;++i){
+	      if (pcol == (i/blocksize) % *dims) {
                         int Dpos = i%blocksize + ((i/blocksize) / *dims) * blocksize ;
-                        *(Diag_inv_rand_block + Adim +i) = *( Dmat + Dpos + lld_D * Dpos);
+                        *(Diag_inv_rand_block + Adim +i) = *( Dmat + i + lld_D * Dpos);
                     }
-                }
-                for ( i=0,j=0; i<Dblocks; ++i,++j ) {
+	    }
+	    for ( i=0,j=0; i<Dblocks; ++i,++j ) {
                     if ( j==*dims )
                         j=0;
-                    if ( *position==j ) {
+                    if ( pcol==j ) {
                         dgesd2d_ ( &ICTXT2D,&blocksize,&i_one,Diag_inv_rand_block + Adim + i * blocksize,&blocksize,&i_zero,&i_zero );
                     }
-                    if ( *position==0 ) {
-                        dgerv2d_ ( &ICTXT2D,&blocksize,&i_one,Diag_inv_rand_block + Adim + blocksize*i,&blocksize,&j,&j );
+                    if ( pcol==0 ) {
+                        dgerv2d_ ( &ICTXT2D,&blocksize,&i_one,Diag_inv_rand_block + Adim + blocksize*i,&blocksize,&i_zero,&j );
                     }
                 }
-            }
 
             //Calculating diagonal elements 1 by 1 of the (0,0)-block of C^-1.
             for (i=1; i<=Adim; ++i) {

@@ -204,15 +204,17 @@ int make_Si_distributed_denseB(CSRdouble& A, double * B, int * DESCB, double * S
 
 
     int Arows = A.nrows;
-    if(iam !=0 ) {
         A.clear();
         pardiso_var.clear();
-    }
+
 
     secs.tick(MultTime);
     pdgemm_("T","N",&Ddim, &Ddim, &Adim, &d_negone,B, &i_one, &i_one, DESCB, AB_sol_out, &i_one, &i_one, DESCABSOL, &d_one, S, &i_one, &i_one, DESCS);
     secs.tack(MultTime);
 
 
+    if(*(position+1)==0)
+      cout << "Time for multiplying BT_i and Y_j: " << MultTime * 0.001 << " sec" << endl;
+    
     return 0;
 }
