@@ -409,6 +409,13 @@ int main ( int argc, char **argv ) {
             gettimeofday ( &tz0,NULL );
             c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
             printf ( "\t elapsed wall time set-up of D, B and Y:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            printf ( "At end of allocations in cluster processes\n" );
+            printf ( "==========================================\n" );
+            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
+            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
+            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
+            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
             //printdense(Drows*blocksize,Dcols*blocksize,Dmat,"Dmat.txt");
             /*Btsparse.transposeIt(1);
             Btsparse.writeToFile("Bsparse.csr");
@@ -453,6 +460,13 @@ int main ( int argc, char **argv ) {
         ZtZ_sparse.matmul ( Zsparse,1,Zsparse );
         Zsparse.clear();
         ZtZ_sparse.reduceSymmetric();
+	process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            printf ( "At end of allocations in root process\n" );
+            printf ( "=====================================\n" );
+            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
+            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
+            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
+            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
 
     }
     MPI_Barrier ( MPI_COMM_WORLD );
@@ -583,6 +597,15 @@ int main ( int argc, char **argv ) {
             ZtZ_sparse.addBCSR ( Diagmat );
 
             Diagmat.clear();
+	    
+	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+              printf("At end of calculation of ZtZ\n");
+              printf("===========================\n");
+              printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
+              printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
+              printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
+              printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
+
 
 
             cout << "***                                           [  t     t  ] *** " << endl;
@@ -598,10 +621,17 @@ int main ( int argc, char **argv ) {
             gettimeofday ( &tz0,NULL );
             c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
             printf ( "\t elapsed wall time for creating sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
-            Asparse.writeToFile ( "Asparse.csr" );
+            /*Asparse.writeToFile ( "Asparse.csr" );
             double * Adense = new double[Asparse.nrows * Asparse.ncols];
             CSR2dense ( Asparse,Adense );
-            printdense ( Asparse.nrows,Asparse.ncols,Adense,"Adense.txt" );
+            printdense ( Asparse.nrows,Asparse.ncols,Adense,"Adense.txt" );*/
+	     process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+                printf("After creation of Asparse");
+                printf("===========================\n");
+                printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
+                printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
+                printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
+                printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
 
             makeDiag ( ZtZ_sparse.nrows,-1/phi,Diagmat );
 
@@ -637,7 +667,7 @@ int main ( int argc, char **argv ) {
             if ( sparse_sol != NULL )
                 free ( sparse_sol );
             sparse_sol=NULL;
-            printdense ( ydim,1,solution,"solution.txt" );
+            //printdense ( ydim,1,solution,"solution.txt" );
             printf ( "Half of the log of determinant of A is: %g\n",loglikelihood );
 
             dot = ddot_ ( &ydim,ytot,&i_one,solution,&i_one );
@@ -657,7 +687,15 @@ int main ( int argc, char **argv ) {
             MPI_Recv ( & ( Asparse.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
             if ( * ( position+1 ) ==0 ) {
                 MPI_Ssend ( ytot,ydim, MPI_DOUBLE,0,ydim,MPI_COMM_WORLD );
+		process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            printf ( "Before calculation of Schur complement in cluster processes\n" );
+            printf ( "===========================================================\n" );
+            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
+            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
+            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
+            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
             }
+            
             make_Si_distributed_denseB ( Asparse, Bmat, DESCB, Dmat, DESCD, AB_sol, DESCAB_sol );
             if ( * ( position+1 ) ==0 ) {
                 gettimeofday ( &tz0,NULL );

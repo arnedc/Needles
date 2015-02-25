@@ -2229,6 +2229,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
     int *DESCT, *DESCY, *DESCTD, *DESCZU, *DESCQRHS, *DESCQSOL, *DESCQDENSE;
     double *Tblock, *yblock, *Tdblock, *QRHS, *Qsol,*nrmblock, sigma_rec, phi_rec, gamma_rec, *Zu, *Qdense;
     int nTblocks, nstrips, pTblocks, stripcols, lld_T, pcol, colcur,rowcur, lld_Y;
+    double vm_usage, resident_set, cpu_sys, cpu_user;
 
     MPI_Status status;
 
@@ -2386,6 +2387,13 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
             }
             MPI_Recv ( Zu,n, MPI_DOUBLE,0,n,MPI_COMM_WORLD,&status );
             //cout << "Zu received" << endl;
+	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            printf ( "At end of allocations in cluster processes (set_up_AI)\n" );
+            printf ( "======================================================\n" );
+            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
+            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
+            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
+            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
         }
 
         // Set up of matrices used for Average information matrix calculation per strip of Z and X (one strip consists of $blocksize complete rows)
@@ -2663,6 +2671,13 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
             printf ( "Error in allocating memory for Qsol in root process\n" );
             return -1;
         }
+        process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            printf ( "At end of allocations in root proces (set_up_AI)\n" );
+            printf ( "================================================\n" );
+            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
+            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
+            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
+            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
 
         //cout << "Memory allocated" << endl;
         mult_colsA_colsC_denseC ( Xtsparse,yblock,n,0,n,0,1,QRHS,ydim,false,sigma_rec );		//X'y/sigma
