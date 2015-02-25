@@ -910,7 +910,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
             printf("Ystart= %d\n", Ystart);*/
         pdgemm_ ( "T","N",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Y,&Ystart,&i_one,DESCY,&d_one,ytot,&ml_plus,&i_one,DESCYTOT ); //T'y
 
-        if ( ni==0 ) {
+        if ( ni==0 && * ( position+1 ) ==0 ) {
             secs.tack ( totalTime );
             cout << "dense multiplications of Tblock: " << totalTime * 0.001 << " secs" << endl;
             secs.tick ( totalTime );
@@ -928,7 +928,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
                                    ( *dims * i + *position ) *blocksize, blocksize, XtT_temp, 0 );*/
         }
 
-        if ( ni==0 ) {
+        if ( ni==0 && * ( position+1 ) ==0 ) {
             secs.tack ( totalTime );
             cout << "Creation of XtT: " << totalTime * 0.001 << " secs" << endl;
             secs.tick ( totalTime );
@@ -945,7 +945,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
                 /*mult_colsA_colsC_denseC ( Xtsparse, Tblock+i*blocksize, lld_T, ( * ( dims+1 ) * ni + pcol ) *blocksize, blocksize,
                                        ( *dims * i + *position ) *blocksize, blocksize, XtT_temp, 0 );*/
             }
-            if ( ni==0 && i==1 ) {
+            if ( ni==0 && i==1 && * ( position+1 ) ==0 ) {
                 secs.tack ( totalTime );
                 cout << "Multiplication Zt and Tblock: " << totalTime * 0.001 << " secs" << endl;
                 secs.tick ( totalTime );
@@ -953,7 +953,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
             //free(ZtT_dense);
 
         }
-        if ( ni==0 ) {
+        if ( ni==0 && * ( position+1 ) ==0 ) {
             secs.tack ( totalTime );
             cout << "Creation of ZtT: " << totalTime * 0.001 << " secs" << endl;
             secs.tick ( totalTime );
@@ -2387,13 +2387,13 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
             }
             MPI_Recv ( Zu,n, MPI_DOUBLE,0,n,MPI_COMM_WORLD,&status );
             //cout << "Zu received" << endl;
-	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
-            printf ( "At end of allocations in cluster processes (set_up_AI)\n" );
-            printf ( "======================================================\n" );
-            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
-            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
-            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
-            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
+            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            clustout << "At end of allocations in cluster processes (set_up_AI)" << endl;
+            clustout << "======================================================" << endl;
+            clustout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+            clustout << "Resident set size:    " << resident_set << " kb" << endl;
+            clustout << "CPU time (user):      " << cpu_user << " s"<< endl;
+            clustout << "CPU time (system):    " << cpu_sys << " s" << endl;
         }
 
         // Set up of matrices used for Average information matrix calculation per strip of Z and X (one strip consists of $blocksize complete rows)
@@ -2672,12 +2672,12 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
             return -1;
         }
         process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
-            printf ( "At end of allocations in root proces (set_up_AI)\n" );
-            printf ( "================================================\n" );
-            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
-            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
-            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
-            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
+        rootout << "At end of allocations in root proces (set_up_AI)" << endl;
+        rootout <<  "================================================" << endl;
+        rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+        rootout << "Resident set size:    " << resident_set << " kb" << endl;
+        rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
+        rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
 
         //cout << "Memory allocated" << endl;
         mult_colsA_colsC_denseC ( Xtsparse,yblock,n,0,n,0,1,QRHS,ydim,false,sigma_rec );		//X'y/sigma

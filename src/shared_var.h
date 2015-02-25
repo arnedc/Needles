@@ -13,6 +13,8 @@
 #include <cstdlib>
 #include <vector>
 #include <mpi.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 
 using std::complex;
@@ -144,7 +146,7 @@ public:
 
 class CSRdouble;
 class ParDiSO;
-
+using std::ofstream;
 
 double* create_matrix_binary ( long int seed, int m, int n, double max, char* filename );
 void process_mem_usage(double& vm_usage, double& resident_set, double& cpu_user, double& cpu_sys);
@@ -204,6 +206,7 @@ extern char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
 extern double gamma_var, phi,epsilon;
 extern ParDiSO pardiso_var;
 extern int Bassparse_bool;
+extern ofstream rootout, clustout;
 
 #endif
 

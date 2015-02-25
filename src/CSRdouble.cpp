@@ -587,9 +587,9 @@ void CSRdouble::reduceSymmetric()
         prows[i+1]=nnz_count;
     }
 
-    if (nnz_count != nonzeroes) {
+    /*if (nnz_count != nonzeroes) {
         cout << "Nonzeroes do not match, nonzero_counter= " << nnz_count << "; nonzeroes= " << nonzeroes <<endl;
-    }
+    }*/
 
     delete[] pRows;
     delete[] pCols;

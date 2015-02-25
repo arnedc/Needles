@@ -28,6 +28,8 @@ char *filenameX, *filenameT, *filenameZ, *filenameY, *TestSet;
 double gamma_var, phi, epsilon;
 int Bassparse_bool;
 ParDiSO pardiso_var ( -2,0 );
+ofstream rootout, clustout;
+    
 
 
 extern "C" {
@@ -91,6 +93,9 @@ int main ( int argc, char **argv ) {
     int * gridmap;
     size_t D_elements, B_elements;
     MPI_Status status;
+
+    rootout.open ( "root_output.txt" );
+    clustout.open ( "cluster_output.txt" );
 
     // declaration of descriptors of different matrices
     secs.tick ( totalTime );
@@ -372,12 +377,12 @@ int main ( int argc, char **argv ) {
 
         if ( * ( position +1 ) ==0 ) {
             process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
-            printf ( "Before allocation of AB_sol\n" );
-            printf ( "===========================\n" );
-            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
-            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
-            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
-            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
+            clustout << "Before allocation of AB_sol" << endl;
+            clustout << "===========================" << endl ;
+            clustout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+            clustout << "Resident set size:    " << resident_set << " kb" << endl;
+            clustout << "CPU time (user):      " << cpu_user << " s"<< endl;
+            clustout << "CPU time (system):    " << cpu_sys << " s" << endl;
         }
         AB_sol= ( double * ) calloc ( B_elements,sizeof ( double ) );
         if ( AB_sol==NULL ) {
@@ -409,13 +414,13 @@ int main ( int argc, char **argv ) {
             gettimeofday ( &tz0,NULL );
             c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
             printf ( "\t elapsed wall time set-up of D, B and Y:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
-	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
-            printf ( "At end of allocations in cluster processes\n" );
-            printf ( "==========================================\n" );
-            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
-            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
-            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
-            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
+            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            clustout << "At end of allocations in cluster processes" << endl;
+            clustout << "==========================================" << endl;
+            clustout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+            clustout << "Resident set size:    " << resident_set << " kb" << endl;
+            clustout << "CPU time (user):      " << cpu_user << " s"<< endl;
+            clustout << "CPU time (system):    " << cpu_sys << " s" << endl;
             //printdense(Drows*blocksize,Dcols*blocksize,Dmat,"Dmat.txt");
             /*Btsparse.transposeIt(1);
             Btsparse.writeToFile("Bsparse.csr");
@@ -460,13 +465,13 @@ int main ( int argc, char **argv ) {
         ZtZ_sparse.matmul ( Zsparse,1,Zsparse );
         Zsparse.clear();
         ZtZ_sparse.reduceSymmetric();
-	process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
-            printf ( "At end of allocations in root process\n" );
-            printf ( "=====================================\n" );
-            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
-            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
-            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
-            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
+        process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+        rootout << "At end of allocations in root process"  << endl;
+        rootout << "====================================="  << endl;
+        rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+        rootout << "Resident set size:    " << resident_set << " kb" << endl;
+        rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
+        rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
 
     }
     MPI_Barrier ( MPI_COMM_WORLD );
@@ -508,12 +513,6 @@ int main ( int argc, char **argv ) {
                     return EXIT_FAILURE;
                 }
                 blacs_barrier_ ( &ICTXT2D,"A" );
-
-                if ( * ( position+1 ) ==0 && *position==0 ) {
-                    gettimeofday ( &tz1,NULL );
-                    c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
-                    printf ( "\t elapsed wall time allocation of memory:		%10.3f s\n", ( c1 - c3 ) /1000000.0 );
-                }
 
                 if ( copyC ) {
                     update_C ( DESCCCOPY,Cmatcopy,gamma_var * * ( convergence_criterium+1 ) );
@@ -597,25 +596,26 @@ int main ( int argc, char **argv ) {
             ZtZ_sparse.addBCSR ( Diagmat );
 
             Diagmat.clear();
-	    
-	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
-              printf("At end of calculation of ZtZ\n");
-              printf("===========================\n");
-              printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
-              printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
-              printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
-              printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
+
+            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            rootout << "At end of calculation of ZtZ" << endl;
+            rootout << "===========================" << endl;
+            rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+            rootout << "Resident set size:    " << resident_set << " kb" << endl;
+            rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
+            rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
 
 
 
-            cout << "***                                           [  t     t  ] *** " << endl;
-            cout << "***                                           [ X X   X Z ] *** " << endl;
-            cout << "***                                           [           ] *** " << endl;
-            cout << "*** G e n e r a t i n g    m a t r i x    A = [           ] *** " << endl;
-            cout << "***                                           [  t     t  ] *** " << endl;
-            cout << "***                                           [ Z X   Z Z ] *** " << endl;
+            rootout << "***                                           [  t     t  ] *** " << endl;
+            rootout << "***                                           [ X X   X Z ] *** " << endl;
+            rootout << "***                                           [           ] *** " << endl;
+            rootout << "*** G e n e r a t i n g    m a t r i x    A = [           ] *** " << endl;
+            rootout << "***                                           [  t     t  ] *** " << endl;
+            rootout << "***                                           [ Z X   Z Z ] *** " << endl;
 
-
+            gettimeofday ( &tz1,NULL );
+            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
             //Sparse matrix A only contains the upper triangular part of A
             create2x2SymBlockMatrix ( XtX_sparse, XtZ_sparse, ZtZ_sparse, Asparse );
             gettimeofday ( &tz0,NULL );
@@ -625,13 +625,13 @@ int main ( int argc, char **argv ) {
             double * Adense = new double[Asparse.nrows * Asparse.ncols];
             CSR2dense ( Asparse,Adense );
             printdense ( Asparse.nrows,Asparse.ncols,Adense,"Adense.txt" );*/
-	     process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
-                printf("After creation of Asparse");
-                printf("===========================\n");
-                printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
-                printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
-                printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
-                printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
+            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            rootout << "After creation of Asparse" << endl;
+            rootout << "=========================" << endl;
+            rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+            rootout << "Resident set size:    " << resident_set << " kb" << endl;
+            rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
+            rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
 
             makeDiag ( ZtZ_sparse.nrows,-1/phi,Diagmat );
 
@@ -687,15 +687,15 @@ int main ( int argc, char **argv ) {
             MPI_Recv ( & ( Asparse.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
             if ( * ( position+1 ) ==0 ) {
                 MPI_Ssend ( ytot,ydim, MPI_DOUBLE,0,ydim,MPI_COMM_WORLD );
-		process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
-            printf ( "Before calculation of Schur complement in cluster processes\n" );
-            printf ( "===========================================================\n" );
-            printf ( "\tVirtual memory used:                  %10.0f kb\n", vm_usage );
-            printf ( "\tResident set size:                    %10.0f kb\n", resident_set );
-            printf ( "\tCPU time (user):                      %10.3f s\n", cpu_user );
-            printf ( "\tCPU time (system):                    %10.3f s\n", cpu_sys );
+                process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+                clustout << "Before calculation of Schur complement in cluster processes" << endl;
+                clustout << "===========================================================" << endl;
+                clustout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+                clustout << "Resident set size:    " << resident_set << " kb" << endl;
+                clustout << "CPU time (user):      " << cpu_user << " s"<< endl;
+                clustout << "CPU time (system):    " << cpu_sys << " s" << endl;
             }
-            
+
             make_Si_distributed_denseB ( Asparse, Bmat, DESCB, Dmat, DESCD, AB_sol, DESCAB_sol );
             if ( * ( position+1 ) ==0 ) {
                 gettimeofday ( &tz0,NULL );
@@ -775,6 +775,8 @@ int main ( int argc, char **argv ) {
         MPI_Barrier ( MPI_COMM_WORLD );
 
         if ( iam==0 ) {
+            gettimeofday ( &tz1,NULL );
+            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
 
             info = set_up_AI ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
@@ -807,7 +809,7 @@ int main ( int argc, char **argv ) {
 
             //This function calculates the factorisation of A once again so this might be optimized.
             pardiso_var.findInverseOfA ( Asparse );
-            cout << "memory allocated by PARDISO: " << pardiso_var.memoryAllocated() << endl;
+            rootout << "memory allocated by PARDISO: " << pardiso_var.memoryAllocated() << endl;
 
             pardiso_var.clear();
 
@@ -837,6 +839,9 @@ int main ( int argc, char **argv ) {
 
             // The norm of the estimation of the random effects is calculated for use in the score function
 
+            gettimeofday ( &tz1,NULL );
+            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
+
             *randnrm = dnrm2_ ( &l,solution+m,&i_one );
             * ( randnrm+1 ) = dnrm2_ ( &k,solution+m+l,&i_one );
 
@@ -845,7 +850,7 @@ int main ( int argc, char **argv ) {
 
             gettimeofday ( &tz0,NULL );
             c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-            printf ( "\t elapsed wall time set norm of estimation of u:		%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+            printf ( "\t elapsed wall time set norm of estimation of u and d:		%10.3f s\n", ( c0 - c1 ) /1000000.0 );
             double *score;
             printf ( "dot product = %15.10g \n",dot );
             printf ( "parallel sigma = %15.10g\n",sigma );
@@ -1023,6 +1028,12 @@ int main ( int argc, char **argv ) {
         }
 
         MPI_Barrier ( MPI_COMM_WORLD );
+        if ( iam==0 ) {
+            gettimeofday ( &tz0,NULL );
+            c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+            printf ( "\t elapsed wall time sending and receiving update lambda:	%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+            printf ( "\t elapsed wall time iteration loop %d:			%10.3f s\n", counter, ( c0 - c3 ) /1000000.0 );
+        }
         //cout << "process " << iam << " at end of iteration" << endl;
     }
 
