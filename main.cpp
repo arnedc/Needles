@@ -677,7 +677,7 @@ int main ( int argc, char **argv ) {
             MPI_Bcast ( &sigma, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
             printf ( "dot product : %g \n sigma: %g\n", dot,sigma );
 	    double log_det_D;
-	    MPI_Recv ( log_det_D,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
+	    MPI_Recv ( &log_det_D,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
 	    loglikelihood += log_det_D;
 	    printf ( "Half of the log of determinant of entire matrix C is: %g\n",loglikelihood );
 	    
@@ -771,7 +771,7 @@ int main ( int argc, char **argv ) {
 
             if ( * ( position+1 ) ==0 ) {
                 printf ( "Half of the log of determinant of D is: %g\n",loglikelihood );
-		MPI_Ssend ( loglikelihood,1, MPI_DOUBLE,0,1,MPI_COMM_WORLD );
+		MPI_Ssend ( &loglikelihood,1, MPI_DOUBLE,0,1,MPI_COMM_WORLD );
                 gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                 printf ( "\t elapsed wall time calculation and sending of sigma and log(det(M)):	%10.3f s\n", ( c1 - c0 ) /1000000.0 );
