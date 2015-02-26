@@ -29,7 +29,7 @@ double gamma_var, phi, epsilon;
 int Bassparse_bool;
 ParDiSO pardiso_var ( -2,0 );
 ofstream rootout, clustout;
-    
+
 
 
 extern "C" {
@@ -676,6 +676,11 @@ int main ( int argc, char **argv ) {
             sigma= ( *respnrm - dot ) / ( n-m );
             MPI_Bcast ( &sigma, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
             printf ( "dot product : %g \n sigma: %g\n", dot,sigma );
+	    double log_det_D;
+	    MPI_Recv ( log_det_D,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
+	    loglikelihood += log_det_D;
+	    printf ( "Half of the log of determinant of entire matrix C is: %g\n",loglikelihood );
+	    
         } else {
             int nonzeroes, count;
 
@@ -761,11 +766,12 @@ int main ( int argc, char **argv ) {
             }
             loglikelihood=0;
             MPI_Bcast ( &sigma, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-            loglikelihood+=log_determinant_C ( Dmat,DESCD );
+            loglikelihood += log_determinant_C ( Dmat,DESCD );
             dgsum2d_ ( &ICTXT2D,"ALL","1-tree",&i_one,&i_one,&loglikelihood,&i_one,&i_negone,&i_negone );
 
             if ( * ( position+1 ) ==0 ) {
-                printf ( "Half of the log of determinant of M is: %g\n",loglikelihood );
+                printf ( "Half of the log of determinant of D is: %g\n",loglikelihood );
+		MPI_Ssend ( loglikelihood,1, MPI_DOUBLE,0,1,MPI_COMM_WORLD );
                 gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                 printf ( "\t elapsed wall time calculation and sending of sigma and log(det(M)):	%10.3f s\n", ( c1 - c0 ) /1000000.0 );

@@ -2868,3 +2868,4 @@ double log_determinant_C ( double *mat, int * DESCMAT ) {
     }
     return logdet_proc;
 }
+
