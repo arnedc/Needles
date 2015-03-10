@@ -658,6 +658,14 @@ int main ( int argc, char **argv ) {
             MPI_Recv ( solution+Adim,k, MPI_DOUBLE,1,k,MPI_COMM_WORLD,&status );
             MPI_Recv ( solution,Adim, MPI_DOUBLE,1,Adim,MPI_COMM_WORLD,&status );
             MPI_Recv ( respnrm,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
+	    
+	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            rootout << "After factorisation of Asparse" << endl;
+            rootout << "==============================" << endl;
+            rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+            rootout << "Resident set size:    " << resident_set << " kb" << endl;
+            rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
+            rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
 
             double * sparse_sol = new double[Adim];
 
@@ -795,6 +803,13 @@ int main ( int argc, char **argv ) {
             c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
             printf ( "\t elapsed wall time set up of AI matrix:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
 
+	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            rootout << "Before inversion of Asparse" << endl;
+            rootout << "===========================" << endl;
+            rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+            rootout << "Resident set size:    " << resident_set << " kb" << endl;
+            rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
+            rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
 
             int number_of_processors = 1;
             char* var = getenv ( "OMP_NUM_THREADS" );
@@ -830,6 +845,15 @@ int main ( int argc, char **argv ) {
                 * ( Diag_inv_rand_block+i ) += Asparse.pData[j];
             }
             Asparse.clear();
+	    
+	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            rootout << "After deleting Asparse" << endl;
+            rootout << "======================" << endl;
+            rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+            rootout << "Resident set size:    " << resident_set << " kb" << endl;
+            rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
+            rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
+	    
             trace_ZZ=0;
             for ( i=m; i<m+l; ++i ) {
                 trace_ZZ +=* ( Diag_inv_rand_block+i );
@@ -875,7 +899,7 @@ int main ( int argc, char **argv ) {
             * ( score+1 ) = - ( l - trace_ZZ / phi - *randnrm * *randnrm / phi / sigma ) / phi / 2;
             * ( score+2 ) = - ( k - trace_TT / gamma_var - * ( randnrm+1 ) * * ( randnrm+1 ) / gamma_var / sigma ) / gamma_var / 2;
             printf ( "The score function is: [%g, %g, %g]\n",*score,* ( score+1 ), * ( score+2 ) );
-            //printdense ( 2,2, AImat, "AI_par.txt" );
+            printdense ( 2,2, AImat, "AI_par.txt" );
             breakvar=0;
             if ( fabs ( * ( score+1 ) ) < epsilon * epsilon ) {
                 printf ( "Score function too close to zero to go further, solution may not have converged\n " );

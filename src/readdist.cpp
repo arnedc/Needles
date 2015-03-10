@@ -2241,6 +2241,8 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
     sigma_rec=1/sigma;
     phi_rec=1/phi;
     gamma_rec=1/gamma_var;
+    
+    lld_Y= * ( dims+1 ) * nstrips * blocksize;
 
 
     if ( iam !=0 ) {
@@ -2290,7 +2292,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         pTblocks= ( nTblocks - *position ) % *dims == 0 ? ( nTblocks- *position ) / *dims : ( nTblocks- *position ) / *dims +1;		//number of blocks necessary per processor
         pTblocks= pTblocks <1? 1:pTblocks;
         lld_T=pTblocks*blocksize;													//local leading dimension of the strip of Z (different from processor to processor)														//local leading dimension of the strip of Z (different from processor to processor)
-        lld_Y= * ( dims+1 ) * nstrips * blocksize;
+        
 
         // Initialisation of descriptors of different matrices
 
@@ -2617,13 +2619,14 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         if ( nrmblock != NULL )
             free ( nrmblock );
         nrmblock=NULL;
-    } else {
-        Zu= ( double * ) calloc ( n,sizeof ( double ) );
+    } 
+    else {
+        Zu= ( double * ) calloc ( lld_Y,sizeof ( double ) );
         if ( Zu==NULL ) {
             printf ( "Error in allocating memory for Zu in root process\n" );
             return -1;
         }
-        yblock= ( double * ) calloc ( n, sizeof ( double ) );
+        yblock= ( double * ) calloc ( lld_Y, sizeof ( double ) );
         if ( yblock==NULL ) {
             printf ( "Error in allocating memory for yblock in root process\n" );
             return -1;
