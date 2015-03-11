@@ -360,6 +360,7 @@ public:
 
     double memoryAllocated() const;
     void clear();
+    void clear_all();
 
 
     // -------------------------------

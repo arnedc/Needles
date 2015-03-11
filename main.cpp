@@ -124,6 +124,10 @@ int main ( int argc, char **argv ) {
         printf ( "Error in initialisation of proces grid" );
         return -1;
     }
+    if ( size < 2 ) {
+        printf ( "At least 2 MPI processes must be initialised" );
+        return -1;
+    }
     /*    info=MPI_Dims_create ( size, 2, dims );			//determine the best 2D cartesian grid with the number of processes
         if ( info != MPI_SUCCESS ) {
             printf ( "Error in MPI creation of dimensions: %d",info );
@@ -494,13 +498,6 @@ int main ( int argc, char **argv ) {
             break;
         }
 
-        if ( iam==0 ) {
-            printf ( "\nParallel results: loop %d\n",counter );
-            printf ( "=========================\n" );
-            gettimeofday ( &tz3,NULL );
-            c3= tz3.tv_sec*1000000 + ( tz3.tv_usec );
-        }
-
         // Since after every iteration the inverse of C is stored in Cmat and C must be updated with the new lambda,
         // every cycle C has to be set up again from scratch
         // Maybe it would be better not to free and allocate every time but just set every element to zero (for loop)??
@@ -579,6 +576,11 @@ int main ( int argc, char **argv ) {
 
         //Since lambda changes every iteration we need to construct A every iteration
         else {
+	    printf ( "\nParallel results: loop %d\n",counter );
+            printf ( "=========================\n" );
+            gettimeofday ( &tz3,NULL );
+            c3= tz3.tv_sec*1000000 + ( tz3.tv_usec );
+	    
             gamma_var=gamma_var * ( 1 + * ( convergence_criterium+1 ) ); // Update for lambda (which is 1/gamma)
             phi=phi* ( 1 + *convergence_criterium );
             if ( counter >1 ) {
@@ -831,10 +833,26 @@ int main ( int argc, char **argv ) {
             //This function calculates the factorisation of A once again so this might be optimized.
             pardiso_var.findInverseOfA ( Asparse );
             rootout << "memory allocated by PARDISO: " << pardiso_var.memoryAllocated() << endl;
+	    
+	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            rootout << "After inversion of Asparse" << endl;
+            rootout << "===========================" << endl;
+            rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+            rootout << "Resident set size:    " << resident_set << " kb" << endl;
+            rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
+            rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
 
-            pardiso_var.clear();
+            pardiso_var.clear_all();
 
             printf ( "Processor %d inverted matrix A\n",iam );
+	    
+	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            rootout << "After clearing pardiso_var" << endl;
+            rootout << "===========================" << endl;
+            rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+            rootout << "Resident set size:    " << resident_set << " kb" << endl;
+            rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
+            rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
 
             double* Diag_inv_rand_block = ( double* ) calloc ( Dblocks * blocksize + Adim ,sizeof ( double ) );
 
@@ -899,7 +917,7 @@ int main ( int argc, char **argv ) {
             * ( score+1 ) = - ( l - trace_ZZ / phi - *randnrm * *randnrm / phi / sigma ) / phi / 2;
             * ( score+2 ) = - ( k - trace_TT / gamma_var - * ( randnrm+1 ) * * ( randnrm+1 ) / gamma_var / sigma ) / gamma_var / 2;
             printf ( "The score function is: [%g, %g, %g]\n",*score,* ( score+1 ), * ( score+2 ) );
-            printdense ( 2,2, AImat, "AI_par.txt" );
+            //printdense ( 2,2, AImat, "AI_par.txt" );
             breakvar=0;
             if ( fabs ( * ( score+1 ) ) < epsilon * epsilon ) {
                 printf ( "Score function too close to zero to go further, solution may not have converged\n " );

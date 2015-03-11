@@ -40,7 +40,10 @@ void ParDiSO::clear()
   clear_(PARDISO_MEMORY_FOR_FACTORS);
 }
 
-
+void ParDiSO::clear_all()
+{
+  clear_(PARDISO_ALL_MEMORY);
+}
 
 
 double ParDiSO::memoryAllocated() const
