@@ -266,11 +266,14 @@ void ParDiSO::init(CSRdouble& A)
 void ParDiSO::factorize(CSRdouble& A)
 {
   double ddum;
+  int messagelvl;
 
   // for factorization phase should be equal to 12
   phase = 22;
 
   shiftIndices_(A, 1);
+  
+  messagelvl= iam==0 ? 1 : 0;    
 
   PARDISOCALL_D(pt,
                 &maxfct,
@@ -284,7 +287,7 @@ void ParDiSO::factorize(CSRdouble& A)
                 perm,
                 &nrhs,
                 &iparm[1],
-                &msglvl,
+                &messagelvl,
                 &ddum,
                 &ddum,
                 &error,
