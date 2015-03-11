@@ -735,22 +735,21 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
 
     // Initialisation of matrix D (all diagonal elements of D equal to lambda)
     temp=Dmat;
-    for ( i=0,rowcur=0,colcur=0; i<Dblocks; ++i, ++colcur, ++rowcur ) {
-        if ( rowcur==*dims ) {
-            rowcur=0;
-            temp += blocksize;
-        }
+    for ( i=0,colcur=0; i<Dblocks; ++i, ++colcur, temp += blocksize ) {
+
         if ( colcur==* ( dims+1 ) ) {
             colcur=0;
             temp += blocksize*lld_D;
         }
-        if ( *position==rowcur && * ( position+1 ) == colcur ) {
-            for ( j=0; j<blocksize; ++j ) {
-                * ( temp + j  * lld_D +j ) = 1/gamma_var;
-            }
+        if ( * ( position+1 ) == colcur ) {
             if ( i==Dblocks-1 && Ddim % blocksize != 0 ) {
-                for ( j=blocksize-1; j>= Ddim % blocksize; --j ) {
-                    * ( temp + j * lld_D + j ) =0.0;
+                for ( j=0; j< Ddim % blocksize; ++j ) {
+                    * ( temp + j * lld_D + j ) =1/gamma_var;
+                }
+            }
+            else {
+                for ( j=0; j<blocksize; ++j ) {
+                    * ( temp + j  * lld_D +j ) = 1/gamma_var;
                 }
             }
         }
@@ -808,7 +807,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
 
         //Each process only reads in a part of the strip of T'
         //When k is not a multiple of blocksize, read-in of the last elements of the rows of T is tricky
-        if ( ( nTblocks-1 ) % * ( dims+1 ) == pcol && k%blocksize !=0 ) {
+        if ( ( nTblocks-1 ) % * ( dims +1 ) == pcol && k%blocksize !=0 ) {
             if ( ni==0 ) {
                 info=fseek ( fT, ( long ) ( *position * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
@@ -1069,20 +1068,20 @@ int set_up_D ( int * DESCD, double * Dmat ) {
     // However we must then also transpose the process grid to distribute T' correctly
 
     // number of strips in which we divide matrix T'
-    nstrips= n % ( blocksize * * ( dims+1 ) ) ==0 ?  n / ( blocksize * * ( dims+1 ) ) : ( n / ( blocksize * * ( dims+1 ) ) ) +1;
+    nstrips= n % ( blocksize * * ( dims ) ) ==0 ?  n / ( blocksize * * ( dims ) ) : ( n / ( blocksize * * ( dims ) ) ) +1;
 
     //the number of columns of T' included in each strip
-    stripcols= blocksize * * ( dims+1 );
+    stripcols= blocksize * * ( dims );
 
     //number of blocks necessary to store complete column of T'
     nTblocks= k%blocksize==0 ? k/blocksize : k/blocksize +1;
 
     //number of blocks necessary in this process to store complete column of T'
-    pTblocks= ( nTblocks - *position ) % *dims == 0 ? ( nTblocks- *position ) / *dims : ( nTblocks- *position ) / *dims +1;
+    pTblocks= ( nTblocks - pcol ) % *(dims+1) == 0 ? ( nTblocks- pcol ) / *(dims+1) : ( nTblocks- pcol ) / *(dims+1) +1;
     pTblocks= pTblocks <1? 1:pTblocks;
 
     //local leading dimension of the strip of T' (different from process to process)
-    lld_T=pTblocks*blocksize;
+    lld_T=blocksize;
 
     // Initialisation of descriptor of strips of matrix T'
     DESCT= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
@@ -1094,7 +1093,7 @@ int set_up_D ( int * DESCD, double * Dmat ) {
 
     // strip of T (k,stripcols) is distributed across ICTXT2D starting in process (0,0) in blocks of size (blocksize,blocksize)
     // the local leading dimension in this process is lld_T
-    descinit_ ( DESCT, &k, &stripcols, &blocksize, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_T, &info );
+    descinit_ ( DESCT, &stripcols, &k, &blocksize, &blocksize, &i_zero, &i_zero, &ICTXT2D, &lld_T, &info );
     if ( info!=0 ) {
         printf ( "Descriptor of matrix T returns info: %d\n",info );
         return info;
@@ -1120,12 +1119,14 @@ int set_up_D ( int * DESCD, double * Dmat ) {
             temp += blocksize*lld_D;
         }
         if ( *position==rowcur && * ( position+1 ) == colcur ) {
-            for ( j=0; j<blocksize; ++j ) {
-                * ( temp + j  * lld_D +j ) = 1/gamma_var;
-            }
             if ( i==Dblocks-1 && Ddim % blocksize != 0 ) {
-                for ( j=blocksize-1; j>= Ddim % blocksize; --j ) {
-                    * ( temp + j * lld_D + j ) =0.0;
+                for ( j=0; j< Ddim % blocksize; ++j ) {
+                    * ( temp + j * lld_D + j ) =1/gamma_var;
+                }
+            }
+            else {
+                for ( j=0; j<blocksize; ++j ) {
+                    * ( temp + j  * lld_D +j ) = 1/gamma_var;
                 }
             }
         }
@@ -1160,7 +1161,7 @@ int set_up_D ( int * DESCD, double * Dmat ) {
 
         //Each process only reads in a part of the strip of T'
         //When k is not a multiple of blocksize, read-in of the last elements of the rows of T is tricky
-        if ( ( nTblocks-1 ) % *dims == *position && k%blocksize !=0 ) {
+        if ( ( nTblocks-1 ) % *(dims+1) == pcol && k%blocksize !=0 ) {
             if ( ni==0 ) {
                 info=fseek ( fT, ( long ) ( pcol * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
@@ -1168,59 +1169,67 @@ int set_up_D ( int * DESCD, double * Dmat ) {
                     return -1;
                 }
             } else {
-                info=fseek ( fT, ( long ) ( blocksize * ( * ( dims+1 )-1 ) * ( k ) * sizeof ( double ) ),SEEK_CUR );
+                info=fseek ( fT, ( long ) ( blocksize * ( * ( dims )-1 ) * ( k ) * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
             }
             for ( i=0; i<blocksize; ++i ) {
-                info=fseek ( fT, ( long ) ( blocksize * *position * sizeof ( double ) ),SEEK_CUR );
+                info=fseek ( fT, ( long ) ( blocksize * pcol * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
                 for ( j=0; j < pTblocks-1; ++j ) {
-                    fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fT );
-                    info=fseek ( fT, ( long ) ( ( ( *dims ) -1 ) * blocksize * sizeof ( double ) ),SEEK_CUR );
+                    for ( int el=0; el<blocksize; ++el ) {
+                        fread ( Tblock + ( j*blocksize + el ) *blocksize + i,sizeof ( double ),1,fT );
+                    }
+                    info=fseek ( fT, ( long ) ( ( ( *(dims+1) ) -1 ) * blocksize * sizeof ( double ) ),SEEK_CUR );
                     if ( info!=0 ) {
                         printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                         return -1;
                     }
                 }
-                fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),k%blocksize,fT );
+                for ( int el=0; el< k % blocksize; ++el ) {
+                    fread ( Tblock + ( j*blocksize + el ) *blocksize + i,sizeof ( double ),1,fT );
+                }
             }
             //Normal read-in of the strips of T from a binary file (each time blocksize elements are read in)
         } else {
             if ( ni==0 ) {
-                info=fseek ( fT, ( long ) ( pcol * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
+                info=fseek ( fT, ( long ) ( *position * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
             } else {
-                info=fseek ( fT, ( long ) ( blocksize * ( * ( dims+1 )-1 ) * ( k ) * sizeof ( double ) ),SEEK_CUR );
+                info=fseek ( fT, ( long ) ( blocksize * ( * ( dims )-1 ) * ( k ) * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
             }
             for ( i=0; i<blocksize; ++i ) {
-                info=fseek ( fT, ( long ) ( blocksize * *position * sizeof ( double ) ),SEEK_CUR );
+                info=fseek ( fT, ( long ) ( blocksize * pcol * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
                 }
                 for ( j=0; j < pTblocks-1; ++j ) {
-                    fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fT );
-                    info=fseek ( fT, ( long ) ( ( * ( dims )-1 ) * blocksize * sizeof ( double ) ),SEEK_CUR );
+                    for ( int el=0; el< blocksize; ++el ) {
+                        fread ( Tblock + ( j*blocksize + el ) *blocksize + i,sizeof ( double ),1,fT );
+                    }
+                    info=fseek ( fT, ( long ) ( ( * ( dims +1)-1 ) * blocksize * sizeof ( double ) ),SEEK_CUR );
                     if ( info!=0 ) {
                         printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                         return -1;
                     }
                 }
-                fread ( Tblock + i*pTblocks*blocksize + j*blocksize,sizeof ( double ),blocksize,fT );
-                info=fseek ( fT, ( long ) ( ( k - blocksize * ( ( pTblocks-1 ) * *dims + *position +1 ) ) * sizeof ( double ) ),SEEK_CUR );
+                for ( int el=0; el< blocksize; ++el ) {
+                    fread ( Tblock + ( j*blocksize + el ) *blocksize + i,sizeof ( double ),1,fT );
+                }
+                info=fseek ( fT, ( long ) ( ( k - blocksize * ( ( pTblocks-1 ) * *(dims+1) + pcol +1 ) ) * sizeof ( double ) ),SEEK_CUR );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
@@ -1236,7 +1245,7 @@ int set_up_D ( int * DESCD, double * Dmat ) {
         // Up unitl now, the entire matrix is stored, not only upper/lower triangular, which is possible since D is symmetric
         // Be aware, that you akways have to allocate memory for the enitre matrix, even when only dealing with the upper/lower triangular part
 
-        pdgemm_ ( "N","T",&k,&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &i_one, &i_one, DESCD ); //T'T
+        pdgemm_ ( "T","N",&k,&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &i_one, &i_one, DESCD ); //T'T
         //pdsyrk_ ( "U","N",&k,&stripcols,&d_one, Tblock,&i_one, &i_one,DESCT, &d_one, Dmat, &t_plus, &t_plus, DESCD );
 
         blacs_barrier_ ( &ICTXT2D,"A" );
@@ -2241,7 +2250,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
     sigma_rec=1/sigma;
     phi_rec=1/phi;
     gamma_rec=1/gamma_var;
-    
+
     lld_Y= * ( dims+1 ) * nstrips * blocksize;
 
 
@@ -2292,7 +2301,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         pTblocks= ( nTblocks - *position ) % *dims == 0 ? ( nTblocks- *position ) / *dims : ( nTblocks- *position ) / *dims +1;		//number of blocks necessary per processor
         pTblocks= pTblocks <1? 1:pTblocks;
         lld_T=pTblocks*blocksize;													//local leading dimension of the strip of Z (different from processor to processor)														//local leading dimension of the strip of Z (different from processor to processor)
-        
+
 
         // Initialisation of descriptors of different matrices
 
@@ -2619,7 +2628,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         if ( nrmblock != NULL )
             free ( nrmblock );
         nrmblock=NULL;
-    } 
+    }
     else {
         Zu= ( double * ) calloc ( lld_Y,sizeof ( double ) );
         if ( Zu==NULL ) {
@@ -2762,7 +2771,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         solveSystemwoFact ( Asparse, Qsol+2*ydim,Qtemp+Adim, 2, 1 );
 
         if ( Qtemp != NULL )
-            free ( Qtemp );
+            delete [] Qtemp ;
         Qtemp=NULL;
 
         for ( i=0; i<ydim; ++i ) {

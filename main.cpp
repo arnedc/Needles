@@ -208,6 +208,7 @@ int main ( int argc, char **argv ) {
     Dcols= ( Dblocks - pcol ) % * ( dims+1 ) == 0 ? ( Dblocks- pcol ) / * ( dims+1 ) : ( Dblocks- pcol ) / * ( dims+1 ) +1;
     Dcols=Dcols<1? 1 : Dcols;
     lld_D=Ddim;
+    D_elements= ( size_t ) Drows * ( size_t ) Dcols * ( size_t ) blocksize;
 
     ydim=k+l+m;
     /*yblocks= ydim%blocksize==0 ? ydim/blocksize : ydim/blocksize +1;	 //define number of blocks needed to store a complete column/row of C
@@ -339,8 +340,6 @@ int main ( int argc, char **argv ) {
             gettimeofday ( &tz2,NULL );
             c2= tz2.tv_sec*1000000 + ( tz2.tv_usec );
         }
-
-        D_elements= ( size_t ) Drows * ( size_t ) Dcols * ( size_t ) blocksize;
 
         Dmat= ( double* ) calloc ( D_elements,sizeof ( double ) );
         if ( Dmat==NULL ) {
@@ -506,7 +505,7 @@ int main ( int argc, char **argv ) {
             if ( counter > 1 ) {
                 Dmat= ( double* ) calloc ( D_elements,sizeof ( double ) );
                 if ( Dmat==NULL ) {
-                    printf ( "unable to allocate memory for Matrix C (required: %lld bytes)\n", D_elements*sizeof ( double ) );
+                    printf ( "unable to allocate memory for Matrix D (required: %lld bytes)\n", D_elements*sizeof ( double ) );
                     return EXIT_FAILURE;
                 }
                 blacs_barrier_ ( &ICTXT2D,"A" );
@@ -539,9 +538,8 @@ int main ( int argc, char **argv ) {
                     }
 
                 }
-            } else {
-
-
+            } 
+            else {
                 // RHS is copied for use afterwards (in ytot we will get the estimates for the effects)
                 // This only needs to be done the first time
                 //pdcopy_ ( &Ddim, ytot,&i_one,&i_one,DESCYTOT,&i_one,RHS,&i_one,&i_one,DESCRHS,&i_one );
@@ -554,6 +552,11 @@ int main ( int argc, char **argv ) {
                     printf ( "\t elapsed wall time copy of Y (and C):			%10.3f s\n", ( c4 - c0 ) /1000000.0 );
                 }
             }
+            /*char *Dfile;
+            Dfile= ( char * ) calloc ( 100,sizeof ( char ) );
+            *Dfile='\0';
+            sprintf ( Dfile,"Dmat_(%d,%d).txt",*position,pcol );
+            printdense ( Dcols * blocksize,Drows,Dmat,Dfile );*/
 
             // Calculation of Frobenius norm of C
 
@@ -576,11 +579,11 @@ int main ( int argc, char **argv ) {
 
         //Since lambda changes every iteration we need to construct A every iteration
         else {
-	    printf ( "\nParallel results: loop %d\n",counter );
+            printf ( "\nParallel results: loop %d\n",counter );
             printf ( "=========================\n" );
             gettimeofday ( &tz3,NULL );
             c3= tz3.tv_sec*1000000 + ( tz3.tv_usec );
-	    
+
             gamma_var=gamma_var * ( 1 + * ( convergence_criterium+1 ) ); // Update for lambda (which is 1/gamma)
             phi=phi* ( 1 + *convergence_criterium );
             if ( counter >1 ) {
@@ -660,8 +663,8 @@ int main ( int argc, char **argv ) {
             MPI_Recv ( solution+Adim,k, MPI_DOUBLE,1,k,MPI_COMM_WORLD,&status );
             MPI_Recv ( solution,Adim, MPI_DOUBLE,1,Adim,MPI_COMM_WORLD,&status );
             MPI_Recv ( respnrm,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
-	    
-	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+
+            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             rootout << "After factorisation of Asparse" << endl;
             rootout << "==============================" << endl;
             rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
@@ -675,7 +678,7 @@ int main ( int argc, char **argv ) {
             loglikelihood=solveSystemWithDet ( Asparse, sparse_sol,solution, -2, 1 ) /2;
             memcpy ( solution,sparse_sol, ( m+l ) * sizeof ( double ) );
             if ( sparse_sol != NULL )
-                free ( sparse_sol );
+                delete [] sparse_sol;
             sparse_sol=NULL;
             //printdense ( ydim,1,solution,"solution.txt" );
             printf ( "Half of the log of determinant of A is: %g\n",loglikelihood );
@@ -686,11 +689,11 @@ int main ( int argc, char **argv ) {
             sigma= ( *respnrm - dot ) / ( n-m );
             MPI_Bcast ( &sigma, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
             printf ( "dot product : %g \n sigma: %g\n", dot,sigma );
-	    double log_det_D;
-	    MPI_Recv ( &log_det_D,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
-	    loglikelihood += log_det_D;
-	    printf ( "Half of the log of determinant of entire matrix C is: %g\n",loglikelihood );
-	    
+            double log_det_D;
+            MPI_Recv ( &log_det_D,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
+            loglikelihood += log_det_D;
+            printf ( "Half of the log of determinant of entire matrix C is: %g\n",loglikelihood );
+
         } else {
             int nonzeroes, count;
 
@@ -749,7 +752,7 @@ int main ( int argc, char **argv ) {
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
-                printf ( "\t elapsed wall time Cholesky decomposition of C:		%10.3f s\n", ( c1 - c0 ) /1000000.0 );
+                printf ( "\t elapsed wall time Cholesky decomposition of D:		%10.3f s\n", ( c1 - c0 ) /1000000.0 );
             }
 
             //Estimation of genetic effects, stored in solution on root process.
@@ -781,7 +784,7 @@ int main ( int argc, char **argv ) {
 
             if ( * ( position+1 ) ==0 ) {
                 printf ( "Half of the log of determinant of D is: %g\n",loglikelihood );
-		MPI_Ssend ( &loglikelihood,1, MPI_DOUBLE,0,1,MPI_COMM_WORLD );
+                MPI_Ssend ( &loglikelihood,1, MPI_DOUBLE,0,1,MPI_COMM_WORLD );
                 gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                 printf ( "\t elapsed wall time calculation and sending of sigma and log(det(M)):	%10.3f s\n", ( c1 - c0 ) /1000000.0 );
@@ -805,7 +808,7 @@ int main ( int argc, char **argv ) {
             c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
             printf ( "\t elapsed wall time set up of AI matrix:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
 
-	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             rootout << "Before inversion of Asparse" << endl;
             rootout << "===========================" << endl;
             rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
@@ -833,8 +836,8 @@ int main ( int argc, char **argv ) {
             //This function calculates the factorisation of A once again so this might be optimized.
             pardiso_var.findInverseOfA ( Asparse );
             rootout << "memory allocated by PARDISO: " << pardiso_var.memoryAllocated() << endl;
-	    
-	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+
+            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             rootout << "After inversion of Asparse" << endl;
             rootout << "===========================" << endl;
             rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
@@ -845,8 +848,8 @@ int main ( int argc, char **argv ) {
             pardiso_var.clear_all();
 
             printf ( "Processor %d inverted matrix A\n",iam );
-	    
-	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+
+            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             rootout << "After clearing pardiso_var" << endl;
             rootout << "===========================" << endl;
             rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
@@ -863,15 +866,15 @@ int main ( int argc, char **argv ) {
                 * ( Diag_inv_rand_block+i ) += Asparse.pData[j];
             }
             Asparse.clear();
-	    
-	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+
+            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             rootout << "After deleting Asparse" << endl;
             rootout << "======================" << endl;
             rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
             rootout << "Resident set size:    " << resident_set << " kb" << endl;
             rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
             rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
-	    
+
             trace_ZZ=0;
             for ( i=m; i<m+l; ++i ) {
                 trace_ZZ +=* ( Diag_inv_rand_block+i );
@@ -917,7 +920,7 @@ int main ( int argc, char **argv ) {
             * ( score+1 ) = - ( l - trace_ZZ / phi - *randnrm * *randnrm / phi / sigma ) / phi / 2;
             * ( score+2 ) = - ( k - trace_TT / gamma_var - * ( randnrm+1 ) * * ( randnrm+1 ) / gamma_var / sigma ) / gamma_var / 2;
             printf ( "The score function is: [%g, %g, %g]\n",*score,* ( score+1 ), * ( score+2 ) );
-            //printdense ( 2,2, AImat, "AI_par.txt" );
+            //printdense ( 3,3, AImat, "AI_par.txt" );
             breakvar=0;
             if ( fabs ( * ( score+1 ) ) < epsilon * epsilon ) {
                 printf ( "Score function too close to zero to go further, solution may not have converged\n " );
