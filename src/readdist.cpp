@@ -1109,16 +1109,12 @@ int set_up_D ( int * DESCD, double * Dmat ) {
 
     // Initialisation of matrix D (all diagonal elements of D equal to lambda)
     temp=Dmat;
-    for ( i=0,rowcur=0,colcur=0; i<Dblocks; ++i, ++colcur, ++rowcur ) {
-        if ( rowcur==*dims ) {
-            rowcur=0;
-            temp += blocksize;
-        }
+    for ( i=0,colcur=0; i<Dblocks; ++i, ++colcur, temp += blocksize ) {
         if ( colcur==* ( dims+1 ) ) {
             colcur=0;
             temp += blocksize*lld_D;
         }
-        if ( *position==rowcur && * ( position+1 ) == colcur ) {
+        if ( * ( position+1 ) == colcur ) {
             if ( i==Dblocks-1 && Ddim % blocksize != 0 ) {
                 for ( j=0; j< Ddim % blocksize; ++j ) {
                     * ( temp + j * lld_D + j ) =1/gamma_var;
@@ -1163,7 +1159,7 @@ int set_up_D ( int * DESCD, double * Dmat ) {
         //When k is not a multiple of blocksize, read-in of the last elements of the rows of T is tricky
         if ( ( nTblocks-1 ) % *(dims+1) == pcol && k%blocksize !=0 ) {
             if ( ni==0 ) {
-                info=fseek ( fT, ( long ) ( pcol * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
+                info=fseek ( fT, ( long ) ( *position * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
