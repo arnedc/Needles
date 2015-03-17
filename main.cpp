@@ -523,6 +523,10 @@ int main ( int argc, char **argv ) {
                 } else {
                     gamma_var=gamma_var * ( 1 + * ( convergence_criterium+1 ) ); // Update for lambda (which is 1/gamma)
                     phi=phi* ( 1 + *convergence_criterium );
+                    if(*(position+1)==0) {
+                        gettimeofday ( &tz1,NULL );
+                        c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
+                    }
                     if ( datahdf5 )
                         info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
                     else
@@ -538,7 +542,7 @@ int main ( int argc, char **argv ) {
                     }
 
                 }
-            } 
+            }
             else {
                 // RHS is copied for use afterwards (in ytot we will get the estimates for the effects)
                 // This only needs to be done the first time
@@ -694,7 +698,8 @@ int main ( int argc, char **argv ) {
             loglikelihood += log_det_D;
             printf ( "Half of the log of determinant of entire matrix C is: %g\n",loglikelihood );
 
-        } else {
+        } 
+        else {
             int nonzeroes, count;
 
             MPI_Recv ( &nonzeroes,1,MPI_INT,0,iam,MPI_COMM_WORLD,&status );
@@ -704,6 +709,9 @@ int main ( int argc, char **argv ) {
             MPI_Recv ( & ( Asparse.pCols[0] ),nonzeroes, MPI_INT,0,iam+2*size,MPI_COMM_WORLD,&status );
             MPI_Recv ( & ( Asparse.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
             if ( * ( position+1 ) ==0 ) {
+		gettimeofday ( &tz0,NULL );
+                c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+                printf ( "\t elapsed wall time for receiving sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
                 MPI_Ssend ( ytot,ydim, MPI_DOUBLE,0,ydim,MPI_COMM_WORLD );
                 process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
                 clustout << "Before calculation of Schur complement in cluster processes" << endl;
@@ -712,6 +720,8 @@ int main ( int argc, char **argv ) {
                 clustout << "Resident set size:    " << resident_set << " kb" << endl;
                 clustout << "CPU time (user):      " << cpu_user << " s"<< endl;
                 clustout << "CPU time (system):    " << cpu_sys << " s" << endl;
+		gettimeofday ( &tz1,NULL );
+                c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
             }
 
             make_Si_distributed_denseB ( Asparse, Bmat, DESCB, Dmat, DESCD, AB_sol, DESCAB_sol );
@@ -836,6 +846,10 @@ int main ( int argc, char **argv ) {
             //This function calculates the factorisation of A once again so this might be optimized.
             pardiso_var.findInverseOfA ( Asparse );
             rootout << "memory allocated by PARDISO: " << pardiso_var.memoryAllocated() << endl;
+	    
+	    gettimeofday ( &tz1,NULL );
+            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
+	    printf ( "\t elapsed wall time inversion of sparse A:		%10.3f s\n", ( c1 - c0 ) /1000000.0 );
 
             process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             rootout << "After inversion of Asparse" << endl;
@@ -889,9 +903,6 @@ int main ( int argc, char **argv ) {
             Diag_inv_rand_block=NULL;
 
             // The norm of the estimation of the random effects is calculated for use in the score function
-
-            gettimeofday ( &tz1,NULL );
-            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
 
             *randnrm = dnrm2_ ( &l,solution+m,&i_one );
             * ( randnrm+1 ) = dnrm2_ ( &k,solution+m+l,&i_one );
@@ -1008,7 +1019,7 @@ int main ( int argc, char **argv ) {
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
-                printf ( "\t elapsed wall time inverse of C:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
+                printf ( "\t elapsed wall time inverse of D:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
             }
 
             //From here on the inverse of the Schur complement S is stored in D
