@@ -917,7 +917,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
 
         // Matrix B consists of X'T and Z'T, since each process only has some parts of T at its disposal,
         // we need to make sure that the correct columns of Z and X are multiplied with the correct columns of T.
-        #pragma omp parallel shared(Ztsparse, Tblock, blocksize, lld_T, ni, dims, position, Bmat, Xtsparse, Adim) private(i)
+        #pragma omp parallel shared(Ztsparse, Tblock, blocksize, lld_T, ni, dims, position, Bmat, Xtsparse, Adim) private(i, totalTime, secs)
 {
 #pragma omp for schedule (dynamic)
         for ( i=0; i<pTblocks; ++i ) {
@@ -930,11 +930,11 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
                                    ( *dims * i + *position ) *blocksize, blocksize, XtT_temp, 0 );*/
         }
 
-        if ( ni==0 && * ( position+1 ) ==0 ) {
+        /*if ( ni==0 && * ( position+1 ) ==0 ) {
             secs.tack ( totalTime );
             cout << "Creation of XtT: " << totalTime * 0.001 << " secs" << endl;
             secs.tick ( totalTime );
-        }
+        }*/
         //Same as above for calculating Z'T
         
 #pragma omp for schedule (dynamic)
@@ -946,11 +946,11 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
                                       i*blocksize, blocksize, Bmat+Xtsparse.nrows, Adim, true, 1 );
             /*mult_colsA_colsC_denseC ( Xtsparse, Tblock+i*blocksize, lld_T, ( * ( dims+1 ) * ni + pcol ) *blocksize, blocksize,
                                    ( *dims * i + *position ) *blocksize, blocksize, XtT_temp, 0 );*/
-            if ( ni==0 && i==1 && * ( position+1 ) ==0 ) {
+            /*if ( ni==0 && i==1 && * ( position+1 ) ==0 ) {
                 secs.tack ( totalTime );
                 cout << "Multiplication Zt and Tblock: " << totalTime * 0.001 << " secs" << endl;
                 secs.tick ( totalTime );
-            }
+            }*/
             //free(ZtT_dense);
 
         }

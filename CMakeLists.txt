@@ -10,6 +10,8 @@ include_directories(${HDF5_INCLUDE_DIR} ${MPI_INCLUDE_PATH} ${PROJECT_SOURCE_DIR
 include(CMakeForceCompiler)
   CMAKE_FORCE_C_COMPILER(mpicc ${CMAKE_C_COMPILER_ID})
   CMAKE_FORCE_CXX_COMPILER(mpic++ ${CMAKE_CXX_COMPILER_ID})
+  
+SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -fopenmp -m64" )
 
 aux_source_directory(src helpfunctions)
 add_executable(pardiso_blup ${helpfunctions} main.cpp)
@@ -34,6 +36,7 @@ target_link_libraries(pardiso_blup
 		      -lpardiso500-GNU461-X86-64
                       ${MPI_LIBRARY}
 		      ${HDF5_LIBRARIES}
+		      -Wl,--no-as-needed		      
 		      -lmkl_scalapack_lp64          # dit is de MKL variant van ScaLapack
 		      -lmkl_blas95_lp64
 		      -lmkl_lapack95_lp64
@@ -42,6 +45,7 @@ target_link_libraries(pardiso_blup
 		      -lmkl_gnu_thread 
 		      -lmkl_core
                       -lmkl_blacs_intelmpi_lp64     # dit is de MKL variant van BLACS
+		      -ldl
 		      -liomp5
 		      -lmkl_gf_lp64
 		      -lgfortran
