@@ -458,16 +458,34 @@ int main ( int argc, char **argv ) {
             return EXIT_FAILURE;
         }
 
+        gettimeofday ( &tz0,NULL );
+                c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
         Xsparse.loadFromFile ( filenameX );
         Zsparse.loadFromFile ( filenameZ );
+	
+	gettimeofday ( &tz0,NULL );
+                c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+                rootout << "elapsed wall time reading in X and Z:   " << ( c1 - c0 ) /1000000.0 << " s" << endl;
 
         XtX_sparse.matmul ( Xsparse,1,Xsparse );
         XtX_sparse.reduceSymmetric();
+	gettimeofday ( &tz0,NULL );
+                c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+                rootout << "elapsed wall time creating XtX:         " << ( c0 - c1 ) /1000000.0 << " s" << endl;
         XtZ_sparse.matmul ( Xsparse,1,Zsparse );
+	gettimeofday ( &tz0,NULL );
+                c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+                rootout << "elapsed wall time creating XtZ:         " << ( c1 - c0 ) /1000000.0 << " s" << endl;
         Xsparse.clear();
         ZtZ_sparse.matmul ( Zsparse,1,Zsparse );
+	gettimeofday ( &tz0,NULL );
+                c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+                rootout << "elapsed wall time multiplying Zt and Z: " << ( c0 - c1 ) /1000000.0 << " s" << endl;
         Zsparse.clear();
         ZtZ_sparse.reduceSymmetric();
+	gettimeofday ( &tz0,NULL );
+                c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+                rootout << "elapsed wall time reducing ZtZ:         " << ( c1 - c0 ) /1000000.0 << " s" << endl;
         process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
         rootout << "At end of allocations in root process"  << endl;
         rootout << "====================================="  << endl;
