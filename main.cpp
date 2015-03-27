@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include "src/shared_var.h"
+#include <hdf5.h>
 
 #include "CSRdouble.hpp"
 #include "ParDiSO.hpp"
@@ -29,6 +30,7 @@ double gamma_var, phi, epsilon;
 int Bassparse_bool;
 ParDiSO pardiso_var ( -2,0 );
 ofstream rootout, clustout;
+MPI_Comm COMM_DENSE;
 
 
 
@@ -93,6 +95,12 @@ int main ( int argc, char **argv ) {
     int * gridmap;
     size_t D_elements, B_elements;
     MPI_Status status;
+    MPI_Group MPI_GROUP_WORLD, GROUP_DENSE;
+    static int ranks[] = {0};
+    
+    MPI_Comm_group(MPI_COMM_WORLD, &MPI_GROUP_WORLD);
+    MPI_Group_excl(MPI_GROUP_WORLD, 1, ranks, &GROUP_DENSE);
+    MPI_Comm_create(MPI_COMM_WORLD, GROUP_DENSE, &COMM_DENSE);
 
     rootout.open ( "root_output.txt" );
     clustout.open ( "cluster_output.txt" );
@@ -403,10 +411,10 @@ int main ( int argc, char **argv ) {
         if ( * ( position+1 ) ==0 && *position==0 ) {
             gettimeofday ( &tz1,NULL );
             c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
-            //printf ( "\t elapsed wall time allocation of memory:		%10.3f s\n", ( c1 - c3 ) /1000000.0 );
+            printf ( "\t elapsed wall time allocation of memory:		%10.3f s\n", ( c1 - c3 ) /1000000.0 );
         }
         if ( datahdf5 )
-            info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
+            info = set_up_BDY_hdf5 ( DESCD, Dmat, DESCB, Bmat, DESCYTOT, ytot, respnrm );
         else
             info = set_up_BDY ( DESCD, Dmat, DESCB, Bmat, DESCYTOT, ytot, respnrm );
         if ( info!=0 ) {
@@ -546,7 +554,7 @@ int main ( int argc, char **argv ) {
                         c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                     }
                     if ( datahdf5 )
-                        info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
+                        info = set_up_D_hdf5 ( DESCD, Dmat );
                     else
                         info = set_up_D ( DESCD, Dmat );
                     if ( info!=0 ) {
@@ -825,6 +833,9 @@ int main ( int argc, char **argv ) {
             gettimeofday ( &tz1,NULL );
             c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
 
+	    if ( datahdf5 )
+            info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
+        else
             info = set_up_AI ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
             if ( info!=0 ) {
@@ -1022,7 +1033,10 @@ int main ( int argc, char **argv ) {
             printf ( "The relative update for phi is: %g \n", *convergence_criterium );
             printf ( "The relative update for gamma is: %g \n", * ( convergence_criterium+1 ) );
         } else {
-            info = set_up_AI ( AImat,DESCDENSESOL, densesol, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
+            if ( datahdf5 )
+            info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
+        else
+            info = set_up_AI ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
             if ( info!=0 ) {
                 printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
@@ -1324,7 +1338,7 @@ int main ( int argc, char **argv ) {
 
     //cout << iam << " reached end before MPI_Barrier" << endl;
     MPI_Barrier ( MPI_COMM_WORLD );
-    MPI_Finalize();
+    //MPI_Finalize();
 
     return 0;
 
