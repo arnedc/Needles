@@ -917,9 +917,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
 
         // Matrix B consists of X'T and Z'T, since each process only has some parts of T at its disposal,
         // we need to make sure that the correct columns of Z and X are multiplied with the correct columns of T.
-        #pragma omp parallel shared(Ztsparse, Tblock, blocksize, lld_T, ni, dims, position, Bmat, Xtsparse, Adim) private(i, totalTime, secs)
-{
-#pragma omp for schedule (static)
+
         for ( i=0; i<pTblocks; ++i ) {
 
             //This function multiplies the correct columns of X' with the blocks of T at the disposal of the process
@@ -937,7 +935,6 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
         }*/
         //Same as above for calculating Z'T
         
-#pragma omp for schedule (static)
         for ( i=0; i<pTblocks; ++i ) {
 
             //This function multiplies the correct columns of X' with the blocks of T at the disposal of the process
@@ -954,7 +951,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
             //free(ZtT_dense);
 
         }
-}
+
         if ( ni==0 && * ( position+1 ) ==0 ) {
             secs.tack ( totalTime );
             cout << "Creation of ZtT: " << totalTime * 0.001 << " secs" << endl;
