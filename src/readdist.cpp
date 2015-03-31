@@ -2706,6 +2706,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         for ( ni=0; ni<nstrips; ++ni ) {
 
             MPI_Recv ( Tdblock,stripcols, MPI_DOUBLE,1,ni,MPI_COMM_WORLD,&status );
+	    
             //cout << "Received Tdblock " << ni +1 << endl;
             //printf("Dense multiplications with strip %d of T done\n",ni);
             mult_colsA_colsC_denseC ( Xtsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+2*ydim, ydim, true, 1.0 ); 	//X'Td/gamma

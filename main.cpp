@@ -97,7 +97,7 @@ int main ( int argc, char **argv ) {
     MPI_Status status;
     MPI_Group MPI_GROUP_WORLD, GROUP_DENSE;
     static int ranks[] = {0};
-    
+
     MPI_Comm_group(MPI_COMM_WORLD, &MPI_GROUP_WORLD);
     MPI_Group_excl(MPI_GROUP_WORLD, 1, ranks, &GROUP_DENSE);
     MPI_Comm_create(MPI_COMM_WORLD, GROUP_DENSE, &COMM_DENSE);
@@ -467,33 +467,33 @@ int main ( int argc, char **argv ) {
         }
 
         gettimeofday ( &tz0,NULL );
-                c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
         Xsparse.loadFromFile ( filenameX );
         Zsparse.loadFromFile ( filenameZ );
-	
-	gettimeofday ( &tz0,NULL );
-                c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-                rootout << "elapsed wall time reading in X and Z:   " << ( c1 - c0 ) /1000000.0 << " s" << endl;
+
+        gettimeofday ( &tz0,NULL );
+        c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        rootout << "elapsed wall time reading in X and Z:   " << ( c1 - c0 ) /1000000.0 << " s" << endl;
 
         XtX_sparse.matmul ( Xsparse,1,Xsparse );
         XtX_sparse.reduceSymmetric();
-	gettimeofday ( &tz0,NULL );
-                c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-                rootout << "elapsed wall time creating XtX:         " << ( c0 - c1 ) /1000000.0 << " s" << endl;
+        gettimeofday ( &tz0,NULL );
+        c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        rootout << "elapsed wall time creating XtX:         " << ( c0 - c1 ) /1000000.0 << " s" << endl;
         XtZ_sparse.matmul ( Xsparse,1,Zsparse );
-	gettimeofday ( &tz0,NULL );
-                c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-                rootout << "elapsed wall time creating XtZ:         " << ( c1 - c0 ) /1000000.0 << " s" << endl;
+        gettimeofday ( &tz0,NULL );
+        c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        rootout << "elapsed wall time creating XtZ:         " << ( c1 - c0 ) /1000000.0 << " s" << endl;
         Xsparse.clear();
         ZtZ_sparse.matmul ( Zsparse,1,Zsparse );
-	gettimeofday ( &tz0,NULL );
-                c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-                rootout << "elapsed wall time multiplying Zt and Z: " << ( c0 - c1 ) /1000000.0 << " s" << endl;
+        gettimeofday ( &tz0,NULL );
+        c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        rootout << "elapsed wall time multiplying Zt and Z: " << ( c0 - c1 ) /1000000.0 << " s" << endl;
         Zsparse.clear();
         ZtZ_sparse.reduceSymmetric();
-	gettimeofday ( &tz0,NULL );
-                c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
-                rootout << "elapsed wall time reducing ZtZ:         " << ( c1 - c0 ) /1000000.0 << " s" << endl;
+        gettimeofday ( &tz0,NULL );
+        c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        rootout << "elapsed wall time reducing ZtZ:         " << ( c1 - c0 ) /1000000.0 << " s" << endl;
         process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
         rootout << "At end of allocations in root process"  << endl;
         rootout << "====================================="  << endl;
@@ -582,11 +582,11 @@ int main ( int argc, char **argv ) {
                     printf ( "\t elapsed wall time copy of Y (and C):			%10.3f s\n", ( c4 - c0 ) /1000000.0 );
                 }
             }
-            char *Dfile;
+            /*char *Dfile;
             Dfile= ( char * ) calloc ( 100,sizeof ( char ) );
             *Dfile='\0';
             sprintf ( Dfile,"Dmat_(%d,%d).txt",*position,pcol );
-            printdense ( Dcols * blocksize,Drows,Dmat,Dfile );
+            printdense ( Dcols * blocksize,Drows,Dmat,Dfile );*/
 
             // Calculation of Frobenius norm of C
 
@@ -724,7 +724,7 @@ int main ( int argc, char **argv ) {
             loglikelihood += log_det_D;
             printf ( "Half of the log of determinant of entire matrix C is: %g\n",loglikelihood );
 
-        } 
+        }
         else {
             int nonzeroes, count;
 
@@ -735,7 +735,7 @@ int main ( int argc, char **argv ) {
             MPI_Recv ( & ( Asparse.pCols[0] ),nonzeroes, MPI_INT,0,iam+2*size,MPI_COMM_WORLD,&status );
             MPI_Recv ( & ( Asparse.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
             if ( * ( position+1 ) ==0 ) {
-		gettimeofday ( &tz0,NULL );
+                gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
                 printf ( "\t elapsed wall time for receiving sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
                 MPI_Ssend ( ytot,ydim, MPI_DOUBLE,0,ydim,MPI_COMM_WORLD );
@@ -746,7 +746,7 @@ int main ( int argc, char **argv ) {
                 clustout << "Resident set size:    " << resident_set << " kb" << endl;
                 clustout << "CPU time (user):      " << cpu_user << " s"<< endl;
                 clustout << "CPU time (system):    " << cpu_sys << " s" << endl;
-		gettimeofday ( &tz1,NULL );
+                gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
             }
 
@@ -833,10 +833,10 @@ int main ( int argc, char **argv ) {
             gettimeofday ( &tz1,NULL );
             c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
 
-	    if ( datahdf5 )
-            info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
-        else
-            info = set_up_AI ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
+            if ( datahdf5 )
+                info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
+            else
+                info = set_up_AI ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
             if ( info!=0 ) {
                 printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
@@ -875,10 +875,10 @@ int main ( int argc, char **argv ) {
             //This function calculates the factorisation of A once again so this might be optimized.
             pardiso_var.findInverseOfA ( Asparse );
             rootout << "memory allocated by PARDISO: " << pardiso_var.memoryAllocated() << endl;
-	    
-	    gettimeofday ( &tz1,NULL );
+
+            gettimeofday ( &tz1,NULL );
             c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
-	    printf ( "\t elapsed wall time inversion of sparse A:		%10.3f s\n", ( c1 - c0 ) /1000000.0 );
+            printf ( "\t elapsed wall time inversion of sparse A:		%10.3f s\n", ( c1 - c0 ) /1000000.0 );
 
             process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             rootout << "After inversion of Asparse" << endl;
@@ -1032,11 +1032,12 @@ int main ( int argc, char **argv ) {
             score=NULL;
             printf ( "The relative update for phi is: %g \n", *convergence_criterium );
             printf ( "The relative update for gamma is: %g \n", * ( convergence_criterium+1 ) );
-        } else {
+        } 
+        else {
             if ( datahdf5 )
-            info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
-        else
-            info = set_up_AI ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
+                info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, densesol, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
+            else
+                info = set_up_AI ( AImat,DESCDENSESOL, densesol, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
             if ( info!=0 ) {
                 printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
