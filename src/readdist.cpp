@@ -627,7 +627,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
     int nTblocks, nstrips, pTblocks, stripcols, lld_T, pcol, colcur,rowcur;
     int nYblocks, pYblocks, lld_Y, Ystart;
     timing secs;
-    double totalTime, interTime;
+    double totalTime, interTime, readTime, densemultTime, sparsemultTime;
 
     MPI_Status status;
 
@@ -787,6 +787,10 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
 
     blacs_barrier_ ( &ICTXT2D,"A" );
 
+    totalTime=0;
+    readTime=0;
+    densemultTime=0;
+    sparsemultTime=0;
     secs.tick ( totalTime );
 
     // Set up of matrix D and B per strip of T'
@@ -803,6 +807,9 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
                 printf ( "Error in allocating memory for a strip of Z in processor (%d,%d)\n",*position,* ( position+1 ) );
                 return -1;
             }
+        }
+        if ( * ( position+1 ) ==0 ) {
+            secs.tick(readTime);
         }
 
         //Each process only reads in a part of the strip of T'
@@ -885,10 +892,11 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
 
         blacs_barrier_ ( &ICTXT2D,"A" );
 
-        if ( ni==0 && * ( position+1 ) ==0 ) {
-            secs.tack ( totalTime );
-            cout << "Read-in of Tblock: " << totalTime * 0.001 << " secs" << endl;
-            secs.tick ( totalTime );
+        if ( * ( position+1 ) ==0 ) {
+            secs.tack ( readTime );
+            if(ni==nstrips-1)
+                cout << "Read-in of Tblock: " << readTime * 0.001 << " secs" << endl;
+            secs.tick(densemultTime);
         }
         /*char *Tfile;
             Tfile=(char *) calloc(100,sizeof(char));
@@ -909,10 +917,11 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
             printf("Ystart= %d\n", Ystart);*/
         pdgemm_ ( "T","N",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Y,&Ystart,&i_one,DESCY,&d_one,ytot,&ml_plus,&i_one,DESCYTOT ); //T'y
 
-        if ( ni==0 && * ( position+1 ) ==0 ) {
-            secs.tack ( totalTime );
-            cout << "dense multiplications of Tblock: " << totalTime * 0.001 << " secs" << endl;
-            secs.tick ( totalTime );
+        if ( * ( position+1 ) ==0 ) {
+            secs.tack ( densemultTime );
+            if(ni==nstrips-1)
+                cout << "dense multiplications of Tblock: " << densemultTime * 0.001 << " secs" << endl;
+            secs.tick ( sparsemultTime );
         }
 
         // Matrix B consists of X'T and Z'T, since each process only has some parts of T at its disposal,
@@ -929,12 +938,13 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
         }
 
         /*if ( ni==0 && * ( position+1 ) ==0 ) {
-            secs.tack ( totalTime );
-            cout << "Creation of XtT: " << totalTime * 0.001 << " secs" << endl;
-            secs.tick ( totalTime );
+            secs.tack ( interTime );
+            cout << "Creation of XtT: " << interTime * 0.001 * nstrips << " secs" << endl;
+            interTime=0;
+            secs.tick ( interTime );
         }*/
         //Same as above for calculating Z'T
-        
+
         for ( i=0; i<pTblocks; ++i ) {
 
             //This function multiplies the correct columns of X' with the blocks of T at the disposal of the process
@@ -952,10 +962,10 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
 
         }
 
-        if ( ni==0 && * ( position+1 ) ==0 ) {
-            secs.tack ( totalTime );
-            cout << "Creation of ZtT: " << totalTime * 0.001 << " secs" << endl;
-            secs.tick ( totalTime );
+        if ( * ( position+1 ) ==0 ) {
+            secs.tack ( sparsemultTime );
+            if(ni==nstrips-1)
+                cout << "Creation of ZtT & XtT: " << sparsemultTime * 0.001 << " secs" << endl;
         }
         blacs_barrier_ ( &ICTXT2D,"A" );
     }
@@ -2706,7 +2716,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         for ( ni=0; ni<nstrips; ++ni ) {
 
             MPI_Recv ( Tdblock,stripcols, MPI_DOUBLE,1,ni,MPI_COMM_WORLD,&status );
-	    
+
             //cout << "Received Tdblock " << ni +1 << endl;
             //printf("Dense multiplications with strip %d of T done\n",ni);
             mult_colsA_colsC_denseC ( Xtsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+2*ydim, ydim, true, 1.0 ); 	//X'Td/gamma

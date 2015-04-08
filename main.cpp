@@ -250,6 +250,9 @@ int main ( int argc, char **argv ) {
 
     if ( iam!=0 ) {
 
+        gettimeofday ( &tz3,NULL );
+        c3= tz3.tv_sec*1000000 + ( tz3.tv_usec );
+
         DESCD= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
         if ( DESCD==NULL ) {
             printf ( "unable to allocate memory for descriptor for C\n" );
@@ -1032,7 +1035,7 @@ int main ( int argc, char **argv ) {
             score=NULL;
             printf ( "The relative update for phi is: %g \n", *convergence_criterium );
             printf ( "The relative update for gamma is: %g \n", * ( convergence_criterium+1 ) );
-        } 
+        }
         else {
             if ( datahdf5 )
                 info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, densesol, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
