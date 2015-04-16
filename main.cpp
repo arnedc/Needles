@@ -706,8 +706,6 @@ int main ( int argc, char **argv ) {
             MPI_Recv ( solution,Adim, MPI_DOUBLE,1,Adim,MPI_COMM_WORLD,&status );
             MPI_Recv ( respnrm,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
 
-            
-
             double * sparse_sol = new double[Adim];
 
             printf ( "Solving system Au=y_u - Bd on process 0\n" );
