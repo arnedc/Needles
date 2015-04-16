@@ -659,6 +659,7 @@ int main ( int argc, char **argv ) {
             gettimeofday ( &tz0,NULL );
             c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
             printf ( "\t elapsed wall time for creating sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+	    printf( "Fill in of Asparse: %g % \n", (double) Asparse.nonzeros/Asparse.ncols/Asparse.nrows*100);
             /*Asparse.writeToFile ( "Asparse.csr" );
             double * Adense = new double[Asparse.nrows * Asparse.ncols];
             CSR2dense ( Asparse,Adense );
@@ -692,18 +693,20 @@ int main ( int argc, char **argv ) {
             printf ( "Solving system Ax_u = y_u on process 0\n" );
             solveSystem ( Asparse,solution,ytot,2,1 );
             //printdense ( ydim,1,solution,"wA.txt" );
-            MPI_Ssend ( solution,Adim, MPI_DOUBLE,1,1,MPI_COMM_WORLD );
-            MPI_Recv ( solution+Adim,k, MPI_DOUBLE,1,k,MPI_COMM_WORLD,&status );
-            MPI_Recv ( solution,Adim, MPI_DOUBLE,1,Adim,MPI_COMM_WORLD,&status );
-            MPI_Recv ( respnrm,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
-
-            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             rootout << "After factorisation of Asparse" << endl;
             rootout << "==============================" << endl;
             rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
             rootout << "Resident set size:    " << resident_set << " kb" << endl;
             rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
             rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
+	    
+            MPI_Ssend ( solution,Adim, MPI_DOUBLE,1,1,MPI_COMM_WORLD );
+            MPI_Recv ( solution+Adim,k, MPI_DOUBLE,1,k,MPI_COMM_WORLD,&status );
+            MPI_Recv ( solution,Adim, MPI_DOUBLE,1,Adim,MPI_COMM_WORLD,&status );
+            MPI_Recv ( respnrm,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
+
+            
 
             double * sparse_sol = new double[Adim];
 
