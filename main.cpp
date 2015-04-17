@@ -104,6 +104,7 @@ int main ( int argc, char **argv ) {
 
     rootout.open ( "root_output.txt" );
     clustout.open ( "cluster_output.txt" );
+    
 
     // declaration of descriptors of different matrices
     secs.tick ( totalTime );
@@ -136,6 +137,10 @@ int main ( int argc, char **argv ) {
         printf ( "At least 2 MPI processes must be initialised" );
         return -1;
     }
+    /*std::string clustfile;
+    std::stringstream sstm;
+    sstm << "cluster_output_" << iam << ".txt";
+    clustout.open ( sstm.str().c_str() );*/
     /*    info=MPI_Dims_create ( size, 2, dims );			//determine the best 2D cartesian grid with the number of processes
         if ( info != MPI_SUCCESS ) {
             printf ( "Error in MPI creation of dimensions: %d",info );
@@ -682,12 +687,18 @@ int main ( int argc, char **argv ) {
         MPI_Barrier ( MPI_COMM_WORLD );
 
         if ( iam==0 ) {
-            for ( i=1; i<size; ++i ) {
-                MPI_Ssend ( & ( Asparse.nonzeros ),1, MPI_INT,i,i,MPI_COMM_WORLD );
-                MPI_Ssend ( & ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT,i,i+size,MPI_COMM_WORLD );
-                MPI_Ssend ( & ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT,i,i+2*size,MPI_COMM_WORLD );
-                MPI_Ssend ( & ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE,i,i+3*size,MPI_COMM_WORLD );
-            }
+            /*for ( i=1; i<size; ++i ) {
+                MPI_Send ( & ( Asparse.nonzeros ),1, MPI_INT,i,i,MPI_COMM_WORLD );
+                MPI_Send ( & ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT,i,i+size,MPI_COMM_WORLD );
+                MPI_Send ( & ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT,i,i+2*size,MPI_COMM_WORLD );
+                MPI_Send ( & ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE,i,i+3*size,MPI_COMM_WORLD );
+		rootout << "Sent Asparse to process " << i << endl;
+            }*/
+	    MPI_Bcast(&(Asparse.nonzeros), 1, MPI_INT, 0,MPI_COMM_WORLD);
+	    MPI_Bcast(& ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT, 0,MPI_COMM_WORLD);
+	    MPI_Bcast(& ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT, 0,MPI_COMM_WORLD);
+	    MPI_Bcast(& ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	    rootout << "Broadcasted Asparse to processes" << endl;
             MPI_Recv ( ytot,ydim, MPI_DOUBLE,1,ydim,MPI_COMM_WORLD,&status );
             //printdense ( k+l+m,1,ytot,"ytot.txt" );
             printf ( "Solving system Ax_u = y_u on process 0\n" );
@@ -731,13 +742,34 @@ int main ( int argc, char **argv ) {
         }
         else {
             int nonzeroes, count;
-
-            MPI_Recv ( &nonzeroes,1,MPI_INT,0,iam,MPI_COMM_WORLD,&status );
+	    blacs_barrier_(&ICTXT2D, "A");
+	    interTime=0;
+	    secs.tick(interTime);
+            //MPI_Recv ( &nonzeroes,1,MPI_INT,0,iam,MPI_COMM_WORLD,&status );
+	    MPI_Bcast(&nonzeroes, 1, MPI_INT, 0,MPI_COMM_WORLD);
+	    secs.tack(interTime);
+	    clustout << "Process " << iam << " received nonzeroes of Asparse (" << interTime * 0.001 << " s)"  << endl ;
+	    secs.tick(interTime);
             Asparse.allocate ( Adim,Adim,nonzeroes );
-            MPI_Recv ( & ( Asparse.pRows[0] ),Adim + 1, MPI_INT,0,iam + size,MPI_COMM_WORLD,&status );
-            MPI_Get_count ( &status,MPI_INT,&count );
-            MPI_Recv ( & ( Asparse.pCols[0] ),nonzeroes, MPI_INT,0,iam+2*size,MPI_COMM_WORLD,&status );
-            MPI_Recv ( & ( Asparse.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
+	    secs.tack(interTime);;
+	    clustout << "Process " << iam << " allocated Asparse (" << interTime * 0.001 << " s)"  << endl ;
+	    secs.tick(interTime);
+            /*MPI_Recv ( & ( Asparse.pRows[0] ),Adim + 1, MPI_INT,0,iam + size,MPI_COMM_WORLD,&status );
+            MPI_Get_count ( &status,MPI_INT,&count );*/
+	    MPI_Bcast(& ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT, 0,MPI_COMM_WORLD);
+	    secs.tack(interTime);
+	    clustout << "Process " << iam << " received prows (" << count << ") of Asparse (" << interTime * 0.001 << " s)" << endl ;
+	    secs.tick(interTime);
+            //MPI_Recv ( & ( Asparse.pCols[0] ),nonzeroes, MPI_INT,0,iam+2*size,MPI_COMM_WORLD,&status );
+	    MPI_Bcast(& ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT, 0,MPI_COMM_WORLD);
+	    secs.tack(interTime);
+	    clustout << "Process " << iam << " received pcols of Asparse (" << interTime * 0.001 << " s)"<< endl ;
+	    secs.tick(interTime);
+            //MPI_Recv ( & ( Asparse.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
+	    MPI_Bcast(& ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	    secs.tack(interTime);
+	    clustout << "Process " << iam << " received pdata of Asparse (" << interTime * 0.001 << " s)"<< endl ;
+	    blacs_barrier_(&ICTXT2D, "A");
             if ( * ( position+1 ) ==0 ) {
                 gettimeofday ( &tz0,NULL );
                 c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );

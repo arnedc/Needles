@@ -203,8 +203,6 @@ int make_Si_distributed_denseB(CSRdouble& A, double * B, int * DESCB, double * S
         printf("Solving systems AX_j = B_j on all processes\n");
     solveSystem(A, AB_sol_out,B, -2, Dcols * blocksize);
     
-    blacs_barrier_(&ICTXT2D,"A");
-    
     if(*(position+1)==0)
         printf("Systems AX_j = B_j solved on all processes\n");
 
