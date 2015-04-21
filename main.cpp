@@ -682,6 +682,7 @@ int main ( int argc, char **argv ) {
             ZtZ_sparse.addBCSR ( Diagmat );
 
             Diagmat.clear();
+	    rootout << "Before MPI barrier" << endl;
         }
 
         MPI_Barrier ( MPI_COMM_WORLD );
@@ -694,10 +695,22 @@ int main ( int argc, char **argv ) {
                 MPI_Send ( & ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE,i,i+3*size,MPI_COMM_WORLD );
 		rootout << "Sent Asparse to process " << i << endl;
             }*/
+	    rootout << "After MPI barrier" << endl;
 	    MPI_Bcast(&(Asparse.nonzeros), 1, MPI_INT, 0,MPI_COMM_WORLD);
+	    rootout << "Broadcasted Asparse.nonzeros" << endl;
 	    MPI_Bcast(& ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT, 0,MPI_COMM_WORLD);
-	    MPI_Bcast(& ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT, 0,MPI_COMM_WORLD);
-	    MPI_Bcast(& ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	    if (Asparse.nonzeros > 100000000){
+	      for (i=0; i<(Asparse.nonzeros/100000000 - 1); ++i){
+		MPI_Bcast(& ( Asparse.pCols[i*100000000] ),100000000, MPI_INT, 0,MPI_COMM_WORLD);
+		MPI_Bcast(& ( Asparse.pData[i*100000000] ),100000000, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	      }
+	      MPI_Bcast(& ( Asparse.pCols[i*100000000] ),Asparse.nonzeros % 100000000, MPI_INT, 0,MPI_COMM_WORLD);
+	      MPI_Bcast(& ( Asparse.pData[i*100000000] ),Asparse.nonzeros % 100000000, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	    }
+	    else{
+	      MPI_Bcast(& ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT, 0,MPI_COMM_WORLD);
+	      MPI_Bcast(& ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	    }
 	    rootout << "Broadcasted Asparse to processes" << endl;
             MPI_Recv ( ytot,ydim, MPI_DOUBLE,1,ydim,MPI_COMM_WORLD,&status );
             //printdense ( k+l+m,1,ytot,"ytot.txt" );
@@ -751,7 +764,7 @@ int main ( int argc, char **argv ) {
 	    clustout << "Process " << iam << " received nonzeroes of Asparse (" << interTime * 0.001 << " s)"  << endl ;
 	    secs.tick(interTime);
             Asparse.allocate ( Adim,Adim,nonzeroes );
-	    secs.tack(interTime);;
+	    secs.tack(interTime);
 	    clustout << "Process " << iam << " allocated Asparse (" << interTime * 0.001 << " s)"  << endl ;
 	    secs.tick(interTime);
             /*MPI_Recv ( & ( Asparse.pRows[0] ),Adim + 1, MPI_INT,0,iam + size,MPI_COMM_WORLD,&status );
@@ -760,15 +773,22 @@ int main ( int argc, char **argv ) {
 	    secs.tack(interTime);
 	    clustout << "Process " << iam << " received prows (" << count << ") of Asparse (" << interTime * 0.001 << " s)" << endl ;
 	    secs.tick(interTime);
-            //MPI_Recv ( & ( Asparse.pCols[0] ),nonzeroes, MPI_INT,0,iam+2*size,MPI_COMM_WORLD,&status );
-	    MPI_Bcast(& ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT, 0,MPI_COMM_WORLD);
-	    secs.tack(interTime);
-	    clustout << "Process " << iam << " received pcols of Asparse (" << interTime * 0.001 << " s)"<< endl ;
-	    secs.tick(interTime);
-            //MPI_Recv ( & ( Asparse.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
-	    MPI_Bcast(& ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE, 0,MPI_COMM_WORLD);
-	    secs.tack(interTime);
-	    clustout << "Process " << iam << " received pdata of Asparse (" << interTime * 0.001 << " s)"<< endl ;
+	    if (Asparse.nonzeros > 100000000){
+	      for (i=0; i<(Asparse.nonzeros/100000000 - 1); ++i){
+		MPI_Bcast(& ( Asparse.pCols[i*100000000] ),100000000, MPI_INT, 0,MPI_COMM_WORLD);
+		MPI_Bcast(& ( Asparse.pData[i*100000000] ),100000000, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	      }
+	      MPI_Bcast(& ( Asparse.pCols[i*100000000] ),Asparse.nonzeros % 100000000, MPI_INT, 0,MPI_COMM_WORLD);
+	      MPI_Bcast(& ( Asparse.pData[i*100000000] ),Asparse.nonzeros % 100000000, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	      secs.tack(interTime);
+	      clustout << "Process " << iam << " received pcols & pdata of Asparse (" << interTime * 0.001 << " s)"<< endl ;
+	    }
+	    else{
+	      MPI_Bcast(& ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT, 0,MPI_COMM_WORLD);
+	      MPI_Bcast(& ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	      secs.tack(interTime);
+	      clustout << "Process " << iam << " received pcols & pdata of Asparse (" << interTime * 0.001 << " s)"<< endl ;
+	    }
 	    blacs_barrier_(&ICTXT2D, "A");
             if ( * ( position+1 ) ==0 ) {
                 gettimeofday ( &tz0,NULL );
@@ -794,6 +814,7 @@ int main ( int argc, char **argv ) {
                 //printdense(Drows*blocksize, Drows*blocksize,Dmat,"Dmat.txt");
             }
             Asparse.clear();
+	    
             /*char *Dfile;
             Dfile= ( char * ) calloc ( 100,sizeof ( char ) );
             *Dfile='\0';
