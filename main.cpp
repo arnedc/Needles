@@ -590,11 +590,11 @@ int main ( int argc, char **argv ) {
                     printf ( "\t elapsed wall time copy of Y (and C):			%10.3f s\n", ( c4 - c0 ) /1000000.0 );
                 }
             }
-            char *Dfile;
+            /*char *Dfile;
             Dfile= ( char * ) calloc ( 100,sizeof ( char ) );
             *Dfile='\0';
             sprintf ( Dfile,"Dmat_(%d,%d).txt",*position,pcol );
-            printdense ( Dcols * blocksize,Drows,Dmat,Dfile );
+            printdense ( Dcols * blocksize,Drows,Dmat,Dfile );*/
 
             // Calculation of Frobenius norm of C
 
