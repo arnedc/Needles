@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include "src/shared_var.h"
+#include <hdf5.h>
 
 #include "CSRdouble.hpp"
 #include "ParDiSO.hpp"
@@ -29,6 +30,7 @@ double gamma_var, phi, epsilon;
 int Bassparse_bool;
 ParDiSO pardiso_var ( -2,0 );
 ofstream rootout, clustout;
+MPI_Comm COMM_DENSE;
 
 
 
@@ -93,9 +95,16 @@ int main ( int argc, char **argv ) {
     int * gridmap;
     size_t D_elements, B_elements;
     MPI_Status status;
+    MPI_Group MPI_GROUP_WORLD, GROUP_DENSE;
+    static int ranks[] = {0};
+
+    MPI_Comm_group(MPI_COMM_WORLD, &MPI_GROUP_WORLD);
+    MPI_Group_excl(MPI_GROUP_WORLD, 1, ranks, &GROUP_DENSE);
+    MPI_Comm_create(MPI_COMM_WORLD, GROUP_DENSE, &COMM_DENSE);
 
     rootout.open ( "root_output.txt" );
     clustout.open ( "cluster_output.txt" );
+    
 
     // declaration of descriptors of different matrices
     secs.tick ( totalTime );
@@ -128,6 +137,10 @@ int main ( int argc, char **argv ) {
         printf ( "At least 2 MPI processes must be initialised" );
         return -1;
     }
+    /*std::string clustfile;
+    std::stringstream sstm;
+    sstm << "cluster_output_" << iam << ".txt";
+    clustout.open ( sstm.str().c_str() );*/
     /*    info=MPI_Dims_create ( size, 2, dims );			//determine the best 2D cartesian grid with the number of processes
         if ( info != MPI_SUCCESS ) {
             printf ( "Error in MPI creation of dimensions: %d",info );
@@ -241,6 +254,9 @@ int main ( int argc, char **argv ) {
     printf("i_zero is %d\n", i_zero);*/
 
     if ( iam!=0 ) {
+
+        gettimeofday ( &tz3,NULL );
+        c3= tz3.tv_sec*1000000 + ( tz3.tv_usec );
 
         DESCD= ( int* ) malloc ( DLEN_ * sizeof ( int ) );
         if ( DESCD==NULL ) {
@@ -403,10 +419,10 @@ int main ( int argc, char **argv ) {
         if ( * ( position+1 ) ==0 && *position==0 ) {
             gettimeofday ( &tz1,NULL );
             c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
-            //printf ( "\t elapsed wall time allocation of memory:		%10.3f s\n", ( c1 - c3 ) /1000000.0 );
+            printf ( "\t elapsed wall time allocation of memory:		%10.3f s\n", ( c1 - c3 ) /1000000.0 );
         }
         if ( datahdf5 )
-            info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
+            info = set_up_BDY_hdf5 ( DESCD, Dmat, DESCB, Bmat, DESCYTOT, ytot, respnrm );
         else
             info = set_up_BDY ( DESCD, Dmat, DESCB, Bmat, DESCYTOT, ytot, respnrm );
         if ( info!=0 ) {
@@ -458,16 +474,34 @@ int main ( int argc, char **argv ) {
             return EXIT_FAILURE;
         }
 
+        gettimeofday ( &tz0,NULL );
+        c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
         Xsparse.loadFromFile ( filenameX );
         Zsparse.loadFromFile ( filenameZ );
 
+        gettimeofday ( &tz0,NULL );
+        c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        rootout << "elapsed wall time reading in X and Z:   " << ( c1 - c0 ) /1000000.0 << " s" << endl;
+
         XtX_sparse.matmul ( Xsparse,1,Xsparse );
         XtX_sparse.reduceSymmetric();
+        gettimeofday ( &tz0,NULL );
+        c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        rootout << "elapsed wall time creating XtX:         " << ( c0 - c1 ) /1000000.0 << " s" << endl;
         XtZ_sparse.matmul ( Xsparse,1,Zsparse );
+        gettimeofday ( &tz0,NULL );
+        c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        rootout << "elapsed wall time creating XtZ:         " << ( c1 - c0 ) /1000000.0 << " s" << endl;
         Xsparse.clear();
         ZtZ_sparse.matmul ( Zsparse,1,Zsparse );
+        gettimeofday ( &tz0,NULL );
+        c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        rootout << "elapsed wall time multiplying Zt and Z: " << ( c0 - c1 ) /1000000.0 << " s" << endl;
         Zsparse.clear();
         ZtZ_sparse.reduceSymmetric();
+        gettimeofday ( &tz0,NULL );
+        c1= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+        rootout << "elapsed wall time reducing ZtZ:         " << ( c1 - c0 ) /1000000.0 << " s" << endl;
         process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
         rootout << "At end of allocations in root process"  << endl;
         rootout << "====================================="  << endl;
@@ -523,8 +557,12 @@ int main ( int argc, char **argv ) {
                 } else {
                     gamma_var=gamma_var * ( 1 + * ( convergence_criterium+1 ) ); // Update for lambda (which is 1/gamma)
                     phi=phi* ( 1 + *convergence_criterium );
+                    if(*(position+1)==0) {
+                        gettimeofday ( &tz1,NULL );
+                        c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
+                    }
                     if ( datahdf5 )
-                        info = set_up_C_hdf5 ( DESCD, Dmat, DESCYTOT, ytot, respnrm );
+                        info = set_up_D_hdf5 ( DESCD, Dmat );
                     else
                         info = set_up_D ( DESCD, Dmat );
                     if ( info!=0 ) {
@@ -538,7 +576,7 @@ int main ( int argc, char **argv ) {
                     }
 
                 }
-            } 
+            }
             else {
                 // RHS is copied for use afterwards (in ytot we will get the estimates for the effects)
                 // This only needs to be done the first time
@@ -626,6 +664,7 @@ int main ( int argc, char **argv ) {
             gettimeofday ( &tz0,NULL );
             c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
             printf ( "\t elapsed wall time for creating sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
+	    printf( "Fill in of Asparse: %g % \n", (double) Asparse.nonzeros/Asparse.ncols/Asparse.nrows*100);
             /*Asparse.writeToFile ( "Asparse.csr" );
             double * Adense = new double[Asparse.nrows * Asparse.ncols];
             CSR2dense ( Asparse,Adense );
@@ -643,34 +682,53 @@ int main ( int argc, char **argv ) {
             ZtZ_sparse.addBCSR ( Diagmat );
 
             Diagmat.clear();
+	    rootout << "Before MPI barrier" << endl;
         }
 
         MPI_Barrier ( MPI_COMM_WORLD );
 
         if ( iam==0 ) {
-            for ( i=1; i<size; ++i ) {
-                MPI_Ssend ( & ( Asparse.nonzeros ),1, MPI_INT,i,i,MPI_COMM_WORLD );
-                MPI_Ssend ( & ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT,i,i+size,MPI_COMM_WORLD );
-                MPI_Ssend ( & ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT,i,i+2*size,MPI_COMM_WORLD );
-                MPI_Ssend ( & ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE,i,i+3*size,MPI_COMM_WORLD );
-            }
+            /*for ( i=1; i<size; ++i ) {
+                MPI_Send ( & ( Asparse.nonzeros ),1, MPI_INT,i,i,MPI_COMM_WORLD );
+                MPI_Send ( & ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT,i,i+size,MPI_COMM_WORLD );
+                MPI_Send ( & ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT,i,i+2*size,MPI_COMM_WORLD );
+                MPI_Send ( & ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE,i,i+3*size,MPI_COMM_WORLD );
+		rootout << "Sent Asparse to process " << i << endl;
+            }*/
+	    rootout << "After MPI barrier" << endl;
+	    MPI_Bcast(&(Asparse.nonzeros), 1, MPI_INT, 0,MPI_COMM_WORLD);
+	    rootout << "Broadcasted Asparse.nonzeros" << endl;
+	    MPI_Bcast(& ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT, 0,MPI_COMM_WORLD);
+	    if (Asparse.nonzeros > 100000000){
+	      for (i=0; i<(Asparse.nonzeros/100000000 - 1); ++i){
+		MPI_Bcast(& ( Asparse.pCols[i*100000000] ),100000000, MPI_INT, 0,MPI_COMM_WORLD);
+		MPI_Bcast(& ( Asparse.pData[i*100000000] ),100000000, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	      }
+	      MPI_Bcast(& ( Asparse.pCols[i*100000000] ),Asparse.nonzeros % 100000000, MPI_INT, 0,MPI_COMM_WORLD);
+	      MPI_Bcast(& ( Asparse.pData[i*100000000] ),Asparse.nonzeros % 100000000, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	    }
+	    else{
+	      MPI_Bcast(& ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT, 0,MPI_COMM_WORLD);
+	      MPI_Bcast(& ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	    }
+	    rootout << "Broadcasted Asparse to processes" << endl;
             MPI_Recv ( ytot,ydim, MPI_DOUBLE,1,ydim,MPI_COMM_WORLD,&status );
             //printdense ( k+l+m,1,ytot,"ytot.txt" );
             printf ( "Solving system Ax_u = y_u on process 0\n" );
             solveSystem ( Asparse,solution,ytot,2,1 );
             //printdense ( ydim,1,solution,"wA.txt" );
-            MPI_Ssend ( solution,Adim, MPI_DOUBLE,1,1,MPI_COMM_WORLD );
-            MPI_Recv ( solution+Adim,k, MPI_DOUBLE,1,k,MPI_COMM_WORLD,&status );
-            MPI_Recv ( solution,Adim, MPI_DOUBLE,1,Adim,MPI_COMM_WORLD,&status );
-            MPI_Recv ( respnrm,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
-
-            process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+	    process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             rootout << "After factorisation of Asparse" << endl;
             rootout << "==============================" << endl;
             rootout << "Virtual memory used:  " << vm_usage << " kb" << endl;
             rootout << "Resident set size:    " << resident_set << " kb" << endl;
             rootout << "CPU time (user):      " << cpu_user << " s"<< endl;
             rootout << "CPU time (system):    " << cpu_sys << " s" << endl;
+	    
+            MPI_Ssend ( solution,Adim, MPI_DOUBLE,1,1,MPI_COMM_WORLD );
+            MPI_Recv ( solution+Adim,k, MPI_DOUBLE,1,k,MPI_COMM_WORLD,&status );
+            MPI_Recv ( solution,Adim, MPI_DOUBLE,1,Adim,MPI_COMM_WORLD,&status );
+            MPI_Recv ( respnrm,1, MPI_DOUBLE,1,1,MPI_COMM_WORLD,&status );
 
             double * sparse_sol = new double[Adim];
 
@@ -694,16 +752,48 @@ int main ( int argc, char **argv ) {
             loglikelihood += log_det_D;
             printf ( "Half of the log of determinant of entire matrix C is: %g\n",loglikelihood );
 
-        } else {
+        }
+        else {
             int nonzeroes, count;
-
-            MPI_Recv ( &nonzeroes,1,MPI_INT,0,iam,MPI_COMM_WORLD,&status );
+	    blacs_barrier_(&ICTXT2D, "A");
+	    interTime=0;
+	    secs.tick(interTime);
+            //MPI_Recv ( &nonzeroes,1,MPI_INT,0,iam,MPI_COMM_WORLD,&status );
+	    MPI_Bcast(&nonzeroes, 1, MPI_INT, 0,MPI_COMM_WORLD);
+	    secs.tack(interTime);
+	    clustout << "Process " << iam << " received nonzeroes of Asparse (" << interTime * 0.001 << " s)"  << endl ;
+	    secs.tick(interTime);
             Asparse.allocate ( Adim,Adim,nonzeroes );
-            MPI_Recv ( & ( Asparse.pRows[0] ),Adim + 1, MPI_INT,0,iam + size,MPI_COMM_WORLD,&status );
-            MPI_Get_count ( &status,MPI_INT,&count );
-            MPI_Recv ( & ( Asparse.pCols[0] ),nonzeroes, MPI_INT,0,iam+2*size,MPI_COMM_WORLD,&status );
-            MPI_Recv ( & ( Asparse.pData[0] ),nonzeroes, MPI_DOUBLE,0,iam+3*size,MPI_COMM_WORLD,&status );
+	    secs.tack(interTime);
+	    clustout << "Process " << iam << " allocated Asparse (" << interTime * 0.001 << " s)"  << endl ;
+	    secs.tick(interTime);
+            /*MPI_Recv ( & ( Asparse.pRows[0] ),Adim + 1, MPI_INT,0,iam + size,MPI_COMM_WORLD,&status );
+            MPI_Get_count ( &status,MPI_INT,&count );*/
+	    MPI_Bcast(& ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT, 0,MPI_COMM_WORLD);
+	    secs.tack(interTime);
+	    clustout << "Process " << iam << " received prows (" << count << ") of Asparse (" << interTime * 0.001 << " s)" << endl ;
+	    secs.tick(interTime);
+	    if (Asparse.nonzeros > 100000000){
+	      for (i=0; i<(Asparse.nonzeros/100000000 - 1); ++i){
+		MPI_Bcast(& ( Asparse.pCols[i*100000000] ),100000000, MPI_INT, 0,MPI_COMM_WORLD);
+		MPI_Bcast(& ( Asparse.pData[i*100000000] ),100000000, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	      }
+	      MPI_Bcast(& ( Asparse.pCols[i*100000000] ),Asparse.nonzeros % 100000000, MPI_INT, 0,MPI_COMM_WORLD);
+	      MPI_Bcast(& ( Asparse.pData[i*100000000] ),Asparse.nonzeros % 100000000, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	      secs.tack(interTime);
+	      clustout << "Process " << iam << " received pcols & pdata of Asparse (" << interTime * 0.001 << " s)"<< endl ;
+	    }
+	    else{
+	      MPI_Bcast(& ( Asparse.pCols[0] ),Asparse.nonzeros, MPI_INT, 0,MPI_COMM_WORLD);
+	      MPI_Bcast(& ( Asparse.pData[0] ),Asparse.nonzeros, MPI_DOUBLE, 0,MPI_COMM_WORLD);
+	      secs.tack(interTime);
+	      clustout << "Process " << iam << " received pcols & pdata of Asparse (" << interTime * 0.001 << " s)"<< endl ;
+	    }
+	    blacs_barrier_(&ICTXT2D, "A");
             if ( * ( position+1 ) ==0 ) {
+                gettimeofday ( &tz0,NULL );
+                c0= tz0.tv_sec*1000000 + ( tz0.tv_usec );
+                printf ( "\t elapsed wall time for receiving sparse matrix A:			%10.3f s\n", ( c0 - c1 ) /1000000.0 );
                 MPI_Ssend ( ytot,ydim, MPI_DOUBLE,0,ydim,MPI_COMM_WORLD );
                 process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
                 clustout << "Before calculation of Schur complement in cluster processes" << endl;
@@ -712,6 +802,8 @@ int main ( int argc, char **argv ) {
                 clustout << "Resident set size:    " << resident_set << " kb" << endl;
                 clustout << "CPU time (user):      " << cpu_user << " s"<< endl;
                 clustout << "CPU time (system):    " << cpu_sys << " s" << endl;
+                gettimeofday ( &tz1,NULL );
+                c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
             }
 
             make_Si_distributed_denseB ( Asparse, Bmat, DESCB, Dmat, DESCD, AB_sol, DESCAB_sol );
@@ -722,6 +814,7 @@ int main ( int argc, char **argv ) {
                 //printdense(Drows*blocksize, Drows*blocksize,Dmat,"Dmat.txt");
             }
             Asparse.clear();
+	    
             /*char *Dfile;
             Dfile= ( char * ) calloc ( 100,sizeof ( char ) );
             *Dfile='\0';
@@ -797,7 +890,10 @@ int main ( int argc, char **argv ) {
             gettimeofday ( &tz1,NULL );
             c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
 
-            info = set_up_AI ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
+            if ( datahdf5 )
+                info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
+            else
+                info = set_up_AI ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
             if ( info!=0 ) {
                 printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
@@ -836,6 +932,10 @@ int main ( int argc, char **argv ) {
             //This function calculates the factorisation of A once again so this might be optimized.
             pardiso_var.findInverseOfA ( Asparse );
             rootout << "memory allocated by PARDISO: " << pardiso_var.memoryAllocated() << endl;
+
+            gettimeofday ( &tz1,NULL );
+            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
+            printf ( "\t elapsed wall time inversion of sparse A:		%10.3f s\n", ( c1 - c0 ) /1000000.0 );
 
             process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
             rootout << "After inversion of Asparse" << endl;
@@ -889,9 +989,6 @@ int main ( int argc, char **argv ) {
             Diag_inv_rand_block=NULL;
 
             // The norm of the estimation of the random effects is calculated for use in the score function
-
-            gettimeofday ( &tz1,NULL );
-            c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
 
             *randnrm = dnrm2_ ( &l,solution+m,&i_one );
             * ( randnrm+1 ) = dnrm2_ ( &k,solution+m+l,&i_one );
@@ -992,8 +1089,12 @@ int main ( int argc, char **argv ) {
             score=NULL;
             printf ( "The relative update for phi is: %g \n", *convergence_criterium );
             printf ( "The relative update for gamma is: %g \n", * ( convergence_criterium+1 ) );
-        } else {
-            info = set_up_AI ( AImat,DESCDENSESOL, densesol, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
+        }
+        else {
+            if ( datahdf5 )
+                info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, densesol, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
+            else
+                info = set_up_AI ( AImat,DESCDENSESOL, densesol, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
             if ( info!=0 ) {
                 printf ( "Something went wrong with set-up of AI-matrix, error nr: %d\n",info );
@@ -1008,7 +1109,7 @@ int main ( int argc, char **argv ) {
             if ( * ( position+1 ) ==0 && *position==0 ) {
                 gettimeofday ( &tz1,NULL );
                 c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
-                printf ( "\t elapsed wall time inverse of C:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
+                printf ( "\t elapsed wall time inverse of D:			%10.3f s\n", ( c1 - c0 ) /1000000.0 );
             }
 
             //From here on the inverse of the Schur complement S is stored in D
@@ -1295,7 +1396,7 @@ int main ( int argc, char **argv ) {
 
     //cout << iam << " reached end before MPI_Barrier" << endl;
     MPI_Barrier ( MPI_COMM_WORLD );
-    MPI_Finalize();
+    //MPI_Finalize();
 
     return 0;
 

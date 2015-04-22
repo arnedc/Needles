@@ -627,7 +627,7 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
     int nTblocks, nstrips, pTblocks, stripcols, lld_T, pcol, colcur,rowcur;
     int nYblocks, pYblocks, lld_Y, Ystart;
     timing secs;
-    double totalTime, interTime;
+    double totalTime, interTime, readTime, densemultTime, sparsemultTime;
 
     MPI_Status status;
 
@@ -787,6 +787,10 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
 
     blacs_barrier_ ( &ICTXT2D,"A" );
 
+    totalTime=0;
+    readTime=0;
+    densemultTime=0;
+    sparsemultTime=0;
     secs.tick ( totalTime );
 
     // Set up of matrix D and B per strip of T'
@@ -803,6 +807,9 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
                 printf ( "Error in allocating memory for a strip of Z in processor (%d,%d)\n",*position,* ( position+1 ) );
                 return -1;
             }
+        }
+        if ( * ( position+1 ) ==0 ) {
+            secs.tick(readTime);
         }
 
         //Each process only reads in a part of the strip of T'
@@ -885,10 +892,11 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
 
         blacs_barrier_ ( &ICTXT2D,"A" );
 
-        if ( ni==0 && * ( position+1 ) ==0 ) {
-            secs.tack ( totalTime );
-            cout << "Read-in of Tblock: " << totalTime * 0.001 << " secs" << endl;
-            secs.tick ( totalTime );
+        if ( * ( position+1 ) ==0 ) {
+            secs.tack ( readTime );
+            if(ni==nstrips-1)
+                cout << "Read-in of Tblock: " << readTime * 0.001 << " secs" << endl;
+            secs.tick(densemultTime);
         }
         /*char *Tfile;
             Tfile=(char *) calloc(100,sizeof(char));
@@ -909,14 +917,16 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
             printf("Ystart= %d\n", Ystart);*/
         pdgemm_ ( "T","N",&k,&i_one,&stripcols,&d_one,Tblock,&i_one, &i_one, DESCT,Y,&Ystart,&i_one,DESCY,&d_one,ytot,&ml_plus,&i_one,DESCYTOT ); //T'y
 
-        if ( ni==0 && * ( position+1 ) ==0 ) {
-            secs.tack ( totalTime );
-            cout << "dense multiplications of Tblock: " << totalTime * 0.001 << " secs" << endl;
-            secs.tick ( totalTime );
+        if ( * ( position+1 ) ==0 ) {
+            secs.tack ( densemultTime );
+            if(ni==nstrips-1)
+                cout << "dense multiplications of Tblock: " << densemultTime * 0.001 << " secs" << endl;
+            secs.tick ( sparsemultTime );
         }
 
         // Matrix B consists of X'T and Z'T, since each process only has some parts of T at its disposal,
         // we need to make sure that the correct columns of Z and X are multiplied with the correct columns of T.
+
         for ( i=0; i<pTblocks; ++i ) {
 
             //This function multiplies the correct columns of X' with the blocks of T at the disposal of the process
@@ -927,35 +937,35 @@ int set_up_BDY ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * D
                                    ( *dims * i + *position ) *blocksize, blocksize, XtT_temp, 0 );*/
         }
 
-        if ( ni==0 && * ( position+1 ) ==0 ) {
-            secs.tack ( totalTime );
-            cout << "Creation of XtT: " << totalTime * 0.001 << " secs" << endl;
-            secs.tick ( totalTime );
-        }
+        /*if ( ni==0 && * ( position+1 ) ==0 ) {
+            secs.tack ( interTime );
+            cout << "Creation of XtT: " << interTime * 0.001 * nstrips << " secs" << endl;
+            interTime=0;
+            secs.tick ( interTime );
+        }*/
         //Same as above for calculating Z'T
 
         for ( i=0; i<pTblocks; ++i ) {
-            for ( i=0; i<pTblocks; ++i ) {
 
-                //This function multiplies the correct columns of X' with the blocks of T at the disposal of the process
-                // The result is also stored immediately at the correct positions of X'T. (see src/tools.cpp)
-                mult_colsA_colsC_denseC ( Ztsparse, Tblock+i*blocksize*blocksize, lld_T, ( ni * *dims + *position ) *blocksize, blocksize,
-                                          i*blocksize, blocksize, Bmat+Xtsparse.nrows, Adim, true, 1 );
-                /*mult_colsA_colsC_denseC ( Xtsparse, Tblock+i*blocksize, lld_T, ( * ( dims+1 ) * ni + pcol ) *blocksize, blocksize,
-                                       ( *dims * i + *position ) *blocksize, blocksize, XtT_temp, 0 );*/
-            }
-            if ( ni==0 && i==1 && * ( position+1 ) ==0 ) {
+            //This function multiplies the correct columns of X' with the blocks of T at the disposal of the process
+            // The result is also stored immediately at the correct positions of X'T. (see src/tools.cpp)
+            mult_colsA_colsC_denseC ( Ztsparse, Tblock+i*blocksize*blocksize, lld_T, ( ni * *dims + *position ) *blocksize, blocksize,
+                                      i*blocksize, blocksize, Bmat+Xtsparse.nrows, Adim, true, 1 );
+            /*mult_colsA_colsC_denseC ( Xtsparse, Tblock+i*blocksize, lld_T, ( * ( dims+1 ) * ni + pcol ) *blocksize, blocksize,
+                                   ( *dims * i + *position ) *blocksize, blocksize, XtT_temp, 0 );*/
+            /*if ( ni==0 && i==1 && * ( position+1 ) ==0 ) {
                 secs.tack ( totalTime );
                 cout << "Multiplication Zt and Tblock: " << totalTime * 0.001 << " secs" << endl;
                 secs.tick ( totalTime );
-            }
+            }*/
             //free(ZtT_dense);
 
         }
-        if ( ni==0 && * ( position+1 ) ==0 ) {
-            secs.tack ( totalTime );
-            cout << "Creation of ZtT: " << totalTime * 0.001 << " secs" << endl;
-            secs.tick ( totalTime );
+
+        if ( * ( position+1 ) ==0 ) {
+            secs.tack ( sparsemultTime );
+            if(ni==nstrips-1)
+                cout << "Creation of ZtT & XtT: " << sparsemultTime * 0.001 << " secs" << endl;
         }
         blacs_barrier_ ( &ICTXT2D,"A" );
     }
@@ -1109,17 +1119,12 @@ int set_up_D ( int * DESCD, double * Dmat ) {
 
     // Initialisation of matrix D (all diagonal elements of D equal to lambda)
     temp=Dmat;
-    
-    for ( i=0,rowcur=0,colcur=0; i<Dblocks; ++i, ++colcur, ++rowcur ) {
-        if ( rowcur==*dims ) {
-            rowcur=0;
-            temp += blocksize;
-        }
+    for ( i=0,colcur=0; i<Dblocks; ++i, ++colcur, temp += blocksize ) {
         if ( colcur==* ( dims+1 ) ) {
             colcur=0;
             temp += blocksize*lld_D;
         }
-        if ( *position==rowcur && * ( position+1 ) == colcur ) {
+        if ( * ( position+1 ) == colcur ) {
             if ( i==Dblocks-1 && Ddim % blocksize != 0 ) {
                 for ( j=0; j< Ddim % blocksize; ++j ) {
                     * ( temp + j * lld_D + j ) =1/gamma_var;
@@ -1164,7 +1169,7 @@ int set_up_D ( int * DESCD, double * Dmat ) {
         //When k is not a multiple of blocksize, read-in of the last elements of the rows of T is tricky
         if ( ( nTblocks-1 ) % *(dims+1) == pcol && k%blocksize !=0 ) {
             if ( ni==0 ) {
-                info=fseek ( fT, ( long ) ( pcol * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
+                info=fseek ( fT, ( long ) ( *position * blocksize * ( k ) * sizeof ( double ) ),SEEK_SET );
                 if ( info!=0 ) {
                     printf ( "Error in setting correct begin position for reading Z file\nprocessor (%d,%d), error: %d \n", *position,pcol,info );
                     return -1;
@@ -2711,6 +2716,7 @@ int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DES
         for ( ni=0; ni<nstrips; ++ni ) {
 
             MPI_Recv ( Tdblock,stripcols, MPI_DOUBLE,1,ni,MPI_COMM_WORLD,&status );
+
             //cout << "Received Tdblock " << ni +1 << endl;
             //printf("Dense multiplications with strip %d of T done\n",ni);
             mult_colsA_colsC_denseC ( Xtsparse, Tdblock, stripcols, ni*stripcols, stripcols,0, 1, QRHS+2*ydim, ydim, true, 1.0 ); 	//X'Td/gamma

@@ -140,7 +140,9 @@ void mult_colsA_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart,
 
     /*assert(Cncols < lld_B);
     assert(Ccolstart+Cncols <= C.ncols);*/
-
+#pragma omp parallel shared(A, B, lld_B, Acolstart, Ancols, Ccolstart, Cncols, C, lld_C, sum, alpha) private(row, col, index, j)
+{
+  #pragma omp for schedule (static)
     for ( row=0; row<A.nrows; ++row ) {
         for ( col=Ccolstart; col<Ccolstart+Cncols; ++col ) {
             if (!sum)
@@ -149,9 +151,12 @@ void mult_colsA_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart,
                 j = A.pCols[index];
                 if ( j>=Acolstart && j<Acolstart+Ancols )
                     *(C + row + col * lld_C) += alpha * A.pData[index] * * ( B + lld_B * ( col-Ccolstart ) + j-Acolstart ) ;
+		else if ( j>= Acolstart+Ancols )
+		  break;
             }
         }
     }
+}
 }
 
 

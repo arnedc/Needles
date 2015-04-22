@@ -105,7 +105,7 @@ int read_input(char * filename) {
         else if (line=="#KeepCopyOfCMatrix") {
             std::getline (inputfile,line);
             copyC=atoi(line.c_str());
-	    } else if ( line=="#Bsparse" ) {
+        } else if ( line=="#Bsparse" ) {
             std::getline ( inputfile,line );
             Bassparse_bool=atoi ( line.c_str() );
         }
@@ -193,19 +193,25 @@ int read_input(char * filename) {
         }
 
         if (datahdf5) {
-            if (genopath_bool) {
-                if(phenopath_bool) {
-                    printf("Dataset file is an HDF5-file \n");
-                    printf("path for genotypes in dataset:      \t %s\n", SNPdata);
-                    printf("path for phenotypes in dataset:     \t %s\n", phenodata);
+            if(SNPdatafile_bool) {
+                if (genopath_bool) {
+                    if(phenopath_bool) {
+                        printf("Dataset file is an HDF5-file:       \t %s\n", filenameT);
+                        printf("path for genotypes in dataset:      \t %s\n", SNPdata);
+                        printf("path for phenotypes in dataset:     \t %s\n", phenodata);
+                    }
+                    else {
+                        printf("ERROR: path for phenotypes of dataset was not in input file or not read correctly\n");
+                        return -1;
+                    }
                 }
                 else {
-                    printf("ERROR: path for phenotypes of dataset was not in input file or not read correctly\n");
+                    printf("ERROR: path for genotypes of dataset was not in input file or not read correctly\n");
                     return -1;
                 }
             }
             else {
-                printf("ERROR: path for genotypes of dataset was not in input file or not read correctly\n");
+                printf("ERROR: Name of file with dataset was not in input file or not read correctly\n");
                 return -1;
             }
         }
@@ -230,10 +236,10 @@ int read_input(char * filename) {
             printf("A copy of the coefficient matrix will be stored throughout the computations\n");
         else
             printf("The coefficient matrix will be read in at the beginning of every iteration to save memory\n");
-	if ( Bassparse_bool )
-	  printf("B will be treated as a sparse matrix \n");
-	else
-	  printf("B will be treated as a dense matrix\n");
+        if ( Bassparse_bool )
+            printf("B will be treated as a sparse matrix \n");
+        else
+            printf("B will be treated as a dense matrix\n");
         if(blocksize_bool) {
             printf("Blocksize of %d was used to distribute matrices across processes\n", blocksize);
         }
@@ -244,7 +250,7 @@ int read_input(char * filename) {
             printf("Start value of %g was used to estimate variance component lambda\n", gamma_var);
         else
             printf("Default start value of %g was used to estimate variance component lambda\n", gamma_var);
-	if(phi_bool)
+        if(phi_bool)
             printf("Start value of %g was used to estimate variance component phi\n", phi);
         else
             printf("Default start value of %g was used to estimate variance component phi\n", phi);
@@ -279,19 +285,19 @@ int read_input(char * filename) {
             printf("No cross-validation is performed\n");
     }
     else {
-	if(k<0 || l<0 || m<0 || n<0 || !h5_bool){
-	  //printf("Problem with reading input in process %d", iam);
-	  return -1;
-	}
-	if(!fixedfile_bool || !randfile_bool)
-	  return -1;
-	
+        if(k<0 || l<0 || m<0 || n<0 || !h5_bool) {
+            //printf("Problem with reading input in process %d", iam);
+            return -1;
+        }
+        if(!fixedfile_bool || !randfile_bool)
+            return -1;
+
         if(testfile_bool && !ntest_bool)
             return -1;
         if(datahdf5 && (!genopath_bool || !phenopath_bool))
             return -1;
-	if(!datahdf5 && (!SNPdatafile_bool || !Phenodatafile_bool))
-	  return -1;
+        if(!datahdf5 && (!SNPdatafile_bool || !Phenodatafile_bool))
+            return -1;
     }
     return 0;
 }

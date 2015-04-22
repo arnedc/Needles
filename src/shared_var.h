@@ -155,7 +155,7 @@ int set_up_T (int* DESCC, double* Cmat, int* DESCYTOT, double* ytot, double* res
 int set_up_C_hdf5 ( int* DESCC, double* Cmat, int* DESCYTOT, double* ytot, double* respnrm ) ;
 int update_C ( int * DESCC, double * Cmat, double update) ;
 int set_up_AI ( double * AImat, int * DESCDENSESOL, double * densesol, int * DESCD, double * Dmat, CSRdouble &Asparse, int *DESCB, double *Bmat, double sigma ) ;
-int set_up_AI_hdf5 ( double* AImat, int* DESCAI, int* DESCYTOT, double* ytot, int* DESCC, double* Cmat, double sigma );
+int set_up_AI_hdf5 ( double* AImat, int * DESCDENSESOL, double * densesol, int * DESCD, double * Dmat, CSRdouble &Asparse, int *DESCB, double *Bmat, double sigma );
 double trace_CZZ(double *mat, int * DESCMAT);
 double log_determinant_C ( double *mat, int * DESCMAT ) ;
 int read_input(char* filename) ;
@@ -172,7 +172,9 @@ void mult_colsA_colsC_denseC ( CSRdouble& A,  double *B, int lld_B, int Acolstar
 void mult_colsAtrans_colsC_denseC ( CSRdouble& A,double *B, int lld_B, int Acolstart, int Ancols, int Ccolstart, int Cncols,
                                     double *C, int lld_C, double alpha ) ;
 int set_up_BDY ( int* DESCD, double* Dmat, int* DESCB, double* Bmat, int* DESCYTOT, double* ytot, double* respnrm ) ;
+int set_up_BDY_hdf5 ( int * DESCD, double * Dmat, int * DESCB, double * Bmat, int * DESCYTOT, double * ytot, double *respnrm ) ;
 int set_up_D ( int * DESCD, double * Dmat ) ;
+int set_up_D_hdf5 ( int * DESCD, double * Dmat ) ;
 void CSR2dense ( CSRdouble& matrix,double *dense ) ;
 
 void create1x2BlockMatrix(CSRdouble& A, CSRdouble& B, // input
@@ -207,6 +209,7 @@ extern double gamma_var, phi,epsilon;
 extern ParDiSO pardiso_var;
 extern int Bassparse_bool;
 extern ofstream rootout, clustout;
+extern MPI_Comm COMM_DENSE;
 
 #endif
 

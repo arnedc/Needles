@@ -12,6 +12,7 @@ extern "C" {
     void dgemm_ ( const char *transa, const char *transb, const int *m, const int *n, const int *k, const double *alpha, const double *a, const int *lda, const double *b, const int *ldb, const double *beta, double *c, const int *ldc );
     void dpotrf_( const char* uplo, const int* n, double* a, const int* lda, int* info );
     void dpotrs_( const char* uplo, const int* n, const int* nrhs,const double* a, const int* lda, double* b, const int* ldb, int* info );
+    void blacs_barrier_ ( int*, char* );
 }
 
 /**
@@ -201,6 +202,9 @@ int make_Si_distributed_denseB(CSRdouble& A, double * B, int * DESCB, double * S
     if(*(position+1)==0)
         printf("Solving systems AX_j = B_j on all processes\n");
     solveSystem(A, AB_sol_out,B, -2, Dcols * blocksize);
+    
+    if(*(position+1)==0)
+        printf("Systems AX_j = B_j solved on all processes\n");
 
 
     int Arows = A.nrows;
