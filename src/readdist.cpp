@@ -1109,6 +1109,7 @@ int set_up_D ( int * DESCD, double * Dmat ) {
 
     // Initialisation of matrix D (all diagonal elements of D equal to lambda)
     temp=Dmat;
+    
     for ( i=0,rowcur=0,colcur=0; i<Dblocks; ++i, ++colcur, ++rowcur ) {
         if ( rowcur==*dims ) {
             rowcur=0;
