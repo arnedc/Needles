@@ -700,7 +700,7 @@ int main ( int argc, char **argv ) {
 	    rootout << "Broadcasted Asparse.nonzeros" << endl;
 	    MPI_Bcast(& ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT, 0,MPI_COMM_WORLD);
 	    if (Asparse.nonzeros > 100000000){
-	      for (i=0; i<(Asparse.nonzeros/100000000 - 1); ++i){
+	      for (i=0; i<Asparse.nonzeros/100000000; ++i){
 		MPI_Bcast(& ( Asparse.pCols[i*100000000] ),100000000, MPI_INT, 0,MPI_COMM_WORLD);
 		MPI_Bcast(& ( Asparse.pData[i*100000000] ),100000000, MPI_DOUBLE, 0,MPI_COMM_WORLD);
 	      }
@@ -774,7 +774,7 @@ int main ( int argc, char **argv ) {
 	    clustout << "Process " << iam << " received prows (" << count << ") of Asparse (" << interTime * 0.001 << " s)" << endl ;
 	    secs.tick(interTime);
 	    if (Asparse.nonzeros > 100000000){
-	      for (i=0; i<(Asparse.nonzeros/100000000 - 1); ++i){
+	      for (i=0; i<Asparse.nonzeros/100000000; ++i){
 		MPI_Bcast(& ( Asparse.pCols[i*100000000] ),100000000, MPI_INT, 0,MPI_COMM_WORLD);
 		MPI_Bcast(& ( Asparse.pData[i*100000000] ),100000000, MPI_DOUBLE, 0,MPI_COMM_WORLD);
 	      }
