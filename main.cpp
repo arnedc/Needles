@@ -771,7 +771,7 @@ int main ( int argc, char **argv ) {
             MPI_Get_count ( &status,MPI_INT,&count );*/
 	    MPI_Bcast(& ( Asparse.pRows[0] ),Asparse.nrows + 1, MPI_INT, 0,MPI_COMM_WORLD);
 	    secs.tack(interTime);
-	    clustout << "Process " << iam << " received prows (" << count << ") of Asparse (" << interTime * 0.001 << " s)" << endl ;
+	    clustout << "Process " << iam << " received prows of Asparse (" << interTime * 0.001 << " s)" << endl ;
 	    secs.tick(interTime);
 	    if (Asparse.nonzeros > 100000000){
 	      for (i=0; i<(Asparse.nonzeros/100000000 - 1); ++i){

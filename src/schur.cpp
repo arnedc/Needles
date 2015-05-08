@@ -203,8 +203,18 @@ int make_Si_distributed_denseB(CSRdouble& A, double * B, int * DESCB, double * S
         printf("Solving systems AX_j = B_j on all processes\n");
     solveSystem(A, AB_sol_out,B, -2, Dcols * blocksize);
     
-    if(*(position+1)==0)
+    if(*(position+1)==0){
+	double vm_usage, resident_set, cpu_sys, cpu_user;
         printf("Systems AX_j = B_j solved on all processes\n");
+	process_mem_usage ( vm_usage, resident_set, cpu_user, cpu_sys );
+                clustout << "After calculation of Schur complement in cluster processes (with Asparse)" << endl;
+                clustout << "=========================================================================" << endl;
+                clustout << "Virtual memory used:  " << vm_usage << " kb" << endl;
+                clustout << "Resident set size:    " << resident_set << " kb" << endl;
+                clustout << "CPU time (user):      " << cpu_user << " s"<< endl;
+                clustout << "CPU time (system):    " << cpu_sys << " s" << endl;
+    }
+    
 
 
     int Arows = A.nrows;
