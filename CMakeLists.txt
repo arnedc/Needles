@@ -1,4 +1,4 @@
-project(pardiso_blup)
+project(Needles)
 
 cmake_minimum_required(VERSION 2.6) 
 
@@ -14,22 +14,22 @@ include(CMakeForceCompiler)
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -fopenmp -m64" )
 
 aux_source_directory(src helpfunctions)
-add_executable(pardiso_blup ${helpfunctions} main.cpp)
+add_executable(Needles ${helpfunctions} main.cpp)
 
 if(MPI_COMPILE_FLAGS)
-  set_target_properties(pardiso_blup PROPERTIES
+  set_target_properties(Needles PROPERTIES
     COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
 endif()
 
 #if(MPI_LINK_FLAGS)
-  set_target_properties(pardiso_blup PROPERTIES
+  set_target_properties(Needles PROPERTIES
     LINK_FLAGS "-L/user/home/gent/vsc405/vsc40508/Libraries -L/opt/intel/mkl/lib/intel64 -L/opt/intel/lib/intel64 -L/home/arnedc/Libraries ${MPI_LINK_FLAGS}")
 #endif()
 
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 
-target_link_libraries(pardiso_blup
+target_link_libraries(Needles
                       #${LAPACK_LIBRARIES}
                       #${BLAS_LIBRARIES}
 		      #-mt_mpi
