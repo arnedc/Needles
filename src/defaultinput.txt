@@ -27,47 +27,11 @@ Xmatrix.csr
 #FileRandomEffects
 Zmatrix.csr
 
-/If the phenotypes and genotypes are in an HDF5-file put 1, if they are in a binary file put 0 (mandatory)
-#DataFileHDF5
-1
-
-/Filename of the SNP data file (mandatory if DataFileHDF5 = 0, binary)
-#SNPDataFile
-Simulateddata_10k.h5
-
-/Filename of the pheno data file (mandatory if DataFileHDF5 = 0, binary)
-#PhenoDataFile
-Simulateddata_10k.h5
-
-/If DataFileHDF5 is 1, define the paths for genotypes and phenotypes in the HDF5-file
-/(mandatory if datafileHDF5=1)
-#PathGeno
-QTL_unres
-
-#PathPheno
-pheno_norm_unres
-
-/If a validation dataset is available in the HDF5-file provide its path (optional)
-#PathTest
-QTL_res
-
-/filename of testset when not using HDF5-files (optional, binary)
-#TestFile
-testset.bin
-
-/number of samples in the testset (mandatory if TestFile or PathTest is given)
-#TestSamples
-20
-
-/If enough memory is available one can store the coefficient matrix during the entire computation
+/If enough memory is available one can store the dense part of the coefficient matrix during the entire computation
 /This option reduces execution time since the coefficient matrix no longer is set up at the beginning of every iteration
 /(0: don't keep copy; 1: keep copy) (optional, default=0)
 #KeepCopyOfCMatrix
 0
-
-/Do you want B to be treated as sparse (1) or dense (0) (optional, default=0)
-#Bsparse
-1
 
 /size of the blocks in which the matrix is distributed (optional, default=64)
 #BlockSize

@@ -1,0 +1,247 @@
+elapsed wall time reading in X and Z:   0.446003 s
+elapsed wall time creating XtX:         0.000247 s
+elapsed wall time creating XtZ:         0.005866 s
+elapsed wall time multiplying Zt and Z: 5.61677 s
+elapsed wall time reducing ZtZ:         0.154219 s
+At end of allocations in root process
+=====================================
+Virtual memory used:  279636 kb
+Resident set size:    141840 kb
+CPU time (user):      5.62 s
+CPU time (system):    0.57 s
+At end of calculation of ZtZ
+===========================
+Virtual memory used:  279880 kb
+Resident set size:    142084 kb
+CPU time (user):      9.07 s
+CPU time (system):    0.87 s
+***                                           [  t     t  ] *** 
+***                                           [ X X   X Z ] *** 
+***                                           [           ] *** 
+*** G e n e r a t i n g    m a t r i x    A = [           ] *** 
+***                                           [  t     t  ] *** 
+***                                           [ Z X   Z Z ] *** 
+After creation of Asparse
+=========================
+Virtual memory used:  406840 kb
+Resident set size:    268800 kb
+CPU time (user):      10.11 s
+CPU time (system):    0.92 s
+Before MPI barrier
+After MPI barrier
+Broadcasted Asparse.nonzeros
+Broadcasted Asparse to processes
+After factorisation of Asparse
+==============================
+Virtual memory used:  674000 kb
+Resident set size:    508920 kb
+CPU time (user):      22.05 s
+CPU time (system):    2.24 s
+At end of allocations in root proces (set_up_AI)
+================================================
+Virtual memory used:  685988 kb
+Resident set size:    521448 kb
+CPU time (user):      84.05 s
+CPU time (system):    4.63 s
+Before inversion of Asparse
+===========================
+Virtual memory used:  685988 kb
+Resident set size:    521448 kb
+CPU time (user):      84.62 s
+CPU time (system):    4.64 s
+memory allocated by PARDISO: 558444
+After inversion of Asparse
+===========================
+Virtual memory used:  685988 kb
+Resident set size:    521872 kb
+CPU time (user):      94.52 s
+CPU time (system):    4.68 s
+After clearing pardiso_var
+===========================
+Virtual memory used:  462028 kb
+Resident set size:    298072 kb
+CPU time (user):      94.52 s
+CPU time (system):    4.71 s
+After deleting Asparse
+======================
+Virtual memory used:  335068 kb
+Resident set size:    171132 kb
+CPU time (user):      110.87 s
+CPU time (system):    5.42 s
+At end of calculation of ZtZ
+===========================
+Virtual memory used:  344948 kb
+Resident set size:    181388 kb
+CPU time (user):      111.11 s
+CPU time (system):    5.66 s
+***                                           [  t     t  ] *** 
+***                                           [ X X   X Z ] *** 
+***                                           [           ] *** 
+*** G e n e r a t i n g    m a t r i x    A = [           ] *** 
+***                                           [  t     t  ] *** 
+***                                           [ Z X   Z Z ] *** 
+After creation of Asparse
+=========================
+Virtual memory used:  471908 kb
+Resident set size:    308104 kb
+CPU time (user):      112.14 s
+CPU time (system):    5.71 s
+Before MPI barrier
+After MPI barrier
+Broadcasted Asparse.nonzeros
+Broadcasted Asparse to processes
+After factorisation of Asparse
+==============================
+Virtual memory used:  675148 kb
+Resident set size:    501116 kb
+CPU time (user):      124.44 s
+CPU time (system):    6.96 s
+At end of allocations in root proces (set_up_AI)
+================================================
+Virtual memory used:  685904 kb
+Resident set size:    512936 kb
+CPU time (user):      185.35 s
+CPU time (system):    9.38 s
+Before inversion of Asparse
+===========================
+Virtual memory used:  685904 kb
+Resident set size:    512936 kb
+CPU time (user):      186.16 s
+CPU time (system):    9.39 s
+memory allocated by PARDISO: 558444
+After inversion of Asparse
+===========================
+Virtual memory used:  685904 kb
+Resident set size:    513228 kb
+CPU time (user):      194.78 s
+CPU time (system):    9.51 s
+After clearing pardiso_var
+===========================
+Virtual memory used:  461944 kb
+Resident set size:    289428 kb
+CPU time (user):      194.78 s
+CPU time (system):    9.54 s
+After deleting Asparse
+======================
+Virtual memory used:  334984 kb
+Resident set size:    162488 kb
+CPU time (user):      211.11 s
+CPU time (system):    10.39 s
+At end of calculation of ZtZ
+===========================
+Virtual memory used:  344948 kb
+Resident set size:    172544 kb
+CPU time (user):      211.32 s
+CPU time (system):    10.62 s
+***                                           [  t     t  ] *** 
+***                                           [ X X   X Z ] *** 
+***                                           [           ] *** 
+*** G e n e r a t i n g    m a t r i x    A = [           ] *** 
+***                                           [  t     t  ] *** 
+***                                           [ Z X   Z Z ] *** 
+After creation of Asparse
+=========================
+Virtual memory used:  471908 kb
+Resident set size:    299260 kb
+CPU time (user):      212.36 s
+CPU time (system):    10.67 s
+Before MPI barrier
+After MPI barrier
+Broadcasted Asparse.nonzeros
+Broadcasted Asparse to processes
+After factorisation of Asparse
+==============================
+Virtual memory used:  675148 kb
+Resident set size:    497096 kb
+CPU time (user):      224.44 s
+CPU time (system):    12.08 s
+At end of allocations in root proces (set_up_AI)
+================================================
+Virtual memory used:  685904 kb
+Resident set size:    510400 kb
+CPU time (user):      264.22 s
+CPU time (system):    13.55 s
+Before inversion of Asparse
+===========================
+Virtual memory used:  685904 kb
+Resident set size:    510400 kb
+CPU time (user):      265 s
+CPU time (system):    13.56 s
+memory allocated by PARDISO: 558444
+After inversion of Asparse
+===========================
+Virtual memory used:  685904 kb
+Resident set size:    510796 kb
+CPU time (user):      274.65 s
+CPU time (system):    13.61 s
+After clearing pardiso_var
+===========================
+Virtual memory used:  461944 kb
+Resident set size:    286996 kb
+CPU time (user):      274.65 s
+CPU time (system):    13.65 s
+After deleting Asparse
+======================
+Virtual memory used:  334984 kb
+Resident set size:    160036 kb
+CPU time (user):      290.65 s
+CPU time (system):    14.33 s
+At end of calculation of ZtZ
+===========================
+Virtual memory used:  344948 kb
+Resident set size:    170248 kb
+CPU time (user):      290.89 s
+CPU time (system):    14.57 s
+***                                           [  t     t  ] *** 
+***                                           [ X X   X Z ] *** 
+***                                           [           ] *** 
+*** G e n e r a t i n g    m a t r i x    A = [           ] *** 
+***                                           [  t     t  ] *** 
+***                                           [ Z X   Z Z ] *** 
+After creation of Asparse
+=========================
+Virtual memory used:  471908 kb
+Resident set size:    296964 kb
+CPU time (user):      291.94 s
+CPU time (system):    14.61 s
+Before MPI barrier
+After MPI barrier
+Broadcasted Asparse.nonzeros
+Broadcasted Asparse to processes
+After factorisation of Asparse
+==============================
+Virtual memory used:  675148 kb
+Resident set size:    498772 kb
+CPU time (user):      300.13 s
+CPU time (system):    15.76 s
+At end of allocations in root proces (set_up_AI)
+================================================
+Virtual memory used:  685904 kb
+Resident set size:    510608 kb
+CPU time (user):      389.1 s
+CPU time (system):    19.32 s
+Before inversion of Asparse
+===========================
+Virtual memory used:  685904 kb
+Resident set size:    510608 kb
+CPU time (user):      390.3 s
+CPU time (system):    19.35 s
+memory allocated by PARDISO: 558444
+After inversion of Asparse
+===========================
+Virtual memory used:  685904 kb
+Resident set size:    510948 kb
+CPU time (user):      397.44 s
+CPU time (system):    19.48 s
+After clearing pardiso_var
+===========================
+Virtual memory used:  461944 kb
+Resident set size:    287148 kb
+CPU time (user):      397.44 s
+CPU time (system):    19.51 s
+After deleting Asparse
+======================
+Virtual memory used:  334984 kb
+Resident set size:    160204 kb
+CPU time (user):      416.86 s
+CPU time (system):    20.51 s

@@ -1,0 +1,99 @@
+Process 2 received nonzeroes of Asparse (0 s)
+Process 2 allocated Asparse (0 s)
+Process 3 received prows of Asparse (0 s)
+Process 3 received pcols & pdata of Asparse (0.159 s)
+Process 2 received nonzeroes of Asparse (0 s)
+Process 3 allocated Asparse (0 s)
+Process 3 received prows of Asparse (0.001 s)
+Process 3 received pcols & pdata of Asparse (0.156 s)
+Process 2 received nonzeroes of Asparse (0 s)
+Process 2 allocated Asparse (0 s)
+Process 3 received prows of Asparse (0 s)
+Process 3 received pcols & pdata of Asparse (0.176 s)
+Process 2 received nonzeroes of Asparse (0 s)
+Process 3 allocated Asparse (0 s)
+Process 3 received prows of Asparse (0 s)
+Process 3 received pcols & pdata of Asparse (0.2 s)
+)
+ kb
+Resident set size:    225932 kb
+CPU time (user):      11.02 s
+CPU time (system):    0.2 s
+After calculation of Schur complement in cluster processes (with Asparse)
+=========================================================================
+Virtual memory used:  697832 kb
+Resident set size:    534184 kb
+CPU time (user):      56.14 s
+CPU time (system):    1.42 s
+At end of allocations in cluster processes (set_up_AI)
+======================================================
+Virtual memory used:  478412 kb
+Resident set size:    315956 kb
+CPU time (user):      84.68 s
+CPU time (system):    2.08 s
+Process 1 received nonzeroes of Asparse (0 s)
+Process 1 allocated Asparse (0 s)
+Process 1 received prows of Asparse (0.001 s)
+Process 1 received pcols & pdata of Asparse (0.156 s)
+Before calculation of Schur complement in cluster processes
+===========================================================
+Virtual memory used:  598284 kb
+Resident set size:    437400 kb
+CPU time (user):      113.43 s
+CPU time (system):    2.55 s
+After calculation of Schur complement in cluster processes (with Asparse)
+=========================================================================
+Virtual memory used:  702100 kb
+Resident set size:    530952 kb
+CPU time (user):      181.22 s
+CPU time (system):    3.78 s
+At end of allocations in cluster processes (set_up_AI)
+======================================================
+Virtual memory used:  482160 kb
+Resident set size:    313284 kb
+CPU time (user):      188.67 s
+CPU time (system):    3.92 s
+Process 1 received nonzeroes of Asparse (0 s)
+Process 1 allocated Asparse (0 s)
+Process 1 received prows of Asparse (0 s)
+Process 1 received pcols & pdata of Asparse (0.183 s)
+Before calculation of Schur complement in cluster processes
+===========================================================
+Virtual memory used:  609120 kb
+Resident set size:    440828 kb
+CPU time (user):      219.36 s
+CPU time (system):    4.23 s
+After calculation of Schur complement in cluster processes (with Asparse)
+=========================================================================
+Virtual memory used:  702772 kb
+Resident set size:    525032 kb
+CPU time (user):      283.33 s
+CPU time (system):    5.47 s
+At end of allocations in cluster processes (set_up_AI)
+======================================================
+Virtual memory used:  482832 kb
+Resident set size:    311716 kb
+CPU time (user):      290.47 s
+CPU time (system):    5.52 s
+Process 1 received nonzeroes of Asparse (0 s)
+Process 1 allocated Asparse (0 s)
+Process 1 received prows of Asparse (0 s)
+Process 1 received pcols & pdata of Asparse (0.203 s)
+Before calculation of Schur complement in cluster processes
+===========================================================
+Virtual memory used:  609792 kb
+Resident set size:    439228 kb
+CPU time (user):      319.45 s
+CPU time (system):    5.89 s
+After calculation of Schur complement in cluster processes (with Asparse)
+=========================================================================
+Virtual memory used:  702040 kb
+Resident set size:    526408 kb
+CPU time (user):      381.51 s
+CPU time (system):    7.1 s
+At end of allocations in cluster processes (set_up_AI)
+======================================================
+Virtual memory used:  482100 kb
+Resident set size:    310560 kb
+CPU time (user):      390.99 s
+CPU time (system):    7.19 s

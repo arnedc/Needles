@@ -6,7 +6,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include "src/shared_var.h"
-#include <hdf5.h>
+//#include <hdf5.h>
 
 #include "CSRdouble.hpp"
 #include "ParDiSO.hpp"
@@ -421,9 +421,7 @@ int main ( int argc, char **argv ) {
             c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
             printf ( "\t elapsed wall time allocation of memory:		%10.3f s\n", ( c1 - c3 ) /1000000.0 );
         }
-        if ( datahdf5 )
-            info = set_up_BDY_hdf5 ( DESCD, Dmat, DESCB, Bmat, DESCYTOT, ytot, respnrm );
-        else
+
             info = set_up_BDY ( DESCD, Dmat, DESCB, Bmat, DESCYTOT, ytot, respnrm );
         if ( info!=0 ) {
             printf ( "Something went wrong with set-up of matrix D, error nr: %d\n",info );
@@ -555,15 +553,12 @@ int main ( int argc, char **argv ) {
                     }
                     gamma_var=gamma_var * ( 1+ * ( convergence_criterium+1 ) ); // Update for gamma
                 } else {
-                    gamma_var=gamma_var * ( 1 + * ( convergence_criterium+1 ) ); // Update for lambda (which is 1/gamma)
+                    gamma_var=gamma_var * ( 1 + * ( convergence_criterium+1 ) ); // Update for gamma
                     phi=phi* ( 1 + *convergence_criterium );
                     if(*(position+1)==0) {
                         gettimeofday ( &tz1,NULL );
                         c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
                     }
-                    if ( datahdf5 )
-                        info = set_up_D_hdf5 ( DESCD, Dmat );
-                    else
                         info = set_up_D ( DESCD, Dmat );
                     if ( info!=0 ) {
                         printf ( "Something went wrong with set-up of matrix D, error nr: %d\n",info );
@@ -890,9 +885,6 @@ int main ( int argc, char **argv ) {
             gettimeofday ( &tz1,NULL );
             c1= tz1.tv_sec*1000000 + ( tz1.tv_usec );
 
-            if ( datahdf5 )
-                info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
-            else
                 info = set_up_AI ( AImat,DESCDENSESOL, solution, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
             if ( info!=0 ) {
@@ -1091,9 +1083,7 @@ int main ( int argc, char **argv ) {
             printf ( "The relative update for gamma is: %g \n", * ( convergence_criterium+1 ) );
         }
         else {
-            if ( datahdf5 )
-                info = set_up_AI_hdf5 ( AImat,DESCDENSESOL, densesol, DESCD, Dmat, Asparse, DESCB, Bmat,sigma);
-            else
+
                 info = set_up_AI ( AImat,DESCDENSESOL, densesol, DESCD, Dmat, Asparse, DESCB, Bmat,sigma ) ;
 
             if ( info!=0 ) {
@@ -1217,7 +1207,7 @@ int main ( int argc, char **argv ) {
 
     //cout << "process " << iam << ": ntests=" << ntests << endl;
 
-    if ( ntests>0 ) {
+/*    if ( ntests>0 ) {
         if ( datahdf5 )
             info=crossvalidate_hdf5 ( ytot,DESCYTOT );
         else
@@ -1226,7 +1216,7 @@ int main ( int argc, char **argv ) {
             printf ( "Cross-validation was unsuccesful, error returned: %d\n",info );
             return -1;
         }
-    }
+    }*/
 
     //cout << "process " << iam << " Before output" << endl;
 

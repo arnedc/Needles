@@ -1,0 +1,627 @@
+
+
+*************************************************************************** 
+CONTAINS Runtime Modules of Parallel Sparse Linear Solver PARDISO Vers. 5.0
+Copyright Universita della Svizzera Italiana 2000-2014 All Rights Reserved.
+
+TIME-LIMITED ACADEMIC SINGLE-USER LICENSE: YOU ARE USING THE PARDISO SOLVER
+UNDER THE CONTROL OF AN ACADEMIC SINGLE-USER LICENSE. YOU AS  AN INDIVIDUAL
+MAY INSTALL AND USE PARDISO ON AN  UNLIMITED  NUMBER  OF COMPUTERS PROVIDED
+THAT YOU  ARE THE  ONLY INDIVIDUAL USING  THE  PARDISO SOLVER. THIS LICENSE
+IS TIED TO A SINGLE (IDENTICAL) USER NAME THAT YOU NEED ON THESE COMPUTERS.
+A SEPARATE LICENSE IS REQUIRED FOR EACH INDIVIDUAL USER IN ALL OTHER CASES.
+USI LUGANO  MAY  PROVIDE  YOU  WITH  A LICENSE  CODE KEY  THAT  ENABLES THE
+PARDISO  SOLVER  FOR  ADDITIONAL  USERS.   THE  DURATION  (TIME  PERIOD) OF
+YOUR LICENSE  AND  YOUR  ABILITY TO USE  THE PARDISO SOLVER  IS  LIMITED TO
+THE TIME PERIOD OF THE OBTAINED LICENSE, WHICH IS CONTROLLED BY THE LICENSE
+KEY CODE. THE ACADEMIC LICENSE PERMITS THE USE OF PARDISO ONLY FOR ACADEMIC
+RESEARCH. IF YOU ARE USING THE SOFTWARE FOR ANY OTHER  PURPOSE, YOU MAY  BE
+IN  AN UNLAWFUL VIOLATION  OF THE  TERMS  OF THIS  LICENSE,  AND  YOU  MUST
+OBTAIN  A VALID  ALTERNATIVE  LICENSE. 
+USI LUGANO DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+ALL IMPLIED   WARRANTIES  OF   MERCHANTABILITY  AND  FITNESS. IN  NO  EVENT
+SHALL USI  LUGANO  OR  ANY  OF  ITS  ENTITIES  BE  LIABLE FOR  ANY SPECIAL,
+INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER  RESULTING FROM
+LOSS OF USE, DATA OR PROFITS,  WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+OR OTHER TORTIOUS ACTION,  ARISING OUT OF OR IN  CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+       Please visit http://www.pardiso-project.org for more details.      
+
+
+*************************************************************************** 
+CONTAINS Runtime Modules of Parallel Sparse Linear Solver PARDISO Vers. 5.0
+Copyright Universita della Svizzera Italiana 2000-2014 All Rights Reserved.
+
+TIME-LIMITED ACADEMIC SINGLE-USER LICENSE: YOU ARE USING THE PARDISO SOLVER
+UNDER THE CONTROL OF AN ACADEMIC SINGLE-USER LICENSE. YOU AS  AN INDIVIDUAL
+MAY INSTALL AND USE PARDISO ON AN  UNLIMITED  NUMBER  OF COMPUTERS PROVIDED
+THAT YOU  ARE THE  ONLY INDIVIDUAL USING  THE  PARDISO SOLVER. THIS LICENSE
+IS TIED TO A SINGLE (IDENTICAL) USER NAME THAT YOU NEED ON THESE COMPUTERS.
+A SEPARATE LICENSE IS REQUIRED FOR EACH INDIVIDUAL USER IN ALL OTHER CASES.
+USI LUGANO  MAY  PROVIDE  YOU  WITH  A LICENSE  CODE KEY  THAT  ENABLES THE
+PARDISO  SOLVER  FOR  ADDITIONAL  USERS.   THE  DURATION  (TIME  PERIOD) OF
+YOUR LICENSE  AND  YOUR  ABILITY TO USE  THE PARDISO SOLVER  IS  LIMITED TO
+THE TIME PERIOD OF THE OBTAINED LICENSE, WHICH IS CONTROLLED BY THE LICENSE
+KEY CODE. THE ACADEMIC LICENSE PERMITS THE USE OF PARDISO ONLY FOR ACADEMIC
+RESEARCH. IF YOU ARE USING THE SOFTWARE FOR ANY OTHER  PURPOSE, YOU MAY  BE
+IN  AN UNLAWFUL VIOLATION  OF THE  TERMS  OF THIS  LICENSE,  AND  YOU  MUST
+OBTAIN  A VALID  ALTERNATIVE  LICENSE. 
+USI LUGANO DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+ALL IMPLIED   WARRANTIES  OF   MERCHANTABILITY  AND  FITNESS. IN  NO  EVENT
+SHALL USI  LUGANO  OR  ANY  OF  ITS  ENTITIES  BE  LIABLE FOR  ANY SPECIAL,
+INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER  RESULTING FROM
+LOSS OF USE, DATA OR PROFITS,  WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+OR OTHER TORTIOUS ACTION,  ARISING OUT OF OR IN  CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+       Please visit http://www.pardiso-project.org for more details.      
+
+
+*************************************************************************** 
+CONTAINS Runtime Modules of Parallel Sparse Linear Solver PARDISO Vers. 5.0
+Copyright Universita della Svizzera Italiana 2000-2014 All Rights Reserved.
+
+TIME-LIMITED ACADEMIC SINGLE-USER LICENSE: YOU ARE USING THE PARDISO SOLVER
+UNDER THE CONTROL OF AN ACADEMIC SINGLE-USER LICENSE. YOU AS  AN INDIVIDUAL
+MAY INSTALL AND USE PARDISO ON AN  UNLIMITED  NUMBER  OF COMPUTERS PROVIDED
+THAT YOU  ARE THE  ONLY INDIVIDUAL USING  THE  PARDISO SOLVER. THIS LICENSE
+IS TIED TO A SINGLE (IDENTICAL) USER NAME THAT YOU NEED ON THESE COMPUTERS.
+A SEPARATE LICENSE IS REQUIRED FOR EACH INDIVIDUAL USER IN ALL OTHER CASES.
+USI LUGANO  MAY  PROVIDE  YOU  WITH  A LICENSE  CODE KEY  THAT  ENABLES THE
+PARDISO  SOLVER  FOR  ADDITIONAL  USERS.   THE  DURATION  (TIME  PERIOD) OF
+YOUR LICENSE  AND  YOUR  ABILITY TO USE  THE PARDISO SOLVER  IS  LIMITED TO
+THE TIME PERIOD OF THE OBTAINED LICENSE, WHICH IS CONTROLLED BY THE LICENSE
+KEY CODE. THE ACADEMIC LICENSE PERMITS THE USE OF PARDISO ONLY FOR ACADEMIC
+RESEARCH. IF YOU ARE USING THE SOFTWARE FOR ANY OTHER  PURPOSE, YOU MAY  BE
+IN  AN UNLAWFUL VIOLATION  OF THE  TERMS  OF THIS  LICENSE,  AND  YOU  MUST
+OBTAIN  A VALID  ALTERNATIVE  LICENSE. 
+USI LUGANO DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+ALL IMPLIED   WARRANTIES  OF   MERCHANTABILITY  AND  FITNESS. IN  NO  EVENT
+SHALL USI  LUGANO  OR  ANY  OF  ITS  ENTITIES  BE  LIABLE FOR  ANY SPECIAL,
+INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER  RESULTING FROM
+LOSS OF USE, DATA OR PROFITS,  WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+OR OTHER TORTIOUS ACTION,  ARISING OUT OF OR IN  CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+       Please visit http://www.pardiso-project.org for more details.      
+
+
+*************************************************************************** 
+CONTAINS Runtime Modules of Parallel Sparse Linear Solver PARDISO Vers. 5.0
+Copyright Universita della Svizzera Italiana 2000-2014 All Rights Reserved.
+
+TIME-LIMITED ACADEMIC SINGLE-USER LICENSE: YOU ARE USING THE PARDISO SOLVER
+UNDER THE CONTROL OF AN ACADEMIC SINGLE-USER LICENSE. YOU AS  AN INDIVIDUAL
+MAY INSTALL AND USE PARDISO ON AN  UNLIMITED  NUMBER  OF COMPUTERS PROVIDED
+THAT YOU  ARE THE  ONLY INDIVIDUAL USING  THE  PARDISO SOLVER. THIS LICENSE
+IS TIED TO A SINGLE (IDENTICAL) USER NAME THAT YOU NEED ON THESE COMPUTERS.
+A SEPARATE LICENSE IS REQUIRED FOR EACH INDIVIDUAL USER IN ALL OTHER CASES.
+USI LUGANO  MAY  PROVIDE  YOU  WITH  A LICENSE  CODE KEY  THAT  ENABLES THE
+PARDISO  SOLVER  FOR  ADDITIONAL  USERS.   THE  DURATION  (TIME  PERIOD) OF
+YOUR LICENSE  AND  YOUR  ABILITY TO USE  THE PARDISO SOLVER  IS  LIMITED TO
+THE TIME PERIOD OF THE OBTAINED LICENSE, WHICH IS CONTROLLED BY THE LICENSE
+KEY CODE. THE ACADEMIC LICENSE PERMITS THE USE OF PARDISO ONLY FOR ACADEMIC
+RESEARCH. IF YOU ARE USING THE SOFTWARE FOR ANY OTHER  PURPOSE, YOU MAY  BE
+IN  AN UNLAWFUL VIOLATION  OF THE  TERMS  OF THIS  LICENSE,  AND  YOU  MUST
+OBTAIN  A VALID  ALTERNATIVE  LICENSE. 
+USI LUGANO DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+ALL IMPLIED   WARRANTIES  OF   MERCHANTABILITY  AND  FITNESS. IN  NO  EVENT
+SHALL USI  LUGANO  OR  ANY  OF  ITS  ENTITIES  BE  LIABLE FOR  ANY SPECIAL,
+INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER  RESULTING FROM
+LOSS OF USE, DATA OR PROFITS,  WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+OR OTHER TORTIOUS ACTION,  ARISING OUT OF OR IN  CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+       Please visit http://www.pardiso-project.org for more details.      
+size of size_t: 8
+size of int: 4
+number of observations:   	 800
+number of SNP effects:    	 1575
+number of random effects: 	 15750
+number of fixed effects:  	 10
+filename of fixed effects (sparse):           	 fixed_20penv_10env.csr
+filename of random (non-SNP) effects (sparse):	 QTL_GxE_20penv_10env.csr
+Dataset files are binary files
+filename of SNP dataset:                      	 QTL_densegeno_20penv_10env.bin
+filename of phenotype dataset:                	 Phenotypes_20penv_10env.bin
+The coefficient matrix will be read in at the beginning of every iteration to save memory
+B will be treated as a dense matrix
+Blocksize of 64 was used to distribute matrices across processes
+Start value of 0.001 was used to estimate variance component lambda
+Start value of 0.001 was used to estimate variance component phi
+Convergence criterium of 0.01 was used to estimate variance component lambda
+Maximum number of REML iterations : 20
+No cross-validation is performed
+Reading of input-file succesful
+
+A linear mixed model with 800 observations, 15750 random effects, 1575 SNP effects and 10 fixed effects
+was analyzed using 4 (1 x 4) processors
+	 elapsed wall time allocation of memory:		     0.000 s
+Responses were read in correctly.
+Read-in of Tblock: 0.038 secs
+dense multiplications of Tblock: 0.489 secs
+Creation of ZtT & XtT: 8.569 secs
+Assignments with Tblock finished in: 9.098 secs
+Creation of XtY and ZtY: 9.102 secs
+	 elapsed wall time set-up of D, B and Y:			     9.565 s
+	 elapsed wall time copy of Y (and C):			     0.000 s
+
+Parallel results: loop 1
+=========================
+	 elapsed wall time norm and max of C:			     0.036 s
+The new variance components gamma and phi are:           0.001 	           0.001
+norm of y-vector is: 6589.34
+	 elapsed wall time for creating sparse matrix A:			     1.089 s
+Fill in of Asparse: 4.36183 % 
+	 elapsed wall time for receiving sparse matrix A:			     2.054 s
+Solving system Ax_u = y_u on process 0
+Solving systems AX_j = B_j on all processes
+
+================  PARDISO: solving a symmetric indef.  system  ================
+
+
+Summary PARDISO 5.0.0: ( factorize to factorize )
+=======================
+
+Times:
+======
+
+      Time A to LU: 0.000000 s
+      Time numfct : 3.951790 s
+      Time malloc : -0.000245 s
+      Time total  : 3.952126 s total - sum: 0.000581 s
+
+Statistics:
+===========
+ < Parallel Direct Factorization with #cores: >              1
+ <                                and #nodes: >              1
+ < Numerical Factorization with Level-3 BLAS performance >
+
+ < Linear system Ax = b>
+             #equations:                                     15760
+             #non-zeros in A:                                10833816
+             non-zeros in A (%):                             4.361833
+             #right-hand sides:                              1
+
+< Factors L and U >
+             #columns for each panel:                        80
+             # of independent subgraphs:                     0
+ < preprocessing with state of the art partitioning metis>
+             #supernodes:                                    1289
+             size of largest supernode:                      1385
+             number of nonzeros in L                         11900995
+             number of nonzeros in U                         1
+             number of nonzeros in L+U                       1.1901e+07
+             number of perturbed pivots                      0
+             number of nodes in solve                        15760
+             Gflop   for the numerical factorization:        11.873139
+             Gflop/s for the numerical factorization:        3.004496
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Initialization phase: 8.69e+00 sec
+Factorization  phase: 4.00e+00 sec
+Solution       phase: 1.05e-01 sec
+Systems AX_j = B_j solved on all processes
+Time for multiplying BT_i and Y_j: 29.045 sec
+	 elapsed wall time for creating Schur complement of D:			    76.832 s
+	 elapsed wall time Cholesky decomposition of D:		     0.256 s
+	 elapsed wall time estimation of dense effects:		     0.011 s
+Solving system Au=y_u - Bd on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 9.90e-02 sec
+Half of the log of determinant of A is: 54686.1
+dot product : 6174.51 
+ sigma: 0.525091
+Half of the log of determinant of D is: 5570.29
+Half of the log of determinant of entire matrix C is: 60256.4
+	 elapsed wall time calculation and sending of sigma and log(det(M)):	     0.116 s
+Solving system AQsol_1,2 = Q_1,2 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 9.90e-02 sec
+Solving system AQsol_1,3 = Q_1,3 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 9.90e-02 sec
+Solving system AQsol_1,2 = Q_1,2 - B Qsol_2,2 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 9.90e-02 sec
+Solving system AQsol_1,3 = Q_1,3 - B Qsol_2,3 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 9.80e-02 sec
+	 elapsed wall time set up of AI matrix:			     1.292 s
+	 elapsed wall time inverse of D:			     1.722 s
+	 elapsed wall time inversion of sparse A:		     9.967 s
+Processor 0 inverted matrix A
+	 elapsed wall time set norm of estimation of u and d:		    17.431 s
+dot product =     6174.513902 
+parallel sigma =     0.525090551
+The trace of the (1,1) block of the inverse of M is:     15.47113102 
+The trace of the (2,2) block of the inverse of M is:     1.380121548 
+The norm of the estimation of u and d is: 0.377528 and 0.325429 
+The score function is: [0, -3717.38, 3404.34]
+The loglikelihood is: -558.472
+score function solved
+	 elapsed wall time update for lambda:			     0.007 s
+The update for sigma is: 0.0603855 
+The update for phi is: -0.000378525 
+The update for gamma is: 5.89753e-05 
+The relative update for phi is: -0.378525 
+The relative update for gamma is: 0.0589753 
+	 elapsed wall time set norm of inverse of C:		    27.094 s
+	 elapsed wall time sending and receiving update lambda:	     0.003 s
+	 elapsed wall time iteration loop 1:			   108.007 s
+
+Parallel results: loop 2
+=========================
+	 elapsed wall time set-up of D:			     0.557 s
+	 elapsed wall time norm and max of C:			     0.040 s
+The new variance components gamma and phi are:  0.001058975285 	 0.0006214747644
+norm of y-vector is: 6589.34
+	 elapsed wall time for creating sparse matrix A:			     1.091 s
+Fill in of Asparse: 4.36183 % 
+	 elapsed wall time for receiving sparse matrix A:			     1.513 s
+Solving system Ax_u = y_u on process 0
+Solving systems AX_j = B_j on all processes
+
+================  PARDISO: solving a symmetric indef.  system  ================
+
+
+Summary PARDISO 5.0.0: ( factorize to factorize )
+=======================
+
+Times:
+======
+
+      Time A to LU: 0.000000 s
+      Time numfct : 4.488813 s
+      Time malloc : -0.000186 s
+      Time total  : 4.489114 s total - sum: 0.000487 s
+
+Statistics:
+===========
+ < Parallel Direct Factorization with #cores: >              1
+ <                                and #nodes: >              1
+ < Numerical Factorization with Level-3 BLAS performance >
+
+ < Linear system Ax = b>
+             #equations:                                     15760
+             #non-zeros in A:                                10833816
+             non-zeros in A (%):                             4.361833
+             #right-hand sides:                              1
+
+< Factors L and U >
+             #columns for each panel:                        80
+             # of independent subgraphs:                     0
+ < preprocessing with state of the art partitioning metis>
+             #supernodes:                                    1289
+             size of largest supernode:                      1385
+             number of nonzeros in L                         11900995
+             number of nonzeros in U                         1
+             number of nonzeros in L+U                       1.1901e+07
+             number of perturbed pivots                      0
+             number of nodes in solve                        15760
+             Gflop   for the numerical factorization:        11.873139
+             Gflop/s for the numerical factorization:        2.645051
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Initialization phase: 1.04e+01 sec
+Factorization  phase: 4.58e+00 sec
+Solution       phase: 1.28e-01 sec
+Systems AX_j = B_j solved on all processes
+Time for multiplying BT_i and Y_j: 7.026 sec
+	 elapsed wall time for creating Schur complement of D:			    79.215 s
+	 elapsed wall time Cholesky decomposition of D:		     0.470 s
+	 elapsed wall time estimation of dense effects:		     0.003 s
+Solving system Au=y_u - Bd on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 9.90e-02 sec
+Half of the log of determinant of A is: 58352.8
+dot product : 6118.11 
+ sigma: 0.596483
+Half of the log of determinant of D is: 5553.25
+Half of the log of determinant of entire matrix C is: 63906
+	 elapsed wall time calculation and sending of sigma and log(det(M)):	     0.116 s
+Solving system AQsol_1,2 = Q_1,2 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.00e-01 sec
+Solving system AQsol_1,3 = Q_1,3 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.00e-01 sec
+Solving system AQsol_1,2 = Q_1,2 - B Qsol_2,2 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.00e-01 sec
+Solving system AQsol_1,3 = Q_1,3 - B Qsol_2,3 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.00e-01 sec
+	 elapsed wall time set up of AI matrix:			     2.355 s
+	 elapsed wall time inverse of D:			     4.042 s
+	 elapsed wall time inversion of sparse A:		     8.980 s
+Processor 0 inverted matrix A
+	 elapsed wall time set norm of inverse of C:		    27.081 s
+	 elapsed wall time set norm of estimation of u and d:		    20.656 s
+dot product =     6118.113624 
+parallel sigma =    0.5964833074
+The trace of the (1,1) block of the inverse of M is:     9.662021454 
+The trace of the (2,2) block of the inverse of M is:     1.429160609 
+The norm of the estimation of u and d is: 0.275604 and 0.376487 
+The score function is: [0, 1470.97, -488.467]
+The update for the loglikelihood is: 0.673574
+The new loglikelihood is: -557.798
+score function solved
+	 elapsed wall time update for lambda:			     0.000 s
+The update for sigma is: -0.0312027 
+The update for phi is: 0.000106325 
+The update for gamma is: 2.95889e-05 
+The relative update for phi is: 0.171085 
+The relative update for gamma is: 0.027941 
+	 elapsed wall time sending and receiving update lambda:	     0.000 s
+	 elapsed wall time iteration loop 2:			   113.909 s
+
+Parallel results: loop 3
+=========================
+	 elapsed wall time set-up of D:			     0.506 s
+	 elapsed wall time norm and max of C:			     0.035 s
+The new variance components gamma and phi are:   0.00108856414 	 0.0007277999233
+norm of y-vector is: 6589.34
+	 elapsed wall time for creating sparse matrix A:			     1.296 s
+Fill in of Asparse: 4.36183 % 
+	 elapsed wall time for receiving sparse matrix A:			     1.949 s
+Solving system Ax_u = y_u on process 0
+Solving systems AX_j = B_j on all processes
+
+================  PARDISO: solving a symmetric indef.  system  ================
+
+
+Summary PARDISO 5.0.0: ( factorize to factorize )
+=======================
+
+Times:
+======
+
+      Time A to LU: 0.000000 s
+      Time numfct : 8.658342 s
+      Time malloc : -0.109258 s
+      Time total  : 8.767749 s total - sum: 0.218665 s
+
+Statistics:
+===========
+ < Parallel Direct Factorization with #cores: >              1
+ <                                and #nodes: >              1
+ < Numerical Factorization with Level-3 BLAS performance >
+
+ < Linear system Ax = b>
+             #equations:                                     15760
+             #non-zeros in A:                                10833816
+             non-zeros in A (%):                             4.361833
+             #right-hand sides:                              1
+
+< Factors L and U >
+             #columns for each panel:                        80
+             # of independent subgraphs:                     0
+ < preprocessing with state of the art partitioning metis>
+             #supernodes:                                    1289
+             size of largest supernode:                      1385
+             number of nonzeros in L                         11900995
+             number of nonzeros in U                         1
+             number of nonzeros in L+U                       1.1901e+07
+             number of perturbed pivots                      0
+             number of nodes in solve                        15760
+             Gflop   for the numerical factorization:        11.873139
+             Gflop/s for the numerical factorization:        1.371295
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Initialization phase: 1.48e+01 sec
+Factorization  phase: 8.83e+00 sec
+Solution       phase: 9.80e-02 sec
+Systems AX_j = B_j solved on all processes
+Time for multiplying BT_i and Y_j: 6.473 sec
+	 elapsed wall time for creating Schur complement of D:			    85.143 s
+	 elapsed wall time Cholesky decomposition of D:		     0.590 s
+	 elapsed wall time estimation of dense effects:		     0.004 s
+Solving system Au=y_u - Bd on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.00e-01 sec
+Half of the log of determinant of A is: 57133.1
+dot product : 6141.39 
+ sigma: 0.567016
+Half of the log of determinant of D is: 5527.5
+Half of the log of determinant of entire matrix C is: 62660.6
+	 elapsed wall time calculation and sending of sigma and log(det(M)):	     0.117 s
+Solving system AQsol_1,2 = Q_1,2 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.00e-01 sec
+Solving system AQsol_1,3 = Q_1,3 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 9.90e-02 sec
+Solving system AQsol_1,2 = Q_1,2 - B Qsol_2,2 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.00e-01 sec
+Solving system AQsol_1,3 = Q_1,3 - B Qsol_2,3 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.00e-01 sec
+	 elapsed wall time set up of AI matrix:			     1.379 s
+	 elapsed wall time inverse of D:			     2.048 s
+	 elapsed wall time inversion of sparse A:		     9.831 s
+Processor 0 inverted matrix A
+	 elapsed wall time set norm of estimation of u and d:		    17.402 s
+dot product =     6141.392775 
+parallel sigma =    0.5670160278
+The trace of the (1,1) block of the inverse of M is:     11.29942922 
+The trace of the (2,2) block of the inverse of M is:     1.473617328 
+The norm of the estimation of u and d is: 0.304259 and 0.369435 
+The score function is: [0, -146.928, -70.976]
+The update for the loglikelihood is: 0.0582784
+The new loglikelihood is: -557.74
+score function solved
+	 elapsed wall time update for lambda:			     0.025 s
+The update for sigma is: 0.00614185 
+The update for phi is: -1.89528e-05 
+The update for gamma is: -1.33681e-05 
+The relative update for phi is: -0.0260413 
+The relative update for gamma is: -0.0122805 
+	 elapsed wall time set norm of inverse of C:		    26.715 s
+	 elapsed wall time sending and receiving update lambda:	     0.020 s
+	 elapsed wall time iteration loop 3:			   117.002 s
+
+Parallel results: loop 4
+=========================
+	 elapsed wall time set-up of D:			     0.491 s
+	 elapsed wall time norm and max of C:			     0.035 s
+The new variance components gamma and phi are:  0.001075196005 	 0.0007088470758
+norm of y-vector is: 6589.34
+	 elapsed wall time for creating sparse matrix A:			     1.102 s
+Fill in of Asparse: 4.36183 % 
+	 elapsed wall time for receiving sparse matrix A:			     1.665 s
+Solving system Ax_u = y_u on process 0
+Solving systems AX_j = B_j on all processes
+
+================  PARDISO: solving a symmetric indef.  system  ================
+
+
+Summary PARDISO 5.0.0: ( factorize to factorize )
+=======================
+
+Times:
+======
+
+      Time A to LU: 0.000000 s
+      Time numfct : 4.168680 s
+      Time malloc : -0.111225 s
+      Time total  : 4.280035 s total - sum: 0.222580 s
+
+Statistics:
+===========
+ < Parallel Direct Factorization with #cores: >              1
+ <                                and #nodes: >              1
+ < Numerical Factorization with Level-3 BLAS performance >
+
+ < Linear system Ax = b>
+             #equations:                                     15760
+             #non-zeros in A:                                10833816
+             non-zeros in A (%):                             4.361833
+             #right-hand sides:                              1
+
+< Factors L and U >
+             #columns for each panel:                        80
+             # of independent subgraphs:                     0
+ < preprocessing with state of the art partitioning metis>
+             #supernodes:                                    1289
+             size of largest supernode:                      1385
+             number of nonzeros in L                         11900995
+             number of nonzeros in U                         1
+             number of nonzeros in L+U                       1.1901e+07
+             number of perturbed pivots                      0
+             number of nodes in solve                        15760
+             Gflop   for the numerical factorization:        11.873139
+             Gflop/s for the numerical factorization:        2.848177
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Initialization phase: 1.65e+01 sec
+Factorization  phase: 4.51e+00 sec
+Solution       phase: 8.10e-02 sec
+Systems AX_j = B_j solved on all processes
+Time for multiplying BT_i and Y_j: 6.736 sec
+	 elapsed wall time for creating Schur complement of D:			   113.211 s
+	 elapsed wall time Cholesky decomposition of D:		     1.634 s
+	 elapsed wall time estimation of dense effects:		     0.004 s
+Solving system Au=y_u - Bd on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.00e-01 sec
+Half of the log of determinant of A is: 57336.7
+dot product : 6136.48 
+ sigma: 0.573231
+Half of the log of determinant of D is: 5537.09
+Half of the log of determinant of entire matrix C is: 62873.8
+	 elapsed wall time calculation and sending of sigma and log(det(M)):	     0.118 s
+Solving system AQsol_1,2 = Q_1,2 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 9.80e-02 sec
+Solving system AQsol_1,3 = Q_1,3 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 9.90e-02 sec
+Solving system AQsol_1,2 = Q_1,2 - B Qsol_2,2 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.03e-01 sec
+Solving system AQsol_1,3 = Q_1,3 - B Qsol_2,3 on process 0
+-------------------------------
+T I M I N G         R E P O R T
+-------------------------------
+Solution       phase: 1.01e-01 sec
+	 elapsed wall time set up of AI matrix:			     5.484 s
+	 elapsed wall time inverse of D:			     8.123 s
+	 elapsed wall time inversion of sparse A:		     7.525 s
+Processor 0 inverted matrix A
+	 elapsed wall time set norm of estimation of u and d:		    21.118 s
+dot product =     6136.483232 
+parallel sigma =    0.5732306391
+The trace of the (1,1) block of the inverse of M is:     11.00751205 
+The trace of the (2,2) block of the inverse of M is:     1.455708104 
+The norm of the estimation of u and d is: 0.299871 and 0.369156 
+The score function is: [0, 40.7612, 3.4254]
+The update for the loglikelihood is: 0.00147448
+The new loglikelihood is: -557.738
+score function solved
+	 elapsed wall time update for lambda:			     0.001 s
+The update for sigma is: -0.00131934 
+The update for phi is: 4.30469e-06 
+The update for gamma is: 2.30652e-06 
+	 elapsed wall time set norm of inverse of C:		    26.131 s
+The relative update for phi is: 0.0060728 
+The relative update for gamma is: 0.00214521 
+	 elapsed wall time sending and receiving update lambda:	     0.035 s
+	 elapsed wall time iteration loop 4:			   151.334 s
+
+	Overall results:
+	================
+	The ultimate gamma is:                0.001075196005
+	The ultimate phi is:               0.0007088470758
+	The ultimate sigma is:                   0.5732306391
+	elapsed total wall time:                 499.830 s
+	Processor: 0 
+	 ========================
+	Virtual memory used:                      334984 kb
+	Resident set size:                        160204 kb
+	CPU time (user):                         416.860 s
+	CPU time (system):                        20.510 s

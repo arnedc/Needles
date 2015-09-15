@@ -1,0 +1,63 @@
+/Default input file for Needles.
+/Comment lines are started with a 'slash', /
+/The order of the parameters is not important, but some are mandatory.
+/filenames can start with a slash to include absolute paths.
+
+/Number of observations (mandatory)
+#Observations
+800
+
+/Number of SNPs (mandatory)
+#SNPs
+1575
+
+/number of fixed effects (mandatory)
+#FixedEffects
+10
+
+/number of random (non-SNP) effects (mandatory)
+#RandomEffects
+15750
+
+/filename of the incidence matrix of the fixed effects (csr format, mandatory) 
+#FileFixedEffects
+fixed_20penv_10env.csr
+
+/filename of the incidence matrix of the random (non-SNP) effects (csr format, mandatory) 
+#FileRandomEffects
+QTL_GxE_20penv_10env.csr
+
+/Filename of the SNP data file (mandatory, binary)
+#SNPDataFile
+QTL_densegeno_20penv_10env.bin
+
+/Filename of the pheno data file (mandatory, binary)
+#PhenoDataFile
+Phenotypes_20penv_10env.bin
+
+/If enough memory is available one can store the dense part of the coefficient matrix during the entire computation
+/This option reduces execution time since the coefficient matrix no longer is set up at the beginning of every iteration
+/(0: don't keep copy; 1: keep copy) (optional, default=0)
+#KeepCopyOfCMatrix
+0
+
+/size of the blocks in which the matrix is distributed (optional, default=64)
+#BlockSize
+64
+
+/start value of variance ratio gamma of the SNP marker effects to be estimated (optional, default=0.01)
+#Gamma
+0.001
+
+/start value of variance ratio phi of the non-SNP effects to be estimated (optional, default=0.01)
+#Phi
+0.001
+
+/convergence criterion (optional, default=0.01)
+#Epsilon
+0.01
+
+/maximum number of iterations (optional, default=20)
+#MaximumIterations
+20
+
