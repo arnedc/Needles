@@ -51,8 +51,8 @@ Next to the result files, two files are given as output that monitor memory usag
 
 # Version history
 
-* Version 0.1 (12/2013):
-  1. First public release of DAIRRy-BLUP
+* Version 0.1 (09/2015):
+  1. First public release of Needles
 
 # Contact
 
