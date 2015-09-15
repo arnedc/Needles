@@ -36,6 +36,7 @@ Needles only needs an input file to start. A default input file is provided: `de
 
 To launch Needles with the default input file using for example 4 processes, the following command should be entered in the `build` directory:
 `mpirun -np 4 ./DAIRRy-BLUP defaultinput.txt`
+At least 2 MPI processes should be initialised, because all sparse operations are performed by a single MPI process, while the other MPI processes are used to handle the dense operations.
 
 # Output
 
@@ -46,10 +47,12 @@ Needles creates 3 output-files with the estimates/predictors for the different e
 
 Both random effects can be chosen by the user to model something else than genetic effects and their environmental interaction, but up until now one of the random effects should result in a sparse part of the coefficient matrix and the other shoudl result in a dense part. Also, both random effects can have a different variance, but the variandce is homoscedastic for each of the random effects, meaning that the variance of each random effect so modeled as a constant diagonal matrix. 
 
+Next to the result files, two files are given as output that monitor memory usage in the root node, which performs all the operations on the sparse part of the system (`root_output.txt`), and in the other nodes, performing all operations on the dense part of the system (`cluster_output.txt`).
+
 # Version history
 
-* Version 0.1 (12/2013):
-  1. First public release of DAIRRy-BLUP
+* Version 0.1 (09/2015):
+  1. First public release of Needles
 
 # Contact
 
