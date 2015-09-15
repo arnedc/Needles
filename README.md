@@ -34,9 +34,11 @@ Currently, compilation will only work with the Intel MKL libraries installed. Wh
 
 Needles only needs an input file to start. A default input file is provided: `defaultinput.txt`, more information on the arguments in the input-file can be found on the wiki.
 
-To launch Needles with the default input file using for example 4 processes, the following command should be entered in the `build` directory:
-`mpirun -np 4 ./DAIRRy-BLUP defaultinput.txt`
+## Example
+To test Needles with a default example, the following command should be entered in the `example` directory:
+`mpirun -np 4 ../build/Needles GxE_20penv_QTL_input.txt`
 At least 2 MPI processes should be initialised, because all sparse operations are performed by a single MPI process, while the other MPI processes are used to handle the dense operations.
+This test-case is one of the many test cases as described in the research article `Needles: towards large-scale genomic prediction with marker-by-environment interaction` and it analyses 800 observations, genotyped with 1575 QTL markers and evaluated at 10 different environments. The simulated QTL effects are in the file `QTL_summary_20penv_10env.txt` and the different ocntirbutions to the final phenotypic values are in the file `Observations_summary_lowvar_20penv_10env.txt`. When Needles is working correctly, the output should be exactly the same as in the files starting with `correct_`. An example of the output that is produced by Needles is in the file `Needles_out_4procs.txt`.
 
 # Output
 
